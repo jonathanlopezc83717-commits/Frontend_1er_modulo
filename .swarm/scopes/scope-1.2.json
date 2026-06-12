@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "taskId": "1.2",
+  "declaredAt": 1780594432708,
+  "expiresAt": 1780680832708,
+  "files": [
+    "src/types/index.ts",
+    "src/lib/openrouter.ts",
+    "src/App.tsx"
+  ]
+}

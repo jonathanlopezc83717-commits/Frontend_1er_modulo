@@ -1,0 +1,875 @@
+{
+  "schema_version": "1.0.0",
+  "workspaceRoot": "C:\\Users\\YOGA-01\\Documents\\Frontend",
+  "nodes": {
+    "C:/Users/YOGA-01/Documents/Frontend/eslint.config.js": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\eslint.config.js",
+      "moduleName": "eslint.config.js",
+      "exports": [
+        "tseslint"
+      ],
+      "imports": [
+        "@eslint/js",
+        "globals",
+        "eslint-plugin-react-hooks",
+        "eslint-plugin-react-refresh",
+        "typescript-eslint"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-04T18:25:31.348Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/App.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\App.tsx",
+      "moduleName": "src/App.tsx",
+      "exports": [
+        "App"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/GestorPuntos",
+        "@/components/ModuleTabs",
+        "@/components/HistorialObras",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/separator",
+        "lucide-react",
+        "react",
+        "@/components/ui/dialog",
+        "@/components/ui/button",
+        "sonner"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T23:06:16.608Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/AnalysisResult.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\AnalysisResult.tsx",
+      "moduleName": "src/components/AnalysisResult.tsx",
+      "exports": [
+        "AnalysisResult"
+      ],
+      "imports": [
+        "lucide-react",
+        "react",
+        "@/components/ui/dialog"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:32:55.637Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/DiagnosticoHistorial.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\DiagnosticoHistorial.tsx",
+      "moduleName": "src/components/DiagnosticoHistorial.tsx",
+      "exports": [
+        "DiagnosticoHistorial"
+      ],
+      "imports": [
+        "react",
+        "@/lib/supabase",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-04T22:58:02.533Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/GaleriaFotos.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\GaleriaFotos.tsx",
+      "moduleName": "src/components/GaleriaFotos.tsx",
+      "exports": [
+        "GaleriaFotos"
+      ],
+      "imports": [
+        "react",
+        "@/components/ui/dialog",
+        "@/components/ui/button",
+        "@/components/ui/badge",
+        "@/components/ui/checkbox",
+        "@/components/ui/scroll-area",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-08T19:59:19.530Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/GestorPuntos.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\GestorPuntos.tsx",
+      "moduleName": "src/components/GestorPuntos.tsx",
+      "exports": [
+        "GestorPuntos"
+      ],
+      "imports": [
+        "react",
+        "@/context/AppContext",
+        "@/lib/folder-parser",
+        "@/components/ui/button",
+        "@/components/ui/input",
+        "@/components/ui/textarea",
+        "@/components/ui/badge",
+        "@/components/ui/scroll-area",
+        "@/components/ui/separator",
+        "@/components/ui/dialog",
+        "@/components/ui/select",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T23:39:33.951Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
+      "moduleName": "src/components/HistorialObras.tsx",
+      "exports": [
+        "HistorialObras"
+      ],
+      "imports": [
+        "react",
+        "@/lib/supabase-service",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/scroll-area",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T23:24:04.663Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ImageUploader.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ImageUploader.tsx",
+      "moduleName": "src/components/ImageUploader.tsx",
+      "exports": [
+        "ImageItem"
+      ],
+      "imports": [
+        "react",
+        "react-dropzone",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-04T18:25:31.361Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ModelSelector.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModelSelector.tsx",
+      "moduleName": "src/components/ModelSelector.tsx",
+      "exports": [
+        "ModelSelector"
+      ],
+      "imports": [
+        "@/lib/openrouter",
+        "lucide-react",
+        "react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-04T18:25:31.365Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ModuleTabs.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "moduleName": "src/components/ModuleTabs.tsx",
+      "exports": [
+        "ModuleTabs"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/types",
+        "@/components/ui/tabs",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "lucide-react",
+        "./modulos/ModuloAnalisis",
+        "./modulos/ModuloGeoreferencia",
+        "./modulos/ModuloDocumentacion",
+        "./modulos/ModuloNomenclaturas",
+        "./modulos/ModuloInspeccion",
+        "./modulos/ModuloMateriales",
+        "./modulos/ModuloSeguridad",
+        "./modulos/ModuloAmbiental",
+        "./modulos/ModuloReportes"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T23:08:36.338Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
+      "moduleName": "src/components/modulos/ModuloAmbiental.tsx",
+      "exports": [
+        "ModuloAmbiental"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/input",
+        "@/components/ui/textarea",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/scroll-area",
+        "@/components/ui/separator",
+        "lucide-react",
+        "react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:45:31.128Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAnalisis.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAnalisis.tsx",
+      "moduleName": "src/components/modulos/ModuloAnalisis.tsx",
+      "exports": [
+        "ModuloAnalisis"
+      ],
+      "imports": [
+        "react",
+        "@/context/AppContext",
+        "@/components/ImageUploader",
+        "@/components/AnalysisResult",
+        "@/components/ModelSelector",
+        "@/components/ProgressBar",
+        "@/components/GaleriaFotos",
+        "@/lib/openrouter",
+        "@/lib/supabase",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/alert",
+        "@/components/ui/scroll-area",
+        "@/components/ui/separator",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:45:57.085Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloDocumentacion.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloDocumentacion.tsx",
+      "moduleName": "src/components/modulos/ModuloDocumentacion.tsx",
+      "exports": [
+        "ModuloDocumentacion"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/textarea",
+        "@/components/ui/card",
+        "@/components/ui/label",
+        "@/components/ui/badge",
+        "@/components/ui/separator",
+        "@/components/ui/scroll-area",
+        "lucide-react",
+        "react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T18:49:07.357Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
+      "moduleName": "src/components/modulos/ModuloGeoreferencia.tsx",
+      "exports": [
+        "ModuloGeoreferencia"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/input",
+        "@/components/ui/textarea",
+        "@/components/ui/card",
+        "@/components/ui/label",
+        "lucide-react",
+        "react",
+        "@/lib/folder-parser",
+        "@/components/ui/scroll-area"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:33:50.138Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloInspeccion.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloInspeccion.tsx",
+      "moduleName": "src/components/modulos/ModuloInspeccion.tsx",
+      "exports": [
+        "ModuloInspeccion"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/textarea",
+        "@/components/ui/label",
+        "lucide-react",
+        "react",
+        "@/components/ui/scroll-area"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:36:08.595Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloMateriales.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloMateriales.tsx",
+      "moduleName": "src/components/modulos/ModuloMateriales.tsx",
+      "exports": [
+        "ModuloMateriales"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/input",
+        "@/components/ui/card",
+        "@/components/ui/select",
+        "lucide-react",
+        "react",
+        "@/components/ui/scroll-area"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:37:18.466Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
+      "moduleName": "src/components/modulos/ModuloNomenclaturas.tsx",
+      "exports": [
+        "ModuloNomenclaturas"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/input",
+        "@/components/ui/card",
+        "@/components/ui/badge",
+        "@/components/ui/separator",
+        "@/components/ui/scroll-area",
+        "lucide-react",
+        "react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T18:48:09.908Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloReportes.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloReportes.tsx",
+      "moduleName": "src/components/modulos/ModuloReportes.tsx",
+      "exports": [
+        "ModuloReportes"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/separator",
+        "lucide-react",
+        "@/components/ui/scroll-area"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:38:30.123Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSeguridad.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSeguridad.tsx",
+      "moduleName": "src/components/modulos/ModuloSeguridad.tsx",
+      "exports": [
+        "ModuloSeguridad"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/input",
+        "@/components/ui/select",
+        "lucide-react",
+        "react",
+        "@/components/ui/scroll-area"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T17:35:01.498Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ProgressBar.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ProgressBar.tsx",
+      "moduleName": "src/components/ProgressBar.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-04T18:25:31.369Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/alert.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\alert.tsx",
+      "moduleName": "src/components/ui/alert.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "class-variance-authority",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:56:36.970Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/badge.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\badge.tsx",
+      "moduleName": "src/components/ui/badge.tsx",
+      "exports": [
+        "BadgeProps"
+      ],
+      "imports": [
+        "react",
+        "class-variance-authority",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:55:06.391Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/button.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\button.tsx",
+      "moduleName": "src/components/ui/button.tsx",
+      "exports": [
+        "ButtonProps"
+      ],
+      "imports": [
+        "react",
+        "@radix-ui/react-slot",
+        "class-variance-authority",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:53:03.375Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/card.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\card.tsx",
+      "moduleName": "src/components/ui/card.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:53:26.435Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/checkbox.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\checkbox.tsx",
+      "moduleName": "src/components/ui/checkbox.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-checkbox",
+        "lucide-react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-08T19:54:53.536Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/dialog.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\dialog.tsx",
+      "moduleName": "src/components/ui/dialog.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-dialog",
+        "lucide-react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:54:49.448Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/input.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\input.tsx",
+      "moduleName": "src/components/ui/input.tsx",
+      "exports": [
+        "InputProps"
+      ],
+      "imports": [
+        "react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:53:40.638Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/label.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\label.tsx",
+      "moduleName": "src/components/ui/label.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-label",
+        "class-variance-authority",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:56:50.926Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/scroll-area.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\scroll-area.tsx",
+      "moduleName": "src/components/ui/scroll-area.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-scroll-area",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:56:17.018Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/select.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\select.tsx",
+      "moduleName": "src/components/ui/select.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-select",
+        "lucide-react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T19:08:42.091Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/separator.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\separator.tsx",
+      "moduleName": "src/components/ui/separator.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-separator",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:55:58.074Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/tabs.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\tabs.tsx",
+      "moduleName": "src/components/ui/tabs.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "@radix-ui/react-tabs",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:54:14.870Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/textarea.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\textarea.tsx",
+      "moduleName": "src/components/ui/textarea.tsx",
+      "exports": [
+        "TextareaProps"
+      ],
+      "imports": [
+        "react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T18:53:54.236Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/context/AppContext.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\AppContext.tsx",
+      "moduleName": "src/context/AppContext.tsx",
+      "exports": [
+        "AppProvider",
+        "useApp"
+      ],
+      "imports": [
+        "react",
+        "@/lib/storage",
+        "@/lib/utils",
+        "@/lib/supabase-service"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T19:08:00.891Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/folder-parser.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\folder-parser.ts",
+      "moduleName": "src/lib/folder-parser.ts",
+      "exports": [
+        "FotoIndexada",
+        "ArchivosCarpeta",
+        "CoordenadasKMZ",
+        "DatosPuntoCarpeta",
+        "leerCarpeta",
+        "extraerCoordenadasKMZ",
+        "leerArchivoTXT",
+        "procesarCarpetaPunto",
+        "formatearNombreFoto",
+        "agruparFotosPorSubcarpeta"
+      ],
+      "imports": [
+        "jszip"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-08T18:17:12.175Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/openrouter.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\openrouter.ts",
+      "moduleName": "src/lib/openrouter.ts",
+      "exports": [
+        "getEstimatedTime"
+      ],
+      "imports": [
+        "@/types"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-06T00:04:51.235Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/storage.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\storage.ts",
+      "moduleName": "src/lib/storage.ts",
+      "exports": [
+        "guardarEstado",
+        "cargarEstado",
+        "limpiarEstado",
+        "hayEstadoAlmacenado"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-05T22:16:36.969Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase-service.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase-service.ts",
+      "moduleName": "src/lib/supabase-service.ts",
+      "exports": [
+        "PuntoDB",
+        "CoordenadasDB",
+        "DocumentoDB",
+        "AnalisisDB",
+        "FotoDB",
+        "HistorialDB",
+        "guardarPuntoCompleto",
+        "cargarPuntosCompletos",
+        "eliminarPuntoDB",
+        "obtenerHistorialPunto",
+        "obtenerHistorialCompleto",
+        "sincronizarPuntos",
+        "cargarPuntosDesdeDB"
+      ],
+      "imports": [
+        "./supabase"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-08T18:16:19.541Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
+      "moduleName": "src/lib/supabase.ts",
+      "exports": [
+        "supabase"
+      ],
+      "imports": [
+        "@supabase/supabase-js"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-04T18:25:31.375Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/utils.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\utils.ts",
+      "moduleName": "src/lib/utils.ts",
+      "exports": [
+        "cn",
+        "generarUUID"
+      ],
+      "imports": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T18:44:10.796Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/main.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\main.tsx",
+      "moduleName": "src/main.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "react-dom/client",
+        "sonner",
+        "./index.css",
+        "./App.tsx",
+        "@/context/AppContext"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T23:24:57.926Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
+      "moduleName": "src/tests/puntos-logic.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T22:59:23.161Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-ui.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-ui.test.ts",
+      "moduleName": "src/tests/puntos-ui.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-09T22:59:35.179Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/types/index.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\types\\index.ts",
+      "moduleName": "src/types/index.ts",
+      "exports": [
+        "ModelId",
+        "AIModel",
+        "ImageItem",
+        "ImageAnalysisResult",
+        "ImageToAnalyze",
+        "AnalysisHistory",
+        "AnalysisProgress",
+        "ProgressCallback",
+        "OpenRouterResponse",
+        "OpenRouterError",
+        "ImageUploaderProps",
+        "AnalysisResultProps",
+        "ModelSelectorProps",
+        "ProgressBarProps",
+        "PuntoFerroviario",
+        "ModuloConfig",
+        "AppState",
+        "AppAction",
+        "AVAILABLE_MODELS",
+        "MODULOS",
+        "DEFAULT_MODEL",
+        "MAX_IMAGES",
+        "DEBOUNCE_MS"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-09T19:07:22.544Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
+      "moduleName": "src/vite-env.d.ts",
+      "exports": [],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-04T18:25:31.378Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/start-dev.js": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-dev.js",
+      "moduleName": "start-dev.js",
+      "exports": [],
+      "imports": [
+        "child_process",
+        "path"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-05T20:44:38.627Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/start-dev.mjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-dev.mjs",
+      "moduleName": "start-dev.mjs",
+      "exports": [],
+      "imports": [
+        "child_process",
+        "url",
+        "path"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-05T20:45:29.506Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/start-server.js": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-server.js",
+      "moduleName": "start-server.js",
+      "exports": [],
+      "imports": [
+        "child_process",
+        "path"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-04T18:25:31.382Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/start-server.mjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-server.mjs",
+      "moduleName": "start-server.mjs",
+      "exports": [],
+      "imports": [
+        "child_process",
+        "url",
+        "path"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-04T18:25:31.384Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/vite.config.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\vite.config.ts",
+      "moduleName": "vite.config.ts",
+      "exports": [
+        "defineConfig"
+      ],
+      "imports": [
+        "vite",
+        "@vitejs/plugin-react",
+        "@tailwindcss/vite",
+        "path"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-05T20:39:46.840Z"
+    }
+  },
+  "edges": [
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
+      "importSpecifier": "./modulos/ModuloAmbiental",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAnalisis.tsx",
+      "importSpecifier": "./modulos/ModuloAnalisis",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloDocumentacion.tsx",
+      "importSpecifier": "./modulos/ModuloDocumentacion",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
+      "importSpecifier": "./modulos/ModuloGeoreferencia",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloInspeccion.tsx",
+      "importSpecifier": "./modulos/ModuloInspeccion",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloMateriales.tsx",
+      "importSpecifier": "./modulos/ModuloMateriales",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
+      "importSpecifier": "./modulos/ModuloNomenclaturas",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloReportes.tsx",
+      "importSpecifier": "./modulos/ModuloReportes",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSeguridad.tsx",
+      "importSpecifier": "./modulos/ModuloSeguridad",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase-service.ts",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
+      "importSpecifier": "./supabase",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\main.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\App.tsx",
+      "importSpecifier": "./App.tsx",
+      "importType": "default"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\main.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\index.css",
+      "importSpecifier": "./index.css",
+      "importType": "sideeffect"
+    }
+  ],
+  "metadata": {
+    "generatedAt": "2026-06-09T23:39:34.174Z",
+    "generator": "repo-graph",
+    "nodeCount": 50,
+    "edgeCount": 12
+  }
+}

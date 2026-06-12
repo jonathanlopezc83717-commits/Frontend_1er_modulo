@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "taskId": "1.1",
+  "declaredAt": 1780594368966,
+  "expiresAt": 1780680768966,
+  "files": [
+    "supabase/migrations/20240605000002_add_image_urls_array.sql"
+  ]
+}

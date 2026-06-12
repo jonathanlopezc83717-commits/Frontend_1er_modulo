@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "checkpoints": [
+    {
+      "label": "spiral-session-ses_166f85cc-1780686248296",
+      "sha": "",
+      "timestamp": "2026-06-05T19:04:08.656Z"
+    },
+    {
+      "label": "spiral-session-ses_166f85cc-1780941860819",
+      "sha": "",
+      "timestamp": "2026-06-08T18:04:20.921Z"
+    },
+    {
+      "label": "spiral-session-ses_15785b9c-1780943293473",
+      "sha": "",
+      "timestamp": "2026-06-08T18:28:13.641Z"
+    },
+    {
+      "label": "spiral-session-ses_15785b9c-1780944679187",
+      "sha": "",
+      "timestamp": "2026-06-08T18:51:19.305Z"
+    },
+    {
+      "label": "spiral-session-ses_15169cbe-1781046991278",
+      "sha": "",
+      "timestamp": "2026-06-09T23:16:31.747Z"
+    },
+    {
+      "label": "spiral-session-ses_15169cbe-1781047068536",
+      "sha": "",
+      "timestamp": "2026-06-09T23:17:48.709Z"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "taskId": "2.2",
+  "declaredAt": 1780603023654,
+  "expiresAt": 1780689423654,
+  "files": [
+    "src/App.tsx"
+  ]
+}

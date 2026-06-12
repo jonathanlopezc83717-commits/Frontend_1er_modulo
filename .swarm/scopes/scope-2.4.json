@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "taskId": "2.4",
+  "declaredAt": 1780594755133,
+  "expiresAt": 1780681155133,
+  "files": [
+    "src/components/AnalysisResult.tsx"
+  ]
+}

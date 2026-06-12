@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "taskId": "2.1",
+  "declaredAt": 1780597689436,
+  "expiresAt": 1780684089436,
+  "files": [
+    "src/App.tsx",
+    "supabase/migrations/20240605000002_add_image_urls_array.sql"
+  ]
+}

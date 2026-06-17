@@ -18,6 +18,18 @@
       "language": "javascript",
       "mtime": "2026-06-04T18:25:31.348Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/scripts/nas-watcher.mjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\nas-watcher.mjs",
+      "moduleName": "scripts/nas-watcher.mjs",
+      "exports": [],
+      "imports": [
+        "node:crypto",
+        "node:fs",
+        "node:path"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-11T00:00:27.425Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/App.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\App.tsx",
       "moduleName": "src/App.tsx",
@@ -39,7 +51,7 @@
         "sonner"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T23:06:16.608Z"
+      "mtime": "2026-06-11T00:29:59.764Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/AnalysisResult.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\AnalysisResult.tsx",
@@ -50,10 +62,11 @@
       "imports": [
         "lucide-react",
         "react",
-        "@/components/ui/dialog"
+        "@/components/ui/dialog",
+        "@/components/ui/textarea"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:32:55.637Z"
+      "mtime": "2026-06-11T00:15:05.186Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/DiagnosticoHistorial.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\DiagnosticoHistorial.tsx",
@@ -85,7 +98,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-08T19:59:19.530Z"
+      "mtime": "2026-06-11T00:15:37.003Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/GestorPuntos.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\GestorPuntos.tsx",
@@ -97,18 +110,20 @@
         "react",
         "@/context/AppContext",
         "@/lib/folder-parser",
+        "@/lib/nomenclaturas",
         "@/components/ui/button",
         "@/components/ui/input",
         "@/components/ui/textarea",
         "@/components/ui/badge",
         "@/components/ui/scroll-area",
         "@/components/ui/separator",
+        "@/components/ui/checkbox",
         "@/components/ui/dialog",
         "@/components/ui/select",
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T23:39:33.951Z"
+      "mtime": "2026-06-11T00:08:25.370Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -118,14 +133,17 @@
       ],
       "imports": [
         "react",
+        "@/context/AppContext",
         "@/lib/supabase-service",
         "@/components/ui/card",
         "@/components/ui/badge",
+        "@/components/ui/button",
+        "@/components/ui/separator",
         "@/components/ui/scroll-area",
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-05T23:24:04.663Z"
+      "mtime": "2026-06-10T23:53:42.884Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ImageUploader.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ImageUploader.tsx",
@@ -167,19 +185,18 @@
         "@/components/ui/tabs",
         "@/components/ui/card",
         "@/components/ui/badge",
+        "react",
         "lucide-react",
         "./modulos/ModuloAnalisis",
         "./modulos/ModuloGeoreferencia",
         "./modulos/ModuloDocumentacion",
         "./modulos/ModuloNomenclaturas",
-        "./modulos/ModuloInspeccion",
         "./modulos/ModuloMateriales",
-        "./modulos/ModuloSeguridad",
-        "./modulos/ModuloAmbiental",
+        "./modulos/ModuloFicha",
         "./modulos/ModuloReportes"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T23:08:36.338Z"
+      "mtime": "2026-06-11T00:35:30.520Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
@@ -227,7 +244,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:45:57.085Z"
+      "mtime": "2026-06-11T00:15:21.537Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloDocumentacion.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloDocumentacion.tsx",
@@ -245,10 +262,34 @@
         "@/components/ui/separator",
         "@/components/ui/scroll-area",
         "lucide-react",
-        "react"
+        "react",
+        "@/lib/nomenclaturas"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T18:49:07.357Z"
+      "mtime": "2026-06-10T16:36:14.341Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloFicha.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloFicha.tsx",
+      "moduleName": "src/components/modulos/ModuloFicha.tsx",
+      "exports": [
+        "ModuloFicha"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/scroll-area",
+        "@/components/ui/textarea",
+        "@/components/ui/input",
+        "@/components/ui/badge",
+        "lucide-react",
+        "react",
+        "jszip",
+        "xlsx",
+        "exceljs"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-12T20:05:14.281Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
@@ -269,7 +310,7 @@
         "@/components/ui/scroll-area"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:33:50.138Z"
+      "mtime": "2026-06-10T18:38:39.769Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloInspeccion.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloInspeccion.tsx",
@@ -300,15 +341,14 @@
       "imports": [
         "@/context/AppContext",
         "@/components/ui/button",
-        "@/components/ui/input",
         "@/components/ui/card",
-        "@/components/ui/select",
+        "@/components/ui/scroll-area",
         "lucide-react",
         "react",
-        "@/components/ui/scroll-area"
+        "pdf-lib"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:37:18.466Z"
+      "mtime": "2026-06-12T21:43:42.858Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -325,10 +365,11 @@
         "@/components/ui/separator",
         "@/components/ui/scroll-area",
         "lucide-react",
-        "react"
+        "react",
+        "@/lib/nomenclaturas"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T18:48:09.908Z"
+      "mtime": "2026-06-10T16:39:12.611Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloReportes.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloReportes.tsx",
@@ -345,7 +386,7 @@
         "@/components/ui/scroll-area"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:38:30.123Z"
+      "mtime": "2026-06-11T00:44:30.950Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSeguridad.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSeguridad.tsx",
@@ -553,11 +594,13 @@
       "imports": [
         "react",
         "@/lib/storage",
+        "@/lib/template-file-store",
         "@/lib/utils",
+        "@/lib/nomenclaturas",
         "@/lib/supabase-service"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T19:08:00.891Z"
+      "mtime": "2026-06-11T01:05:10.385Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/folder-parser.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\folder-parser.ts",
@@ -580,6 +623,22 @@
       "language": "typescript",
       "mtime": "2026-06-08T18:17:12.175Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/nomenclaturas.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\nomenclaturas.ts",
+      "moduleName": "src/lib/nomenclaturas.ts",
+      "exports": [
+        "NomenclaturaEntry",
+        "NomenclaturaDetectada",
+        "DiscrepanciaNomenclatura",
+        "normalizarDefinicion",
+        "parsearNomenclaturasDesdeTexto",
+        "consolidarNomenclaturas",
+        "obtenerSiguienteCodigoSeriado"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-10T16:49:06.279Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/openrouter.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\openrouter.ts",
       "moduleName": "src/lib/openrouter.ts",
@@ -590,20 +649,23 @@
         "@/types"
       ],
       "language": "typescript",
-      "mtime": "2026-06-06T00:04:51.235Z"
+      "mtime": "2026-06-11T16:36:13.469Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/storage.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\storage.ts",
       "moduleName": "src/lib/storage.ts",
       "exports": [
-        "guardarEstado",
+        "StoredState",
+        "cargarEstadoCompleto",
         "cargarEstado",
         "limpiarEstado",
         "hayEstadoAlmacenado"
       ],
-      "imports": [],
+      "imports": [
+        "@/lib/template-file-store"
+      ],
       "language": "typescript",
-      "mtime": "2026-06-05T22:16:36.969Z"
+      "mtime": "2026-06-11T01:05:29.434Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase-service.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase-service.ts",
@@ -618,6 +680,10 @@
         "guardarPuntoCompleto",
         "cargarPuntosCompletos",
         "eliminarPuntoDB",
+        "guardarEstadoAppEnNube",
+        "obtenerEstadosAppDesdeNube",
+        "obtenerEstadoAppDesdeNube",
+        "obtenerUltimoEstadoAppDesdeNube",
         "obtenerHistorialPunto",
         "obtenerHistorialCompleto",
         "sincronizarPuntos",
@@ -627,7 +693,7 @@
         "./supabase"
       ],
       "language": "typescript",
-      "mtime": "2026-06-08T18:16:19.541Z"
+      "mtime": "2026-06-11T01:05:44.047Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
@@ -640,6 +706,18 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-04T18:25:31.375Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/template-file-store.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\template-file-store.ts",
+      "moduleName": "src/lib/template-file-store.ts",
+      "exports": [
+        "guardarArchivosPlantilla",
+        "recomprimirArchivosPlantilla",
+        "cargarArchivosPlantilla"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-10T23:42:59.555Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/utils.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\utils.ts",
@@ -668,7 +746,7 @@
         "@/context/AppContext"
       ],
       "language": "typescript",
-      "mtime": "2026-06-05T23:24:57.926Z"
+      "mtime": "2026-06-11T15:39:23.541Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
@@ -711,6 +789,12 @@
         "PuntoFerroviario",
         "ModuloConfig",
         "AppState",
+        "PlantillaCampoFormato",
+        "PlantillaImagenFormato",
+        "PlantillaFormato",
+        "PlantillaPdfCampoFormato",
+        "PlantillaPdfFormato",
+        "EstadoGuardado",
         "AppAction",
         "AVAILABLE_MODELS",
         "MODULOS",
@@ -720,7 +804,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-06-09T19:07:22.544Z"
+      "mtime": "2026-06-11T01:04:02.427Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
@@ -729,6 +813,19 @@
       "imports": [],
       "language": "typescript",
       "mtime": "2026-06-04T18:25:31.378Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/start-app.cjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-app.cjs",
+      "moduleName": "start-app.cjs",
+      "exports": [],
+      "imports": [
+        "child_process",
+        "http",
+        "path",
+        "fs"
+      ],
+      "language": "javascript",
+      "mtime": "2026-06-11T17:18:25.340Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/start-dev.js": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-dev.js",
@@ -751,7 +848,7 @@
         "path"
       ],
       "language": "javascript",
-      "mtime": "2026-06-05T20:45:29.506Z"
+      "mtime": "2026-06-10T23:30:46.718Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/start-server.js": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\start-server.js",
@@ -789,16 +886,10 @@
         "path"
       ],
       "language": "typescript",
-      "mtime": "2026-06-05T20:39:46.840Z"
+      "mtime": "2026-06-10T23:30:34.824Z"
     }
   },
   "edges": [
-    {
-      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
-      "importSpecifier": "./modulos/ModuloAmbiental",
-      "importType": "named"
-    },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAnalisis.tsx",
@@ -813,14 +904,14 @@
     },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
-      "importSpecifier": "./modulos/ModuloGeoreferencia",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloFicha.tsx",
+      "importSpecifier": "./modulos/ModuloFicha",
       "importType": "named"
     },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloInspeccion.tsx",
-      "importSpecifier": "./modulos/ModuloInspeccion",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
+      "importSpecifier": "./modulos/ModuloGeoreferencia",
       "importType": "named"
     },
     {
@@ -839,12 +930,6 @@
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloReportes.tsx",
       "importSpecifier": "./modulos/ModuloReportes",
-      "importType": "named"
-    },
-    {
-      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSeguridad.tsx",
-      "importSpecifier": "./modulos/ModuloSeguridad",
       "importType": "named"
     },
     {
@@ -867,9 +952,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-06-09T23:39:34.174Z",
+    "generatedAt": "2026-06-16T17:12:59.252Z",
     "generator": "repo-graph",
-    "nodeCount": 50,
-    "edgeCount": 12
+    "nodeCount": 55,
+    "edgeCount": 10
   }
 }

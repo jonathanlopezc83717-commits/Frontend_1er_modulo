@@ -1,15 +1,21 @@
 import { useApp } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
+  Calendar,
   Download,
+  FileImage,
+  FileText,
   ImagePlus,
   Italic,
+  LayoutTemplate,
   MousePointer2,
   Paintbrush,
   Palette,
@@ -18,6 +24,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Search,
   Settings2,
   Strikethrough,
   Trash2,
@@ -28,7 +35,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
 // =====================================================
 // TIPOS
@@ -149,6 +156,35 @@ function normalizarBusquedaCampo(valor: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
+}
+
+function normalizarTextoPlantilla(valor: string): string {
+  return valor
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function formatearFechaPlantilla(fecha: string): string {
+  if (!fecha) return 'Sin fecha'
+  const fechaObj = new Date(fecha)
+  if (Number.isNaN(fechaObj.getTime())) return 'Sin fecha'
+  return fechaObj.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function obtenerResumenPlantilla(plantilla: PlantillaVisual): string {
+  const textos = plantilla.widgets.filter(w => w.tipo === 'texto').length
+  const imagenes = plantilla.widgets.filter(w => w.tipo === 'imagen').length
+  const partes = [
+    textos ? `${textos} texto${textos === 1 ? '' : 's'}` : '',
+    imagenes ? `${imagenes} imagen${imagenes === 1 ? '' : 'es'}` : '',
+  ].filter(Boolean)
+
+  return partes.length > 0 ? partes.join(' - ') : 'Sin campos'
 }
 
 function buscarValorEnFicha(punto: unknown, campo: string): string | undefined {
@@ -639,13 +675,44 @@ export function ModuloMateriales() {
   const [startPan, setStartPan] = useState({ x: 0, y: 0 })
   const [toolbarVisible, setToolbarVisible] = useState(true)
   const [camposPersonalizados, setCamposPersonalizados] = useState<Array<{ key: string; label: string; tipo: 'texto' | 'imagen' }>>([])
+  const [busquedaPlantillas, setBusquedaPlantillas] = useState('')
+  const [filtroPlantillaTipo, setFiltroPlantillaTipo] = useState<'todas' | 'imagen' | 'pdf'>('todas')
+  const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
+  const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
 
   const areaRef = useRef<HTMLDivElement>(null)
   const padreRef = useRef<HTMLDivElement>(null)
+  const panelPropiedadesRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const escalaRef = useRef(1)
   const panStartViewportRef = useRef({ x: 0, y: 0 })
   const huboPanRef = useRef(false)
+  const panelDragRef = useRef({
+    pointerId: -1,
+    startClientX: 0,
+    startClientY: 0,
+    startX: 0,
+    startY: 0,
+  })
+  const touchGestureRef = useRef<{
+    mode: 'pan' | 'pinch' | null
+    startClientX: number
+    startClientY: number
+    startDistance: number
+    startZoom: number
+    startViewport: { x: number; y: number }
+    startFocal: { x: number; y: number }
+    startScale: number
+  }>({
+    mode: null,
+    startClientX: 0,
+    startClientY: 0,
+    startDistance: 0,
+    startZoom: 1,
+    startViewport: { x: 0, y: 0 },
+    startFocal: { x: 0, y: 0 },
+    startScale: 1,
+  })
 
   const limitarViewport = useCallback((x: number, y: number, escalaActual: number) => {
     const padre = padreRef.current
@@ -719,6 +786,27 @@ export function ModuloMateriales() {
 
     setPlantillas(visuales)
   }, [state.plantillasPdfFormato])
+
+  const plantillasFiltradas = useMemo(() => {
+    const termino = normalizarTextoPlantilla(busquedaPlantillas)
+
+    return plantillas
+      .filter(plantilla => filtroPlantillaTipo === 'todas' || plantilla.tipo === filtroPlantillaTipo)
+      .filter(plantilla => {
+        if (!termino) return true
+        const campos = plantilla.widgets.map(widget => `${widget.etiqueta} ${widget.campo}`).join(' ')
+        const texto = normalizarTextoPlantilla([
+          plantilla.nombre,
+          plantilla.archivoNombre,
+          plantilla.tipo,
+          campos,
+        ].join(' '))
+        return texto.includes(termino)
+      })
+  }, [busquedaPlantillas, filtroPlantillaTipo, plantillas])
+
+  const totalPlantillasImagen = useMemo(() => plantillas.filter(p => p.tipo === 'imagen').length, [plantillas])
+  const totalPlantillasPdf = useMemo(() => plantillas.filter(p => p.tipo === 'pdf').length, [plantillas])
 
   // Guardar edición automáticamente
   useEffect(() => {
@@ -1032,6 +1120,155 @@ export function ModuloMateriales() {
     aplicarZoom(nuevoZoom, e.clientX - rect.left, e.clientY - rect.top)
   }
 
+  const obtenerDistanciaToque = (a: Touch, b: Touch) => {
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+  }
+
+  const obtenerCentroToque = (a: Touch, b: Touch) => {
+    return {
+      x: (a.clientX + b.clientX) / 2,
+      y: (a.clientY + b.clientY) / 2,
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!fondoBase64 || !padreRef.current) return
+
+    if (e.touches.length === 2) {
+      e.preventDefault()
+      const rect = padreRef.current.getBoundingClientRect()
+      const centro = obtenerCentroToque(e.touches[0], e.touches[1])
+      const escalaAjusteLocal = Math.min(
+        rect.width / fondoDimensiones.ancho,
+        rect.height / fondoDimensiones.alto,
+        1
+      )
+
+      touchGestureRef.current = {
+        mode: 'pinch',
+        startClientX: 0,
+        startClientY: 0,
+        startDistance: obtenerDistanciaToque(e.touches[0], e.touches[1]),
+        startZoom: zoom,
+        startViewport: { ...viewport },
+        startFocal: {
+          x: centro.x - rect.left,
+          y: centro.y - rect.top,
+        },
+        startScale: escalaAjusteLocal * zoom,
+      }
+      setPanning(false)
+      return
+    }
+
+    if (e.touches.length === 1 && !arrastrando && !redimensionando) {
+      e.preventDefault()
+      huboPanRef.current = false
+      touchGestureRef.current = {
+        ...touchGestureRef.current,
+        mode: 'pan',
+        startClientX: e.touches[0].clientX,
+        startClientY: e.touches[0].clientY,
+        startViewport: { ...viewport },
+      }
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const gesto = touchGestureRef.current
+    if (!padreRef.current || !fondoBase64) return
+
+    if (gesto.mode === 'pinch' && e.touches.length === 2) {
+      e.preventDefault()
+      const rect = padreRef.current.getBoundingClientRect()
+      const distancia = obtenerDistanciaToque(e.touches[0], e.touches[1])
+      const centro = obtenerCentroToque(e.touches[0], e.touches[1])
+      const nuevoZoom = Math.max(0.25, Math.min(5, Number((gesto.startZoom * (distancia / gesto.startDistance)).toFixed(2))))
+      const nuevaEscala = (gesto.startScale / gesto.startZoom) * nuevoZoom
+
+      const puntoContenidoX = (gesto.startFocal.x - gesto.startViewport.x) / gesto.startScale
+      const puntoContenidoY = (gesto.startFocal.y - gesto.startViewport.y) / gesto.startScale
+      const focalX = centro.x - rect.left
+      const focalY = centro.y - rect.top
+
+      setViewport(limitarViewport(
+        focalX - puntoContenidoX * nuevaEscala,
+        focalY - puntoContenidoY * nuevaEscala,
+        nuevaEscala
+      ))
+      setZoom(nuevoZoom)
+      return
+    }
+
+    if (gesto.mode === 'pan' && e.touches.length === 1) {
+      e.preventDefault()
+      const dx = e.touches[0].clientX - gesto.startClientX
+      const dy = e.touches[0].clientY - gesto.startClientY
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) huboPanRef.current = true
+      setViewport(limitarViewport(
+        gesto.startViewport.x + dx,
+        gesto.startViewport.y + dy,
+        escalaRef.current
+      ))
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      touchGestureRef.current.mode = null
+      return
+    }
+
+    if (e.touches.length === 1) {
+      touchGestureRef.current = {
+        ...touchGestureRef.current,
+        mode: 'pan',
+        startClientX: e.touches[0].clientX,
+        startClientY: e.touches[0].clientY,
+        startViewport: { ...viewport },
+      }
+    }
+  }
+
+  const limitarPosicionPanel = useCallback((x: number, y: number) => {
+    const padre = padreRef.current
+    const panel = panelPropiedadesRef.current
+    if (!padre || !panel) return { x, y }
+
+    const padding = 8
+    const maxX = Math.max(padding, padre.clientWidth - panel.offsetWidth - padding)
+    const maxY = Math.max(padding, padre.clientHeight - panel.offsetHeight - padding)
+
+    return {
+      x: Math.min(maxX, Math.max(padding, x)),
+      y: Math.min(maxY, Math.max(padding, y)),
+    }
+  }, [])
+
+  const iniciarArrastrePanelPropiedades = (e: React.PointerEvent) => {
+    if (!padreRef.current || !panelPropiedadesRef.current) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const padreRect = padreRef.current.getBoundingClientRect()
+    const panelRect = panelPropiedadesRef.current.getBoundingClientRect()
+    const posicionActual = posicionPanelPropiedades || {
+      x: panelRect.left - padreRect.left,
+      y: panelRect.top - padreRect.top,
+    }
+    const posicionLimitada = limitarPosicionPanel(posicionActual.x, posicionActual.y)
+
+    panelDragRef.current = {
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: posicionLimitada.x,
+      startY: posicionLimitada.y,
+    }
+    setPosicionPanelPropiedades(posicionLimitada)
+    setArrastrandoPanelPropiedades(true)
+  }
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (panning) {
       const dx = e.clientX - startPan.x
@@ -1094,6 +1331,22 @@ export function ModuloMateriales() {
     setPanning(false)
   }, [])
 
+  const handlePanelPointerMove = useCallback((e: PointerEvent) => {
+    if (!arrastrandoPanelPropiedades || e.pointerId !== panelDragRef.current.pointerId) return
+    const dx = e.clientX - panelDragRef.current.startClientX
+    const dy = e.clientY - panelDragRef.current.startClientY
+    setPosicionPanelPropiedades(limitarPosicionPanel(
+      panelDragRef.current.startX + dx,
+      panelDragRef.current.startY + dy
+    ))
+  }, [arrastrandoPanelPropiedades, limitarPosicionPanel])
+
+  const handlePanelPointerUp = useCallback((e: PointerEvent) => {
+    if (e.pointerId !== panelDragRef.current.pointerId) return
+    setArrastrandoPanelPropiedades(false)
+    panelDragRef.current.pointerId = -1
+  }, [])
+
   useEffect(() => {
     if (arrastrando || redimensionando || panning) {
       window.addEventListener('mousemove', handleMouseMove)
@@ -1104,6 +1357,18 @@ export function ModuloMateriales() {
       }
     }
   }, [arrastrando, redimensionando, panning, handleMouseMove, handleMouseUp])
+
+  useEffect(() => {
+    if (!arrastrandoPanelPropiedades) return
+    window.addEventListener('pointermove', handlePanelPointerMove)
+    window.addEventListener('pointerup', handlePanelPointerUp)
+    window.addEventListener('pointercancel', handlePanelPointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePanelPointerMove)
+      window.removeEventListener('pointerup', handlePanelPointerUp)
+      window.removeEventListener('pointercancel', handlePanelPointerUp)
+    }
+  }, [arrastrandoPanelPropiedades, handlePanelPointerMove, handlePanelPointerUp])
 
   if (!punto) {
     return (
@@ -1259,26 +1524,130 @@ export function ModuloMateriales() {
           </div>
 
           {plantillas.length > 0 && (
-            <div className="border-t pt-2">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Plantillas guardadas</p>
-              <ScrollArea className="max-h-[150px]">
-                <div className="space-y-1">
-                  {plantillas.map(p => (
-                    <div key={p.id} className="flex items-center gap-1">
-                      <Button
-                        variant={plantillaActiva?.id === p.id ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="h-7 flex-1 justify-start text-xs"
-                        onClick={() => cargarPlantilla(p)}
-                      >
-                        {p.nombre}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => eliminarPlantilla(p.id)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
+            <div className="border-t pt-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium text-muted-foreground">Plantillas guardadas</p>
+                </div>
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                  {plantillas.length}/{MAX_PLANTILLAS}
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={busquedaPlantillas}
+                    onChange={e => setBusquedaPlantillas(e.target.value)}
+                    placeholder="Buscar por nombre, archivo o campo"
+                    className="h-8 pl-7 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted/30 p-1">
+                  {([
+                    { key: 'todas', label: 'Todas', total: plantillas.length },
+                    { key: 'imagen', label: 'Imagen', total: totalPlantillasImagen },
+                    { key: 'pdf', label: 'PDF', total: totalPlantillasPdf },
+                  ] as const).map(opcion => (
+                    <Button
+                      key={opcion.key}
+                      variant={filtroPlantillaTipo === opcion.key ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 px-1 text-[11px]"
+                      onClick={() => setFiltroPlantillaTipo(opcion.key)}
+                    >
+                      {opcion.label}
+                      <span className="ml-1 text-[10px] text-muted-foreground">{opcion.total}</span>
+                    </Button>
                   ))}
                 </div>
+              </div>
+
+              <ScrollArea className="mt-2 max-h-[285px] pr-2">
+                {plantillasFiltradas.length > 0 ? (
+                  <div className="space-y-2">
+                    {plantillasFiltradas.map(p => {
+                      const activa = plantillaActiva?.id === p.id
+                      const IconoTipo = p.tipo === 'pdf' ? FileText : FileImage
+
+                      return (
+                        <div
+                          key={p.id}
+                          className={`overflow-hidden rounded-md border bg-background transition-colors ${
+                            activa ? 'border-primary ring-1 ring-primary/40' : 'hover:border-primary/50'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            className="flex w-full gap-2 p-2 text-left"
+                            onClick={() => cargarPlantilla(p)}
+                            title={`Cargar ${p.nombre}`}
+                          >
+                            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded border bg-muted">
+                              {p.tipo === 'imagen' ? (
+                                <img
+                                  src={p.archivoBase64}
+                                  alt={p.nombre}
+                                  className="h-full w-full object-cover"
+                                  draggable={false}
+                                />
+                              ) : (
+                                <iframe
+                                  src={`data:application/pdf;base64,${p.archivoBase64}`}
+                                  title={p.nombre}
+                                  className="pointer-events-none h-full w-full border-0 bg-white"
+                                />
+                              )}
+                              <div className="absolute left-1 top-1 rounded bg-background/90 p-0.5 shadow-sm">
+                                <IconoTipo className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            </div>
+
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="line-clamp-2 text-xs font-medium leading-snug">{p.nombre || 'Plantilla sin nombre'}</p>
+                                {activa && <Badge className="px-1.5 py-0 text-[10px]">Activa</Badge>}
+                              </div>
+                              <p className="truncate text-[11px] text-muted-foreground">{p.archivoNombre || 'Archivo no disponible'}</p>
+                              <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+                                <span>{obtenerResumenPlantilla(p)}</span>
+                                <span>({p.ancho}x{p.alto})</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                <span>{formatearFechaPlantilla(p.createdAt)}</span>
+                              </div>
+                            </div>
+                          </button>
+
+                          <div className="flex items-center justify-between border-t bg-muted/20 px-2 py-1">
+                            <Badge variant="outline" className="px-1.5 py-0 text-[10px] uppercase">
+                              {p.tipo}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-destructive"
+                              onClick={() => eliminarPlantilla(p.id)}
+                            >
+                              <X className="mr-1 h-3 w-3" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed p-3 text-center">
+                    <Search className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+                    <p className="text-xs font-medium">Sin coincidencias</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Prueba otro nombre, archivo o tipo de plantilla.</p>
+                  </div>
+                )}
               </ScrollArea>
             </div>
           )}
@@ -1288,7 +1657,16 @@ export function ModuloMateriales() {
 
       {/* Área de edición */}
       <Card className="relative flex-1 overflow-hidden">
-        <CardContent ref={padreRef} className="relative h-full w-full overflow-hidden p-0" onWheel={handleWheel}>
+        <CardContent
+          ref={padreRef}
+          className="relative h-full w-full overflow-hidden p-0"
+          style={{ touchAction: 'none' }}
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           {/* Botones flotantes estáticos */}
           <div className="absolute right-2 top-2 z-30 flex items-center gap-1">
             {fondoBase64 && (
@@ -1447,12 +1825,25 @@ export function ModuloMateriales() {
 
               {/* Panel flotante de propiedades */}
               {panelAbierto && (
-                <div className="absolute bottom-4 right-4 z-30 w-60 rounded-lg border bg-background/90 p-2 shadow-lg backdrop-blur">
+                <div
+                  ref={panelPropiedadesRef}
+                  className={`absolute z-30 w-60 rounded-lg border bg-background/90 p-2 shadow-lg backdrop-blur ${
+                    posicionPanelPropiedades ? '' : 'bottom-4 right-4'
+                  } ${arrastrandoPanelPropiedades ? 'select-none ring-1 ring-primary/40' : ''}`}
+                  style={posicionPanelPropiedades ? {
+                    left: posicionPanelPropiedades.x,
+                    top: posicionPanelPropiedades.y,
+                  } : undefined}
+                >
                   {(() => {
                     const w = widgetSeleccionado ? widgets.find(x => x.id === widgetSeleccionado) : null
                     if (!w) {
                       return (
-                        <div className="flex items-center justify-between">
+                        <div
+                          className="flex cursor-move touch-none items-center justify-between rounded px-1 py-0.5"
+                          onPointerDown={iniciarArrastrePanelPropiedades}
+                          title="Arrastrar panel de propiedades"
+                        >
                           <p className="text-xs text-muted-foreground">Selecciona un elemento.</p>
                           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setPanelAbierto(false)}>
                             <X className="h-3 w-3" />

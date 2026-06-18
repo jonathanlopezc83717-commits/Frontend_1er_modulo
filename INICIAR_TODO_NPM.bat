@@ -19,10 +19,10 @@ if %ERRORLEVEL% NEQ 0 (
 :: 2. Verificar Supabase
 cd /d "C:\Users\YOGA-01\Documents\Frontend"
 echo ⏳ Verificando Supabase...
-supabase status >nul 2>&1
+call supabase.cmd status >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
   echo ⏳ Iniciando Supabase local...
-  supabase start
+  call supabase.cmd start
 ) else (
   echo ✅ Supabase ya está corriendo
 )

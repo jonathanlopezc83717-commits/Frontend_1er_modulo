@@ -1,5 +1,24 @@
 # 📋 Guía de Instalación - Base de Datos Supabase
 
+## Modo local vs proyecto en la nube
+
+Este repositorio esta configurado para Supabase local por defecto:
+
+```env
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=tu-anon-key-de-supabase-local
+```
+
+Para trabajar localmente no necesitas ejecutar `supabase link`.
+
+Usa `supabase link --project-ref ...` solo si quieres conectar este repositorio con un proyecto hospedado en Supabase Cloud. El `project-ref` no es la URL completa ni el nombre del proyecto: es la parte de 20 caracteres antes de `.supabase.co`.
+
+Ejemplo:
+
+```bash
+supabase link --project-ref abcdefghijklmnopqrst
+```
+
 ## 1. Crear las Tablas
 
 ### Opción A: Usando el Editor SQL (Recomendado)
@@ -88,12 +107,17 @@ Si prefieres crear las tablas manualmente:
 Crea un archivo `.env` en la raíz del proyecto:
 
 ```env
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu-anon-key-aqui
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=tu-anon-key-de-supabase-local
 ```
 
-Obtén estos valores desde:
-- Supabase Dashboard → Project Settings → API
+Obtienes estos valores con:
+
+```bash
+supabase.cmd status
+```
+
+Si usas un proyecto en la nube, cambia `VITE_SUPABASE_URL` por `https://abcdefghijklmnopqrst.supabase.co` y usa la anon key desde Supabase Dashboard -> Project Settings -> API.
 
 ## 3. Verificar Conexión
 
@@ -147,7 +171,7 @@ USING (true);
 ### Backup (Exportar datos)
 ```bash
 # Usando Supabase CLI
-supabase db dump -f backup.sql
+supabase db dump --local -f backup.sql
 ```
 
 ### Restore (Importar datos)

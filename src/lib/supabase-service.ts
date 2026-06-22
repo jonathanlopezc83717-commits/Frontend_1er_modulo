@@ -224,9 +224,9 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
       const coords = geoData.coordenadas
       await supabase.from('coordenadas_gps').upsert({
         punto_id: punto.id,
-        latitud: coords.y,
-        longitud: coords.x,
-        altitud: coords.z,
+        coordenada_x: coords.x,
+        coordenada_y: coords.y,
+        coordenada_z: coords.z,
         notas: geoData.notas || '',
       }, { onConflict: 'punto_id' })
     }

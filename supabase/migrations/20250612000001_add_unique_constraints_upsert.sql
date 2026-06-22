@@ -9,8 +9,17 @@ WHERE id NOT IN (
   ORDER BY punto_id, updated_at DESC NULLS LAST, created_at DESC
 );
 
-ALTER TABLE coordenadas_gps
-ADD CONSTRAINT IF NOT EXISTS unique_coordenadas_gps_punto_id UNIQUE (punto_id);
+-- Add unique constraint using DO block to check if exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'unique_coordenadas_gps_punto_id'
+    ) THEN
+        ALTER TABLE coordenadas_gps
+        ADD CONSTRAINT unique_coordenadas_gps_punto_id UNIQUE (punto_id);
+    END IF;
+END $$;
 
 -- 2. Documents: remove duplicates keeping the most recent one
 DELETE FROM documentos_punto
@@ -20,5 +29,14 @@ WHERE id NOT IN (
   ORDER BY punto_id, updated_at DESC NULLS LAST, created_at DESC
 );
 
-ALTER TABLE documentos_punto
-ADD CONSTRAINT IF NOT EXISTS unique_documentos_punto_punto_id UNIQUE (punto_id);
+-- Add unique constraint using DO block
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'unique_documentos_punto_punto_id'
+    ) THEN
+        ALTER TABLE documentos_punto
+        ADD CONSTRAINT unique_documentos_punto_punto_id UNIQUE (punto_id);
+    END IF;
+END $$;

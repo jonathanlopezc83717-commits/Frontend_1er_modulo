@@ -31,32 +31,38 @@ export function normalizarDefinicion(valor: string): string {
 }
 
 export function parsearNomenclaturasDesdeTexto(texto: string): NomenclaturaDetectada[] {
-  const parrafos = texto
+  // Procesa línea por línea para detectar múltiples nomenclaturas
+  const lineas = texto
     .replace(/\r\n/g, '\n')
-    .split(/\n\s*\n+/)
-    .map(parrafo => parrafo.trim())
+    .split('\n')
+    .map(linea => linea.trim())
     .filter(Boolean)
 
   const detectadas: NomenclaturaDetectada[] = []
+  const procesados = new Set<string>()
 
-  for (let index = 0; index < parrafos.length; index++) {
-    const parrafo = parrafos[index]
-    const match = parrafo.match(/^([A-Za-z]{3})(\d+)\b[\s:.-]*(.*)$/s)
+  for (const linea of lineas) {
+    // Regex: 3 letras, guión opcional, números, separador, definición
+    const match = linea.match(/^([A-Za-z]{3})-?(\d+)\b[\s\t:.-]+(.*)$/)
 
     if (!match) continue
 
     const codigo = match[1].toUpperCase()
     const seriado = Number(match[2])
-    const definicionMismoParrafo = (match[3] || '').trim()
-    const definicion = definicionMismoParrafo || parrafos[index + 1] || ''
+    const definicion = match[3].trim()
 
-    if (!definicion.trim()) continue
+    if (!definicion) continue
+
+    // Evitar duplicados exactos (misma línea)
+    const key = `${codigo}-${seriado}-${definicion}`
+    if (procesados.has(key)) continue
+    procesados.add(key)
 
     detectadas.push({
       codigo,
       codigoOriginal: `${codigo}${match[2]}`,
       seriado,
-      definicion: definicion.trim(),
+      definicion: definicion,
     })
   }
 

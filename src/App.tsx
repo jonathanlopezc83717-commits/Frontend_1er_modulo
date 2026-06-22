@@ -5,7 +5,7 @@ import { HistorialObras } from '@/components/HistorialObras'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { LayoutDashboard, Settings, HardHat, History, Save, Cloud } from 'lucide-react'
+import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -13,9 +13,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { obtenerUltimoEstadoAppDesdeNube } from '@/lib/supabase-service'
+import type { EstadoGuardado } from '@/types'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 
 function App() {
   const { state, sincronizarConSupabase, cargarDesdeSupabase, setModuloActivo } = useApp()
@@ -23,6 +27,33 @@ function App() {
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
+
+  // Estados para el diálogo de confirmación de recarga
+  const [mostrarDialogoRecarga, setMostrarDialogoRecarga] = useState(false)
+  const [estadoNubeCargando, setEstadoNubeCargando] = useState(false)
+  const [estadoNubeInfo, setEstadoNubeInfo] = useState<EstadoGuardado | null>(null)
+
+  const handleRecargarClick = async () => {
+    setMostrarDialogoRecarga(true)
+    setEstadoNubeCargando(true)
+    try {
+      const ultimo = await obtenerUltimoEstadoAppDesdeNube()
+      setEstadoNubeInfo(ultimo)
+    } finally {
+      setEstadoNubeCargando(false)
+    }
+  }
+
+  const cancelarRecarga = () => {
+    setMostrarDialogoRecarga(false)
+    setEstadoNubeInfo(null)
+  }
+
+  const confirmarRecarga = async () => {
+    setMostrarDialogoRecarga(false)
+    setEstadoNubeInfo(null)
+    await cargarDesdeSupabase()
+  }
 
   const handleSincronizar = async () => {
     setSincronizando(true)
@@ -37,15 +68,6 @@ function App() {
       toast.error('Error al sincronizar')
     } finally {
       setSincronizando(false)
-    }
-  }
-
-  const handleRecargar = async () => {
-    try {
-      await cargarDesdeSupabase()
-      toast.success('Datos recargados desde la nube')
-    } catch (error) {
-      toast.error('Error al recargar datos')
     }
   }
 
@@ -88,7 +110,8 @@ function App() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={handleRecargar}
+              onClick={handleRecargarClick}
+              disabled={estadoNubeCargando}
               title="Recargar desde la nube"
             >
               <Cloud className="w-4 h-4" />
@@ -173,7 +196,7 @@ function App() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={handleRecargar}
+                    onClick={handleRecargarClick}
                     className="flex-1"
                   >
                     <Cloud className="w-4 h-4 mr-2" />
@@ -196,6 +219,75 @@ function App() {
             </DialogDescription>
           </DialogHeader>
           <HistorialObras />
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación de recarga */}
+      <Dialog open={mostrarDialogoRecarga} onOpenChange={setMostrarDialogoRecarga}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Cloud className="w-5 h-5" />
+              Recargar desde la nube
+            </DialogTitle>
+            <DialogDescription>
+              Está a punto de cargar un estado guardado desde la nube.
+            </DialogDescription>
+          </DialogHeader>
+
+          {estadoNubeCargando ? (
+            <div className="py-4 text-center text-muted-foreground">
+              Cargando información del estado...
+            </div>
+          ) : estadoNubeInfo ? (
+            <div className="space-y-3">
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="text-red-800">Advertencia</AlertTitle>
+                <AlertDescription className="text-red-700">
+                  Se perderán todos los datos no guardados en curso. Esta acción no se puede deshacer.
+                </AlertDescription>
+              </Alert>
+
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Estado:</span>
+                  <span className="font-medium">{estadoNubeInfo.descripcion || 'Sin descripción'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <span className="font-medium capitalize">{estadoNubeInfo.tipo}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Puntos:</span>
+                  <span className="font-medium">{estadoNubeInfo.snapshot?.puntos?.length || 0} puntos</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Guardado:</span>
+                  <span className="font-medium">{new Date(estadoNubeInfo.createdAt).toLocaleString('es-ES')}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No se encontró estado</AlertTitle>
+              <AlertDescription>
+                No hay ningún estado guardado en la nube para recargar.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={cancelarRecarga}>
+              Cancelar
+            </Button>
+            {estadoNubeInfo && (
+              <Button variant="default" onClick={confirmarRecarga}>
+                Confirmar Recarga
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,4 +1,5 @@
 import { useApp } from '@/context/AppContext'
+import { excelFileToImage } from '@/lib/excel-to-image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import {
   Calendar,
   Download,
   FileImage,
+  FileSpreadsheet,
   FileText,
   ImagePlus,
   Italic,
@@ -63,7 +65,7 @@ interface WidgetPosicionado {
 interface PlantillaVisual {
   id: string
   nombre: string
-  tipo: 'imagen' | 'pdf'
+  tipo: 'imagen' | 'pdf' | 'excel'
   archivoNombre: string
   archivoBase64: string
   widgets: WidgetPosicionado[]
@@ -167,6 +169,17 @@ function normalizarTextoPlantilla(valor: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+}
+
+function inferirTipoPlantilla(nombre: string, base64?: string): 'imagen' | 'pdf' | 'excel' {
+  const lower = nombre.toLowerCase()
+  if (lower.endsWith('.pdf')) return 'pdf'
+  if (/\.(xlsx|xls)$/.test(lower)) return 'excel'
+  if (base64) {
+    if (base64.startsWith('data:application/pdf')) return 'pdf'
+    if (base64.startsWith('data:image/')) return 'imagen'
+  }
+  return 'imagen'
 }
 
 function formatearFechaPlantilla(fecha: string): string {
@@ -607,7 +620,7 @@ const EDICION_KEY = 'formato-edicion-v1'
 
 interface EdicionGuardada {
   fondoBase64: string
-  fondoTipo: 'imagen' | 'pdf'
+  fondoTipo: 'imagen' | 'pdf' | 'excel'
   fondoNombre: string
   fondoDimensiones: { ancho: number; alto: number }
   widgets: WidgetPosicionado[]
@@ -653,7 +666,7 @@ export function ModuloMateriales() {
   const [plantillaActiva, setPlantillaActiva] = useState<PlantillaVisual | null>(null)
   const [widgets, setWidgets] = useState<WidgetPosicionado[]>([])
   const [fondoBase64, setFondoBase64] = useState('')
-  const [fondoTipo, setFondoTipo] = useState<'imagen' | 'pdf'>('imagen')
+  const [fondoTipo, setFondoTipo] = useState<'imagen' | 'pdf' | 'excel'>('imagen')
   const [fondoNombre, setFondoNombre] = useState('')
   const [fondoDimensiones, setFondoDimensiones] = useState({ ancho: 800, alto: 1120 })
 
@@ -680,7 +693,7 @@ export function ModuloMateriales() {
   const [toolbarVisible, setToolbarVisible] = useState(true)
   const [camposPersonalizados, setCamposPersonalizados] = useState<Array<{ key: string; label: string; tipo: 'texto' | 'imagen' }>>([])
   const [busquedaPlantillas, setBusquedaPlantillas] = useState('')
-  const [filtroPlantillaTipo, setFiltroPlantillaTipo] = useState<'todas' | 'imagen' | 'pdf'>('todas')
+  const [filtroPlantillaTipo, setFiltroPlantillaTipo] = useState<'todas' | 'imagen' | 'pdf' | 'excel'>('todas')
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
 
@@ -788,7 +801,14 @@ export function ModuloMateriales() {
     const visuales = (state.plantillasPdfFormato || []).map(p => {
       const raw = p as unknown as Record<string, unknown>
       if (raw.widgets && Array.isArray(raw.widgets)) {
-        return raw as unknown as PlantillaVisual
+        const archivoNombre = String(raw.archivoNombre || '')
+        const archivoBase64 = String(raw.archivoBase64 || '')
+        const tipoInferido = inferirTipoPlantilla(archivoNombre, archivoBase64)
+        const visual = {
+          ...raw,
+          tipo: (raw.tipo as PlantillaVisual['tipo']) || tipoInferido,
+        } as unknown as PlantillaVisual
+        return visual
       }
       return null
     }).filter(Boolean) as PlantillaVisual[]
@@ -816,6 +836,7 @@ export function ModuloMateriales() {
 
   const totalPlantillasImagen = useMemo(() => plantillas.filter(p => p.tipo === 'imagen').length, [plantillas])
   const totalPlantillasPdf = useMemo(() => plantillas.filter(p => p.tipo === 'pdf').length, [plantillas])
+  const totalPlantillasExcel = useMemo(() => plantillas.filter(p => p.tipo === 'excel').length, [plantillas])
 
   // Guardar edición automáticamente
   useEffect(() => {
@@ -861,11 +882,38 @@ export function ModuloMateriales() {
     if (!file) return
     event.target.value = ''
 
-    const base64 = arrayBufferABase64(await file.arrayBuffer())
     const mime = file.type
-    const esPdf = mime === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    const lowerName = file.name.toLowerCase()
+    const esPdf = mime === 'application/pdf' || lowerName.endsWith('.pdf')
+    const esExcel =
+      mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      mime === 'application/vnd.ms-excel' ||
+      /\.(xlsx|xls)$/.test(lowerName)
+
+    if (esExcel) {
+      try {
+        const buffer = await file.arrayBuffer()
+        const { dataUrl, width, height } = await excelFileToImage(buffer, {
+          scale: 2,
+          pageWidthPx: 1200,
+        })
+        setFondoTipo('excel')
+        setFondoBase64(dataUrl)
+        setFondoNombre(file.name)
+        setFondoDimensiones({ ancho: width, alto: height })
+        setWidgets([])
+        setPlantillaActiva(null)
+        setZoom(1)
+        setViewport({ x: 0, y: 0 })
+      } catch (err) {
+        console.error('Error renderizando Excel:', err)
+        alert('No se pudo renderizar el archivo Excel: ' + String(err))
+      }
+      return
+    }
 
     if (esPdf) {
+      const base64 = arrayBufferABase64(await file.arrayBuffer())
       setFondoTipo('pdf')
       setFondoBase64(base64)
       setFondoNombre(file.name)
@@ -878,10 +926,11 @@ export function ModuloMateriales() {
     }
 
     if (!mime.startsWith('image/')) {
-      alert('Solo se permiten archivos de imagen (JPG, PNG) o PDF')
+      alert('Solo se permiten archivos de imagen (JPG, PNG), PDF o Excel')
       return
     }
 
+    const base64 = arrayBufferABase64(await file.arrayBuffer())
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image()
       image.onload = () => resolve(image)
@@ -1003,8 +1052,9 @@ export function ModuloMateriales() {
     const ajustar = window.confirm(
       '¿Ajustar la plantilla al área de edición?\n\nAceptar = ajustar al área\nCancelar = mantener zoom actual'
     )
+    const tipoEfectivo = plantilla.tipo || inferirTipoPlantilla(plantilla.archivoNombre, plantilla.archivoBase64)
     setPlantillaActiva(plantilla)
-    setFondoTipo(plantilla.tipo)
+    setFondoTipo(tipoEfectivo)
     setFondoBase64(plantilla.archivoBase64)
     setFondoNombre(plantilla.archivoNombre)
     setFondoDimensiones({ ancho: plantilla.ancho, alto: plantilla.alto })
@@ -1053,7 +1103,7 @@ export function ModuloMateriales() {
         descargarArchivo(blob, `${fondoNombre.replace(/\.pdf$/i, '')}-${punto.nombre}.pdf`)
       } else {
         blob = await exportarConFondoImagen(fondoBase64, widgets, punto)
-        descargarArchivo(blob, `${fondoNombre.replace(/\.(jpg|jpeg|png)$/i, '')}-${punto.nombre}.png`)
+        descargarArchivo(blob, `${fondoNombre.replace(/\.(jpg|jpeg|png|xlsx|xls)$/i, '')}-${punto.nombre}.png`)
       }
     } catch (err) {
       console.error('Error exportando:', err)
@@ -1402,7 +1452,7 @@ export function ModuloMateriales() {
         </CardHeader>
         {toolbarVisible && (
           <CardContent className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-            <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf" className="hidden" onChange={cargarFondo} />
+            <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={cargarFondo} />
             <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               Cargar fondo
@@ -1547,11 +1597,12 @@ export function ModuloMateriales() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted/30 p-1">
+                <div className="grid grid-cols-4 gap-1 rounded-md border bg-muted/30 p-1">
                   {([
                     { key: 'todas', label: 'Todas', total: plantillas.length },
                     { key: 'imagen', label: 'Imagen', total: totalPlantillasImagen },
                     { key: 'pdf', label: 'PDF', total: totalPlantillasPdf },
+                    { key: 'excel', label: 'Excel', total: totalPlantillasExcel },
                   ] as const).map(opcion => (
                     <Button
                       key={opcion.key}
@@ -1572,7 +1623,10 @@ export function ModuloMateriales() {
                   <div className="space-y-2">
                     {plantillasFiltradas.map(p => {
                       const activa = plantillaActiva?.id === p.id
-                      const IconoTipo = p.tipo === 'pdf' ? FileText : FileImage
+                      const IconoTipo =
+                        p.tipo === 'pdf' ? FileText :
+                        p.tipo === 'excel' ? FileSpreadsheet :
+                        FileImage
 
                       return (
                         <div
@@ -1588,18 +1642,18 @@ export function ModuloMateriales() {
                             title={`Cargar ${p.nombre}`}
                           >
                             <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded border bg-muted">
-                              {p.tipo === 'imagen' ? (
+                              {p.tipo === 'pdf' ? (
+                                <iframe
+                                  src={crearSrcPdfVista(p.archivoBase64)}
+                                  title={p.nombre}
+                                  className="pointer-events-none h-full w-full border-0 bg-white"
+                                />
+                              ) : (
                                 <img
                                   src={p.archivoBase64}
                                   alt={p.nombre}
                                   className="h-full w-full object-cover"
                                   draggable={false}
-                                />
-                              ) : (
-                                <iframe
-                                  src={crearSrcPdfVista(p.archivoBase64)}
-                                  title={p.nombre}
-                                  className="pointer-events-none h-full w-full border-0 bg-white"
                                 />
                               )}
                               <div className="absolute left-1 top-1 rounded bg-background/90 p-0.5 shadow-sm">
@@ -1743,18 +1797,18 @@ export function ModuloMateriales() {
                 onClick={handleAreaClick}
               >
                 {/* Fondo */}
-                {fondoTipo === 'imagen' ? (
+                {fondoTipo === 'pdf' ? (
+                  <iframe
+                    src={crearSrcPdfVista(fondoBase64)}
+                    title={fondoNombre}
+                    className="pointer-events-none absolute left-0 top-0 h-full w-full border-0"
+                  />
+                ) : (
                   <img
                     src={fondoBase64}
                     alt="Fondo"
                     className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain"
                     draggable={false}
-                  />
-                ) : (
-                  <iframe
-                    src={crearSrcPdfVista(fondoBase64)}
-                    title={fondoNombre}
-                    className="pointer-events-none absolute left-0 top-0 h-full w-full border-0"
                   />
                 )}
 

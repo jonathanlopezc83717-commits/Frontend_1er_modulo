@@ -269,6 +269,7 @@ export interface PlantillaPdfFormato {
   archivoNombre: string
   archivoBase64?: string
   createdAt: string
+  tipo?: 'imagen' | 'pdf' | 'excel'
   campos: PlantillaPdfCampoFormato[]
 }
 

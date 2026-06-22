@@ -149,6 +149,10 @@ function descargarArchivo(blob: Blob, nombre: string) {
   URL.revokeObjectURL(url)
 }
 
+function crearSrcPdfVista(base64: string): string {
+  return `data:application/pdf;base64,${base64}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&page=1&view=Fit`
+}
+
 function normalizarBusquedaCampo(valor: string): string {
   return valor
     .normalize('NFD')
@@ -714,6 +718,15 @@ export function ModuloMateriales() {
     startScale: 1,
   })
 
+  const calcularEscalaAjuste = useCallback(() => {
+    const padre = padreRef.current
+    if (!padre) return 1
+    return Math.min(
+      padre.clientWidth / fondoDimensiones.ancho,
+      padre.clientHeight / fondoDimensiones.alto
+    )
+  }, [fondoDimensiones])
+
   const limitarViewport = useCallback((x: number, y: number, escalaActual: number) => {
     const padre = padreRef.current
     if (!padre) return { x, y }
@@ -742,11 +755,7 @@ export function ModuloMateriales() {
       return
     }
     const rect = padre.getBoundingClientRect()
-    const escalaAjusteLocal = Math.min(
-      rect.width / fondoDimensiones.ancho,
-      rect.height / fondoDimensiones.alto,
-      1
-    )
+    const escalaAjusteLocal = calcularEscalaAjuste()
     const nuevaEscala = escalaAjusteLocal * nuevoZoom
     const fx = focalX ?? rect.width / 2
     const fy = focalY ?? rect.height / 2
@@ -758,7 +767,7 @@ export function ModuloMateriales() {
       return limitarViewport(nextX, nextY, nuevaEscala)
     })
     setZoom(nuevoZoom)
-  }, [fondoDimensiones, zoom, limitarViewport])
+  }, [calcularEscalaAjuste, zoom, limitarViewport])
 
   // Restaurar edición guardada al montar
   useEffect(() => {
@@ -1120,11 +1129,11 @@ export function ModuloMateriales() {
     aplicarZoom(nuevoZoom, e.clientX - rect.left, e.clientY - rect.top)
   }
 
-  const obtenerDistanciaToque = (a: Touch, b: Touch) => {
+  const obtenerDistanciaToque = (a: React.Touch, b: React.Touch) => {
     return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
   }
 
-  const obtenerCentroToque = (a: Touch, b: Touch) => {
+  const obtenerCentroToque = (a: React.Touch, b: React.Touch) => {
     return {
       x: (a.clientX + b.clientX) / 2,
       y: (a.clientY + b.clientY) / 2,
@@ -1138,11 +1147,7 @@ export function ModuloMateriales() {
       e.preventDefault()
       const rect = padreRef.current.getBoundingClientRect()
       const centro = obtenerCentroToque(e.touches[0], e.touches[1])
-      const escalaAjusteLocal = Math.min(
-        rect.width / fondoDimensiones.ancho,
-        rect.height / fondoDimensiones.alto,
-        1
-      )
+      const escalaAjusteLocal = calcularEscalaAjuste()
 
       touchGestureRef.current = {
         mode: 'pinch',
@@ -1381,11 +1386,7 @@ export function ModuloMateriales() {
     )
   }
 
-  const escalaAjuste = Math.min(
-    (padreRef.current?.clientWidth || 800) / fondoDimensiones.ancho,
-    (padreRef.current?.clientHeight || 800) / fondoDimensiones.alto,
-    1
-  )
+  const escalaAjuste = calcularEscalaAjuste()
   const escala = escalaAjuste * zoom
   escalaRef.current = escala
 
@@ -1596,7 +1597,7 @@ export function ModuloMateriales() {
                                 />
                               ) : (
                                 <iframe
-                                  src={`data:application/pdf;base64,${p.archivoBase64}`}
+                                  src={crearSrcPdfVista(p.archivoBase64)}
                                   title={p.nombre}
                                   className="pointer-events-none h-full w-full border-0 bg-white"
                                 />
@@ -1656,12 +1657,18 @@ export function ModuloMateriales() {
       </Card>
 
       {/* Área de edición */}
-      <Card className="relative flex-1 overflow-hidden">
+      <Card className="relative flex-1 overflow-hidden border-0 bg-transparent shadow-none">
         <CardContent
           ref={padreRef}
           className="relative h-full w-full overflow-hidden p-0"
           style={{ touchAction: 'none' }}
           onWheel={handleWheel}
+          onMouseDown={e => {
+            if (e.target === e.currentTarget) iniciarPan(e)
+          }}
+          onClick={e => {
+            if (e.target === e.currentTarget) handleAreaClick()
+          }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -1723,7 +1730,7 @@ export function ModuloMateriales() {
               {/* Lienzo virtual: tamaño real, escalado con CSS */}
               <div
                 ref={areaRef}
-                className={`origin-top-left overflow-hidden rounded-lg border bg-white shadow-sm ${panning ? 'cursor-grabbing' : 'cursor-grab'}`}
+                className={`origin-top-left overflow-hidden bg-white ${panning ? 'cursor-grabbing' : 'cursor-grab'}`}
                 style={{
                   position: 'absolute',
                   left: 0,
@@ -1745,7 +1752,7 @@ export function ModuloMateriales() {
                   />
                 ) : (
                   <iframe
-                    src={`data:application/pdf;base64,${fondoBase64}`}
+                    src={crearSrcPdfVista(fondoBase64)}
                     title={fondoNombre}
                     className="pointer-events-none absolute left-0 top-0 h-full w-full border-0"
                   />
@@ -1857,10 +1864,23 @@ export function ModuloMateriales() {
                         <div className="flex items-center justify-between">
                           <p className="max-w-[140px] truncate text-xs font-semibold">{w.etiqueta}</p>
                           <div className="flex items-center gap-0.5">
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMasPropiedades(v => !v)} title="Más propiedades">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onPointerDown={e => e.stopPropagation()}
+                              onClick={() => setMasPropiedades(v => !v)}
+                              title="Más propiedades"
+                            >
                               <Settings2 className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPanelAbierto(false)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onPointerDown={e => e.stopPropagation()}
+                              onClick={() => setPanelAbierto(false)}
+                            >
                               <X className="h-3 w-3" />
                             </Button>
                           </div>

@@ -16,6 +16,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { obtenerUltimoEstadoAppDesdeNube } from '@/lib/supabase-service'
 import type { EstadoGuardado } from '@/types'
@@ -27,6 +29,10 @@ function App() {
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
+
+  // Estados para el diálogo de guardado en la nube (con título)
+  const [mostrarDialogoGuardar, setMostrarDialogoGuardar] = useState(false)
+  const [tituloEstado, setTituloEstado] = useState('')
 
   // Estados para el diálogo de confirmación de recarga
   const [mostrarDialogoRecarga, setMostrarDialogoRecarga] = useState(false)
@@ -55,10 +61,17 @@ function App() {
     await cargarDesdeSupabase()
   }
 
-  const handleSincronizar = async () => {
+  const handleSincronizar = () => {
+    setTituloEstado('')
+    setMostrarDialogoGuardar(true)
+  }
+
+  const confirmarGuardado = async () => {
+    const titulo = tituloEstado.trim()
+    setMostrarDialogoGuardar(false)
     setSincronizando(true)
     try {
-      const result = await sincronizarConSupabase()
+      const result = await sincronizarConSupabase(titulo || undefined)
       if (result.success) {
         toast.success(result.message)
       } else {
@@ -68,7 +81,13 @@ function App() {
       toast.error('Error al sincronizar')
     } finally {
       setSincronizando(false)
+      setTituloEstado('')
     }
+  }
+
+  const cancelarGuardado = () => {
+    setMostrarDialogoGuardar(false)
+    setTituloEstado('')
   }
 
   return (
@@ -219,6 +238,43 @@ function App() {
             </DialogDescription>
           </DialogHeader>
           <HistorialObras />
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para definir título al guardar en la nube */}
+      <Dialog open={mostrarDialogoGuardar} onOpenChange={(open) => { if (!open) cancelarGuardado() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="w-5 h-5" />
+              Guardar estado en la nube
+            </DialogTitle>
+            <DialogDescription>
+              Asigne un título descriptivo para identificar este estado. Puede dejarlo vacío para usar el valor por defecto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="titulo-estado">Título del estado</Label>
+            <Input
+              id="titulo-estado"
+              value={tituloEstado}
+              onChange={(e) => setTituloEstado(e.target.value)}
+              placeholder="Ej: Revisión trimestral, Backup previo a entrega..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmarGuardado()
+              }}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={cancelarGuardado}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarGuardado} disabled={sincronizando}>
+              <Save className="w-4 h-4 mr-2" />
+              {sincronizando ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

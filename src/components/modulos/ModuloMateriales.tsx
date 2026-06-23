@@ -69,6 +69,20 @@ interface WidgetPosicionado {
   backgroundColor: string
 }
 
+interface FormatoCopiado {
+  tipo: 'texto' | 'imagen'
+  fontFamily?: string
+  fontSize?: number
+  fontWeight?: 'normal' | 'bold'
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline' | 'line-through'
+  textAlign?: 'left' | 'center' | 'right'
+  color?: string
+  backgroundColor?: string
+  width?: number
+  height?: number
+}
+
 interface PlantillaVisual {
   id: string
   nombre: string
@@ -705,6 +719,8 @@ export function ModuloMateriales() {
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
   const [rangoDialogo, setRangoDialogo] = useState('')
+  const [formatoCopiado, setFormatoCopiado] = useState<FormatoCopiado | null>(null)
+  const [modoFormatPainter, setModoFormatPainter] = useState(false)
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
 
   const areaRef = useRef<HTMLDivElement>(null)
@@ -887,6 +903,16 @@ export function ModuloMateriales() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [widgetSeleccionado])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modoFormatPainter) {
+        cancelarFormatPainter()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [modoFormatPainter])
+
   const cargarFondo = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -1016,6 +1042,65 @@ export function ModuloMateriales() {
   const eliminarWidget = (id: string) => {
     setWidgets(prev => prev.filter(w => w.id !== id))
     if (widgetSeleccionado === id) setWidgetSeleccionado(null)
+  }
+
+  const copiarFormato = () => {
+    const w = widgets.find(x => x.id === widgetSeleccionado)
+    if (!w) return
+    setFormatoCopiado({
+      tipo: w.tipo,
+      fontFamily: w.fontFamily,
+      fontSize: w.fontSize,
+      fontWeight: w.fontWeight,
+      fontStyle: w.fontStyle,
+      textDecoration: w.textDecoration,
+      textAlign: w.textAlign,
+      color: w.color,
+      backgroundColor: w.backgroundColor,
+      width: w.width,
+      height: w.height,
+    })
+    setModoFormatPainter(true)
+  }
+
+  const cancelarFormatPainter = () => {
+    setFormatoCopiado(null)
+    setModoFormatPainter(false)
+  }
+
+  const aplicarFormatoCopiado = (id: string) => {
+    if (!formatoCopiado) return
+    const w = widgets.find(x => x.id === id)
+    if (!w) return
+
+    const updates: Partial<WidgetPosicionado> = {}
+
+    if (w.tipo === 'imagen') {
+      // Aplicar ancho manteniendo la proporción de la imagen destino.
+      if (formatoCopiado.width) {
+        const ratioDestino = w.width / w.height
+        updates.width = formatoCopiado.width
+        updates.height = formatoCopiado.width / ratioDestino
+      }
+    } else {
+      updates.width = formatoCopiado.width
+      updates.height = formatoCopiado.height
+    }
+
+    if (w.tipo === 'texto' && formatoCopiado.tipo === 'texto') {
+      updates.fontFamily = formatoCopiado.fontFamily
+      updates.fontSize = formatoCopiado.fontSize
+      updates.fontWeight = formatoCopiado.fontWeight
+      updates.fontStyle = formatoCopiado.fontStyle
+      updates.textDecoration = formatoCopiado.textDecoration
+      updates.textAlign = formatoCopiado.textAlign
+      updates.color = formatoCopiado.color
+      updates.backgroundColor = formatoCopiado.backgroundColor
+    }
+
+    actualizarWidget(id, updates)
+    setModoFormatPainter(false)
+    setWidgetSeleccionado(id)
   }
 
   const limpiarTodo = () => {
@@ -1148,6 +1233,11 @@ export function ModuloMateriales() {
     e.stopPropagation()
     const widget = widgets.find(w => w.id === id)
     if (!widget) return
+
+    if (modoFormatPainter && formatoCopiado && id !== widgetSeleccionado) {
+      aplicarFormatoCopiado(id)
+      return
+    }
 
     if (modo.startsWith('resize-')) {
       const handle = modo.replace('resize-', '') as 'br' | 'bl' | 'tr' | 'tl'
@@ -1799,6 +1889,21 @@ export function ModuloMateriales() {
             </Button>
           </div>
 
+          {modoFormatPainter && (
+            <div className="absolute right-2 top-14 z-30 flex items-center gap-2 rounded-md border bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm backdrop-blur">
+              <Paintbrush className="h-3.5 w-3.5" />
+              <span>Haz clic en otro campo para aplicar el formato</span>
+              <button
+                type="button"
+                className="ml-1 rounded p-0.5 hover:bg-primary-foreground/20"
+                onClick={cancelarFormatPainter}
+                title="Cancelar"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {!fondoBase64 ? (
             <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
               <MousePointer2 className="mb-3 h-12 w-12 opacity-30" />
@@ -1810,7 +1915,9 @@ export function ModuloMateriales() {
               {/* Lienzo virtual: tamaño real, escalado con CSS */}
               <div
                 ref={areaRef}
-                className={`origin-top-left overflow-hidden bg-white ${panning ? 'cursor-grabbing' : 'cursor-grab'}`}
+                className={`origin-top-left overflow-hidden bg-white ${
+                  modoFormatPainter ? 'cursor-crosshair' : panning ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
                 style={{
                   position: 'absolute',
                   left: 0,
@@ -1944,6 +2051,16 @@ export function ModuloMateriales() {
                         <div className="flex items-center justify-between">
                           <p className="max-w-[140px] truncate text-xs font-semibold">{w.etiqueta}</p>
                           <div className="flex items-center gap-0.5">
+                            <Button
+                              variant={modoFormatPainter ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-6 w-6"
+                              onPointerDown={e => e.stopPropagation()}
+                              onClick={modoFormatPainter ? cancelarFormatPainter : copiarFormato}
+                              title={modoFormatPainter ? 'Cancelar copiar formato (Esc)' : 'Copiar formato'}
+                            >
+                              <Paintbrush className="h-3 w-3" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"

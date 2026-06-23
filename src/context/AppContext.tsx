@@ -249,7 +249,7 @@ interface AppContextType {
   restaurarEstadoGuardado: (id: string) => Promise<boolean>
   moverPunto: (id: string, nuevaPosicion: number) => void
   renumerarPuntos: (idsOrdenados: string[]) => void
-  sincronizarConSupabase: () => Promise<{ success: boolean; message: string }>
+  sincronizarConSupabase: (descripcion?: string) => Promise<{ success: boolean; message: string }>
   cargarDesdeSupabase: () => Promise<void>
   guardarCoordenadasDB: (id: string, x: number, y: number, z: number, notas?: string) => Promise<void>
   guardarDocumentacionDB: (id: string, contenido: string, nombreArchivo?: string) => Promise<void>

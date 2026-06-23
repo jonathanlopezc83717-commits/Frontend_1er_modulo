@@ -172,6 +172,30 @@ function base64AArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer
 }
 
+async function pdfBase64ToImage(pdfBase64: string, scale = 2): Promise<{ dataUrl: string; width: number; height: number }> {
+  const pdfjs = await import('pdfjs-dist')
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+
+  const data = base64AArrayBuffer(pdfBase64)
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) })
+  const pdf = await loadingTask.promise
+  const page = await pdf.getPage(1)
+
+  const viewport = page.getViewport({ scale })
+  const canvas = document.createElement('canvas')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('No se pudo crear el contexto del canvas')
+
+  await page.render({ canvas, viewport }).promise
+  return {
+    dataUrl: canvas.toDataURL('image/png'),
+    width: canvas.width,
+    height: canvas.height,
+  }
+}
+
 function descargarArchivo(blob: Blob, nombre: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -1410,13 +1434,18 @@ export function ModuloMateriales() {
       alert('Carga un fondo y selecciona un punto para exportar')
       return
     }
-    if (fondoTipo === 'pdf') {
-      alert('La exportación a Excel desde PDF aún no está soportada. Convierte el PDF a imagen primero.')
-      return
-    }
 
     setExportandoExcel(true)
     try {
+      let fondoImagenBase64 = fondoBase64
+      let fondoImagenDimensiones = { ...fondoDimensiones }
+
+      if (fondoTipo === 'pdf') {
+        const renderizado = await pdfBase64ToImage(fondoBase64, 2)
+        fondoImagenBase64 = renderizado.dataUrl
+        fondoImagenDimensiones = { ancho: renderizado.width, alto: renderizado.height }
+      }
+
       const ExcelJSModule = await import('exceljs')
       const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
       const workbook = new ExcelJS.Workbook()
@@ -1424,8 +1453,8 @@ export function ModuloMateriales() {
       worksheet.properties.showGridLines = false
 
       const CELL_SIZE_PX = 10
-      const totalCols = Math.max(1, Math.ceil(fondoDimensiones.ancho / CELL_SIZE_PX))
-      const totalRows = Math.max(1, Math.ceil(fondoDimensiones.alto / CELL_SIZE_PX))
+      const totalCols = Math.max(1, Math.ceil(fondoImagenDimensiones.ancho / CELL_SIZE_PX))
+      const totalRows = Math.max(1, Math.ceil(fondoImagenDimensiones.alto / CELL_SIZE_PX))
 
       for (let c = 1; c <= totalCols; c++) {
         worksheet.getColumn(c).width = CELL_SIZE_PX / 7
@@ -1434,8 +1463,8 @@ export function ModuloMateriales() {
         worksheet.getRow(r).height = CELL_SIZE_PX * 0.75
       }
 
-      const fondoExtension = fondoBase64.startsWith('data:image/png') ? 'png' : 'jpeg'
-      const fondoData = fondoBase64.split(',')[1] || fondoBase64
+      const fondoExtension = fondoImagenBase64.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const fondoData = fondoImagenBase64.split(',')[1] || fondoImagenBase64
       const fondoImageId = workbook.addImage({ base64: fondoData, extension: fondoExtension })
       worksheet.addImage(fondoImageId, {
         tl: { col: 0, row: 0 },

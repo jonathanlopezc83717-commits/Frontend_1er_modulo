@@ -738,6 +738,7 @@ export function ModuloMateriales() {
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [masPropiedades, setMasPropiedades] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [exportandoExcel, setExportandoExcel] = useState(false)
   const [cargandoPlantilla, setCargandoPlantilla] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [viewport, setViewport] = useState({ x: 0, y: 0 })
@@ -1044,6 +1045,7 @@ export function ModuloMateriales() {
 
   const agregarWidget = (campo: string, etiqueta: string, tipo: 'texto' | 'imagen') => {
     const id = crypto.randomUUID()
+    const esObservaciones = campo === 'observaciones'
     const nuevo: WidgetPosicionado = {
       id,
       campo,
@@ -1058,7 +1060,7 @@ export function ModuloMateriales() {
       textDecoration: 'none',
       textAlign: 'left',
       width: tipo === 'imagen' ? 160 : 180,
-      height: tipo === 'imagen' ? 110 : 42,
+      height: tipo === 'imagen' ? 110 : (esObservaciones ? 120 : 42),
       color: '#000000',
       backgroundColor: 'transparent',
     }
@@ -1400,6 +1402,110 @@ export function ModuloMateriales() {
       alert('Error al exportar: ' + String(err))
     } finally {
       setExportando(false)
+    }
+  }
+
+  const exportarPlantillaExcel = async () => {
+    if (!fondoBase64 || !punto) {
+      alert('Carga un fondo y selecciona un punto para exportar')
+      return
+    }
+    if (fondoTipo === 'pdf') {
+      alert('La exportación a Excel desde PDF aún no está soportada. Convierte el PDF a imagen primero.')
+      return
+    }
+
+    setExportandoExcel(true)
+    try {
+      const ExcelJSModule = await import('exceljs')
+      const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Formato')
+      worksheet.properties.showGridLines = false
+
+      const CELL_SIZE_PX = 10
+      const totalCols = Math.max(1, Math.ceil(fondoDimensiones.ancho / CELL_SIZE_PX))
+      const totalRows = Math.max(1, Math.ceil(fondoDimensiones.alto / CELL_SIZE_PX))
+
+      for (let c = 1; c <= totalCols; c++) {
+        worksheet.getColumn(c).width = CELL_SIZE_PX / 7
+      }
+      for (let r = 1; r <= totalRows; r++) {
+        worksheet.getRow(r).height = CELL_SIZE_PX * 0.75
+      }
+
+      const fondoExtension = fondoBase64.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const fondoData = fondoBase64.split(',')[1] || fondoBase64
+      const fondoImageId = workbook.addImage({ base64: fondoData, extension: fondoExtension })
+      worksheet.addImage(fondoImageId, {
+        tl: { col: 0, row: 0 },
+        br: { col: totalCols, row: totalRows },
+        editAs: 'absolute',
+      } as any)
+
+      for (const w of widgets) {
+        const col = Math.floor(w.x / CELL_SIZE_PX)
+        const row = Math.floor(w.y / CELL_SIZE_PX)
+        const colSpan = Math.max(1, Math.ceil(w.width / CELL_SIZE_PX))
+        const rowSpan = Math.max(1, Math.ceil(w.height / CELL_SIZE_PX))
+
+        if (w.tipo === 'texto') {
+          const valor = extraerValor(punto, w.campo)
+          if (!valor) continue
+
+          const startRow = row + 1
+          const startCol = col + 1
+          const endRow = Math.min(totalRows, row + rowSpan)
+          const endCol = Math.min(totalCols, col + colSpan)
+          if (startRow <= endRow && startCol <= endCol) {
+            worksheet.mergeCells(startRow, startCol, endRow, endCol)
+            const cell = worksheet.getCell(startRow, startCol)
+            cell.value = valor
+            cell.font = {
+              name: w.fontFamily,
+              size: w.fontSize,
+              bold: w.fontWeight === 'bold',
+              italic: w.fontStyle === 'italic',
+              underline: w.textDecoration === 'underline',
+              color: { argb: w.color.replace('#', 'FF') },
+            }
+            cell.alignment = {
+              horizontal: w.textAlign,
+              vertical: 'middle',
+              wrapText: true,
+            }
+            if (w.backgroundColor && w.backgroundColor !== 'transparent') {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: w.backgroundColor.replace('#', 'FF') },
+              }
+            }
+          }
+        } else {
+          const src = obtenerImagenWidget(w, punto)
+          if (!src) continue
+          const extension = src.startsWith('data:image/png') ? 'png' : 'jpeg'
+          const data = src.split(',')[1] || src
+          const imageId = workbook.addImage({ base64: data, extension })
+          worksheet.addImage(imageId, {
+            tl: { col, row },
+            br: { col: col + colSpan, row: row + rowSpan },
+            editAs: 'absolute',
+          } as any)
+        }
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const nombreBase = fondoNombre.replace(/\.(jpg|jpeg|png|pdf|xlsx|xls)$/i, '')
+      descargarArchivo(blob, `${nombreBase}-${punto.nombre}.xlsx`)
+      toast.success('Plantilla exportada a Excel')
+    } catch (err) {
+      console.error('Error exportando Excel:', err)
+      alert('Error al exportar a Excel: ' + String(err))
+    } finally {
+      setExportandoExcel(false)
     }
   }
 
@@ -1762,6 +1868,16 @@ export function ModuloMateriales() {
               <Button size="sm" className="w-full" onClick={exportar} disabled={exportando}>
                 <Download className="mr-2 h-4 w-4" />
                 {exportando ? 'Exportando...' : 'Exportar'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={exportarPlantillaExcel}
+                disabled={exportandoExcel}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {exportandoExcel ? 'Generando Excel...' : 'Exportar Excel'}
               </Button>
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={limpiarTodo}>
                 <Trash2 className="mr-2 h-4 w-4" />

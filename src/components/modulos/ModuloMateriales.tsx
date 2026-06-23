@@ -341,6 +341,17 @@ function obtenerImagenWidget(widget: WidgetPosicionado, punto: unknown): string 
   return extraerImagen(punto, widget.campo)
 }
 
+function obtenerImagenesReconocimiento(punto: unknown, maximo = 4): string[] {
+  if (!punto || typeof punto !== 'object') return []
+  const p = punto as Record<string, unknown>
+  const moduloData = p.moduloData as Record<string, unknown> | undefined
+  const analisis = moduloData?.analisis as Record<string, unknown> | undefined
+  const urls = (analisis?.imageUrls || []) as string[]
+  const fotos = (analisis?.fotosIndexadas || []) as Array<{ preview?: string }>
+  const todas = [...urls, ...fotos.map(f => f.preview || '')].filter(Boolean)
+  return todas.slice(0, maximo)
+}
+
 function dividirTextoCanvas(ctx: CanvasRenderingContext2D, texto: string, maxWidth: number): string[] {
   const lineas: string[] = []
   const parrafos = String(texto).split(/\r?\n/)
@@ -886,6 +897,7 @@ export function ModuloMateriales() {
   const totalPlantillasImagen = useMemo(() => plantillas.filter(p => p.tipo === 'imagen').length, [plantillas])
   const totalPlantillasPdf = useMemo(() => plantillas.filter(p => p.tipo === 'pdf').length, [plantillas])
   const totalPlantillasExcel = useMemo(() => plantillas.filter(p => p.tipo === 'excel').length, [plantillas])
+  const imagenesReconocimiento = useMemo(() => obtenerImagenesReconocimiento(punto, 4), [punto])
 
   // Guardar edición automáticamente
   useEffect(() => {
@@ -1839,6 +1851,31 @@ export function ModuloMateriales() {
               ))}
             </div>
           </div>
+
+          {imagenesReconocimiento.length > 0 && (
+            <div className="border-t pt-2">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Vista previa del reconocimiento</p>
+              <div className="grid grid-cols-2 gap-1">
+                {imagenesReconocimiento.map((src, index) => (
+                  <div
+                    key={`${src}-${index}`}
+                    className="group relative aspect-square overflow-hidden rounded border bg-muted"
+                    title={`Imagen ${index + 1} del reconocimiento`}
+                  >
+                    <img
+                      src={src}
+                      alt={`Reconocimiento ${index + 1}`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute left-0 top-0 rounded-br bg-black/50 px-1 py-0.5 text-[10px] text-white">
+                      {index + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {plantillas.length > 0 && (
             <div className="border-t pt-3">

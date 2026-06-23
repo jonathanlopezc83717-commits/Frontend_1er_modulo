@@ -1,5 +1,6 @@
 import { useApp } from '@/context/AppContext'
 import { excelFileToImage } from '@/lib/excel-to-image'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -720,7 +721,9 @@ export function ModuloMateriales() {
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
   const [rangoDialogo, setRangoDialogo] = useState('')
   const [formatoCopiado, setFormatoCopiado] = useState<FormatoCopiado | null>(null)
+  const [widgetOrigenFormato, setWidgetOrigenFormato] = useState<string | null>(null)
   const [modoFormatPainter, setModoFormatPainter] = useState(false)
+  const [clicksFormatPainter, setClicksFormatPainter] = useState(0)
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
 
   const areaRef = useRef<HTMLDivElement>(null)
@@ -1047,6 +1050,29 @@ export function ModuloMateriales() {
   const copiarFormato = () => {
     const w = widgets.find(x => x.id === widgetSeleccionado)
     if (!w) return
+
+    // Si ya se copió formato del mismo widget, contar clicks para aplicar a todos.
+    if (modoFormatPainter && formatoCopiado && widgetOrigenFormato === widgetSeleccionado) {
+      const nuevosClicks = clicksFormatPainter + 1
+      if (nuevosClicks >= 3) {
+        let aplicados = 0
+        widgets.forEach(target => {
+          if (target.id !== widgetSeleccionado) {
+            aplicarFormatoCopiado(target.id, false)
+            aplicados++
+          }
+        })
+        toast.success(`Formato aplicado a ${aplicados} elemento${aplicados === 1 ? '' : 's'}`)
+        setModoFormatPainter(false)
+        setFormatoCopiado(null)
+        setWidgetOrigenFormato(null)
+        setClicksFormatPainter(0)
+        return
+      }
+      setClicksFormatPainter(nuevosClicks)
+      return
+    }
+
     setFormatoCopiado({
       tipo: w.tipo,
       fontFamily: w.fontFamily,
@@ -1060,15 +1086,19 @@ export function ModuloMateriales() {
       width: w.width,
       height: w.height,
     })
+    setWidgetOrigenFormato(widgetSeleccionado)
     setModoFormatPainter(true)
+    setClicksFormatPainter(1)
   }
 
   const cancelarFormatPainter = () => {
     setFormatoCopiado(null)
+    setWidgetOrigenFormato(null)
     setModoFormatPainter(false)
+    setClicksFormatPainter(0)
   }
 
-  const aplicarFormatoCopiado = (id: string) => {
+  const aplicarFormatoCopiado = (id: string, finalizar = true) => {
     if (!formatoCopiado) return
     const w = widgets.find(x => x.id === id)
     if (!w) return
@@ -1099,7 +1129,12 @@ export function ModuloMateriales() {
     }
 
     actualizarWidget(id, updates)
-    setModoFormatPainter(false)
+    if (finalizar) {
+      setModoFormatPainter(false)
+      setFormatoCopiado(null)
+      setWidgetOrigenFormato(null)
+      setClicksFormatPainter(0)
+    }
     setWidgetSeleccionado(id)
   }
 
@@ -2061,7 +2096,11 @@ export function ModuloMateriales() {
                               className="h-6 w-6"
                               onPointerDown={e => e.stopPropagation()}
                               onClick={modoFormatPainter ? cancelarFormatPainter : copiarFormato}
-                              title={modoFormatPainter ? 'Cancelar copiar formato (Esc)' : 'Copiar formato'}
+                              title={
+                                modoFormatPainter
+                                  ? `Cancelar copiar formato (Esc) — clic ${clicksFormatPainter}/3 para aplicar a todos`
+                                  : 'Copiar formato (3 clics para aplicar a todos)'
+                              }
                             >
                               <Paintbrush className="h-3 w-3" />
                             </Button>

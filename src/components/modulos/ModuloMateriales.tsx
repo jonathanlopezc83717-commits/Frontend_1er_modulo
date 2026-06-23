@@ -21,6 +21,8 @@ import {
   AlignRight,
   Bold,
   Calendar,
+  Clipboard,
+  Copy,
   Download,
   FileImage,
   FileSpreadsheet,
@@ -36,6 +38,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Scissors,
   Search,
   Settings2,
   Strikethrough,
@@ -725,6 +728,8 @@ export function ModuloMateriales() {
   const [modoFormatPainter, setModoFormatPainter] = useState(false)
   const [clicksFormatPainter, setClicksFormatPainter] = useState(0)
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
+  const [widgetCopiado, setWidgetCopiado] = useState<WidgetPosicionado | null>(null)
+  const [offsetPegar, setOffsetPegar] = useState(0)
 
   const areaRef = useRef<HTMLDivElement>(null)
   const padreRef = useRef<HTMLDivElement>(null)
@@ -1046,6 +1051,87 @@ export function ModuloMateriales() {
     setWidgets(prev => prev.filter(w => w.id !== id))
     if (widgetSeleccionado === id) setWidgetSeleccionado(null)
   }
+
+  const copiarWidget = (id?: string) => {
+    const targetId = id || widgetSeleccionado
+    if (!targetId) return
+    const w = widgets.find(x => x.id === targetId)
+    if (!w) return
+    setWidgetCopiado({ ...w })
+    setOffsetPegar(0)
+    toast.success('Elemento copiado')
+  }
+
+  const cortarWidget = (id?: string) => {
+    const targetId = id || widgetSeleccionado
+    if (!targetId) return
+    copiarWidget(targetId)
+    eliminarWidget(targetId)
+    toast.success('Elemento cortado')
+  }
+
+  const pegarWidget = useCallback(() => {
+    if (!widgetCopiado) {
+      toast.info('No hay nada para pegar')
+      return
+    }
+    const nuevoId = crypto.randomUUID()
+    const offset = offsetPegar + 20
+    setOffsetPegar(offset)
+    const nuevo: WidgetPosicionado = {
+      ...widgetCopiado,
+      id: nuevoId,
+      x: widgetCopiado.x + offset,
+      y: widgetCopiado.y + offset,
+    }
+    setWidgets(prev => [...prev, nuevo])
+    setWidgetSeleccionado(nuevoId)
+    setPanelAbierto(true)
+    toast.success('Elemento pegado')
+  }, [widgetCopiado, offsetPegar])
+
+  // Atajos de teclado: copiar, cortar y pegar widgets.
+  useEffect(() => {
+    const widgetSeleccionadoRef = { current: widgetSeleccionado }
+    const widgetsRef = { current: widgets }
+    widgetSeleccionadoRef.current = widgetSeleccionado
+    widgetsRef.current = widgets
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      const isMod = e.metaKey || e.ctrlKey
+      if (!isMod) return
+
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault()
+        const w = widgetsRef.current.find(x => x.id === widgetSeleccionadoRef.current)
+        if (w) {
+          setWidgetCopiado({ ...w })
+          setOffsetPegar(0)
+          toast.success('Elemento copiado')
+        }
+      } else if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault()
+        const id = widgetSeleccionadoRef.current
+        const w = widgetsRef.current.find(x => x.id === id)
+        if (w) {
+          setWidgetCopiado({ ...w })
+          setOffsetPegar(0)
+          setWidgets(prev => prev.filter(x => x.id !== id))
+          if (widgetSeleccionadoRef.current === id) setWidgetSeleccionado(null)
+          toast.success('Elemento cortado')
+        }
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault()
+        pegarWidget()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [widgetSeleccionado, widgets, pegarWidget])
 
   const copiarFormato = () => {
     const w = widgets.find(x => x.id === widgetSeleccionado)
@@ -2124,6 +2210,40 @@ export function ModuloMateriales() {
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
+                        </div>
+
+                        {/* Acciones: copiar, cortar, pegar */}
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={() => copiarWidget()}
+                            title="Copiar elemento (Ctrl+C)"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={() => cortarWidget()}
+                            title="Cortar elemento (Ctrl+X)"
+                          >
+                            <Scissors className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant={widgetCopiado ? 'secondary' : 'ghost'}
+                            size="icon"
+                            className="h-6 w-6"
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={() => pegarWidget()}
+                            title="Pegar elemento (Ctrl+V)"
+                          >
+                            <Clipboard className="h-3 w-3" />
+                          </Button>
                         </div>
 
                         {/* Tamaño: ancho/alto */}

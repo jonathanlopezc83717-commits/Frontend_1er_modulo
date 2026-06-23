@@ -2021,7 +2021,7 @@ export function ModuloMateriales() {
               {panelAbierto && (
                 <div
                   ref={panelPropiedadesRef}
-                  className={`absolute z-30 w-60 rounded-lg border bg-background/90 p-2 shadow-lg backdrop-blur ${
+                  className={`absolute z-30 w-60 rounded-lg border border-border/50 bg-background/70 p-2 shadow-lg backdrop-blur ${
                     posicionPanelPropiedades ? '' : 'bottom-4 right-4'
                   } ${arrastrandoPanelPropiedades ? 'select-none ring-1 ring-primary/40' : ''}`}
                   style={posicionPanelPropiedades ? {
@@ -2048,7 +2048,11 @@ export function ModuloMateriales() {
                     return (
                       <div className="space-y-2">
                         {/* Header compacto */}
-                        <div className="flex items-center justify-between">
+                        <div
+                          className="flex cursor-move touch-none items-center justify-between rounded"
+                          onPointerDown={iniciarArrastrePanelPropiedades}
+                          title="Arrastrar panel de propiedades"
+                        >
                           <p className="max-w-[140px] truncate text-xs font-semibold">{w.etiqueta}</p>
                           <div className="flex items-center gap-0.5">
                             <Button

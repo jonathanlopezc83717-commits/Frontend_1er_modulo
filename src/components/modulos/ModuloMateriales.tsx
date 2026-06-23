@@ -33,6 +33,7 @@ import {
   ImagePlus,
   Italic,
   LayoutTemplate,
+  Loader2,
   MousePointer2,
   Paintbrush,
   Palette,
@@ -714,6 +715,7 @@ export function ModuloMateriales() {
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [masPropiedades, setMasPropiedades] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [cargandoPlantilla, setCargandoPlantilla] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [viewport, setViewport] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState(false)
@@ -1291,18 +1293,22 @@ export function ModuloMateriales() {
     const ajustar = window.confirm(
       '¿Ajustar la plantilla al área de edición?\n\nAceptar = ajustar al área\nCancelar = mantener zoom actual'
     )
-    const tipoEfectivo = plantilla.tipo || inferirTipoPlantilla(plantilla.archivoNombre, plantilla.archivoBase64)
-    setPlantillaActiva(plantilla)
-    setFondoTipo(tipoEfectivo)
-    setFondoBase64(plantilla.archivoBase64)
-    setFondoNombre(plantilla.archivoNombre)
-    setFondoDimensiones({ ancho: plantilla.ancho, alto: plantilla.alto })
-    setWidgets([...plantilla.widgets])
-    setWidgetSeleccionado(null)
-    if (ajustar) {
-      setZoom(1)
-      setViewport({ x: 0, y: 0 })
-    }
+    setCargandoPlantilla(true)
+    // Dar tiempo al navegador para pintar el indicador de carga antes de procesar la imagen.
+    requestAnimationFrame(() => {
+      const tipoEfectivo = plantilla.tipo || inferirTipoPlantilla(plantilla.archivoNombre, plantilla.archivoBase64)
+      setPlantillaActiva(plantilla)
+      setFondoTipo(tipoEfectivo)
+      setFondoBase64(plantilla.archivoBase64)
+      setFondoNombre(plantilla.archivoNombre)
+      setFondoDimensiones({ ancho: plantilla.ancho, alto: plantilla.alto })
+      setWidgets([...plantilla.widgets])
+      setWidgetSeleccionado(null)
+      if (ajustar) {
+        setZoom(1)
+        setViewport({ x: 0, y: 0 })
+      }
+    })
   }
 
   const eliminarPlantilla = (id: string) => {
@@ -2061,6 +2067,13 @@ export function ModuloMateriales() {
             </div>
           ) : (
             <>
+              {cargandoPlantilla && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="mt-2 text-sm font-medium text-muted-foreground">Cargando plantilla...</p>
+                </div>
+              )}
+
               {/* Lienzo virtual: tamaño real, escalado con CSS */}
               <div
                 ref={areaRef}
@@ -2084,6 +2097,7 @@ export function ModuloMateriales() {
                     src={crearSrcPdfVista(fondoBase64)}
                     title={fondoNombre}
                     className="pointer-events-none absolute left-0 top-0 h-full w-full border-0"
+                    onLoad={() => setCargandoPlantilla(false)}
                   />
                 ) : (
                   <img
@@ -2091,6 +2105,7 @@ export function ModuloMateriales() {
                     alt="Fondo"
                     className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain"
                     draggable={false}
+                    onLoad={() => setCargandoPlantilla(false)}
                   />
                 )}
 

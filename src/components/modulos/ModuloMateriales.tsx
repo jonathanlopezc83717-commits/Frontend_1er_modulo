@@ -1538,6 +1538,68 @@ export function ModuloMateriales() {
     }
   }
 
+  const exportarImagenYExcel = async () => {
+    if (!fondoBase64 || !punto) {
+      alert('Carga un fondo y selecciona un punto para exportar')
+      return
+    }
+
+    setExportandoExcel(true)
+    try {
+      let imagenFondoBase64 = fondoBase64
+      if (fondoTipo === 'pdf') {
+        const renderizado = await pdfBase64ToImage(fondoBase64, 2)
+        imagenFondoBase64 = renderizado.dataUrl
+      }
+
+      const blobImagen = await exportarConFondoImagen(imagenFondoBase64, widgets, punto)
+      const nombreBase = fondoNombre.replace(/\.(jpg|jpeg|png|pdf|xlsx|xls)$/i, '')
+      descargarArchivo(blobImagen, `${nombreBase}-${punto.nombre}.png`)
+
+      const arrayBuffer = await blobImagen.arrayBuffer()
+      const imagenBase64 = arrayBufferABase64(arrayBuffer)
+
+      const ExcelJSModule = await import('exceljs')
+      const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Formato')
+      worksheet.properties.showGridLines = false
+
+      const img = new Image()
+      img.src = `data:image/png;base64,${imagenBase64}`
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('No se pudo cargar la imagen generada'))
+      })
+
+      const CELL_SIZE_PX = 10
+      const totalCols = Math.max(1, Math.ceil(img.naturalWidth / CELL_SIZE_PX))
+      const totalRows = Math.max(1, Math.ceil(img.naturalHeight / CELL_SIZE_PX))
+
+      for (let c = 1; c <= totalCols; c++) worksheet.getColumn(c).width = CELL_SIZE_PX / 7
+      for (let r = 1; r <= totalRows; r++) worksheet.getRow(r).height = CELL_SIZE_PX * 0.75
+
+      const bgId = workbook.addImage({ base64: imagenBase64, extension: 'png' })
+      worksheet.addImage(bgId, {
+        tl: { col: 0, row: 0 },
+        br: { col: totalCols, row: totalRows },
+        editAs: 'absolute',
+      } as any)
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      descargarArchivo(
+        new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `${nombreBase}-${punto.nombre}.xlsx`
+      )
+      toast.success('Imagen y Excel exportados')
+    } catch (err) {
+      console.error('Error exportando imagen + Excel:', err)
+      alert('Error al exportar imagen + Excel: ' + String(err))
+    } finally {
+      setExportandoExcel(false)
+    }
+  }
+
   // Drag / resize / pan handlers
   const handleMouseDown = (e: React.MouseEvent, id: string, modo: 'mover' | 'resize-br' | 'resize-bl' | 'resize-tr' | 'resize-tl' = 'mover') => {
     e.preventDefault()
@@ -1907,6 +1969,16 @@ export function ModuloMateriales() {
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 {exportandoExcel ? 'Generando Excel...' : 'Exportar Excel'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={exportarImagenYExcel}
+                disabled={exportandoExcel}
+              >
+                <FileImage className="mr-2 h-4 w-4" />
+                {exportandoExcel ? 'Generando...' : 'Exportar imagen + Excel'}
               </Button>
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={limpiarTodo}>
                 <Trash2 className="mr-2 h-4 w-4" />

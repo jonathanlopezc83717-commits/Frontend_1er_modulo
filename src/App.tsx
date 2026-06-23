@@ -64,7 +64,7 @@ function App() {
       } else {
         toast.error(result.message)
       }
-    } catch (error) {
+    } catch {
       toast.error('Error al sincronizar')
     } finally {
       setSincronizando(false)

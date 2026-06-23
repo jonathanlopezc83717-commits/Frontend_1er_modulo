@@ -4,7 +4,16 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   AlignCenter,
   AlignLeft,
@@ -34,8 +43,6 @@ import {
   Underline,
   Upload,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
@@ -695,6 +702,9 @@ export function ModuloMateriales() {
   const [busquedaPlantillas, setBusquedaPlantillas] = useState('')
   const [filtroPlantillaTipo, setFiltroPlantillaTipo] = useState<'todas' | 'imagen' | 'pdf' | 'excel'>('todas')
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
+  const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
+  const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
+  const [rangoDialogo, setRangoDialogo] = useState('')
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
 
   const areaRef = useRef<HTMLDivElement>(null)
@@ -891,24 +901,9 @@ export function ModuloMateriales() {
       /\.(xlsx|xls)$/.test(lowerName)
 
     if (esExcel) {
-      try {
-        const buffer = await file.arrayBuffer()
-        const { dataUrl, width, height } = await excelFileToImage(buffer, {
-          scale: 2,
-          pageWidthPx: 1200,
-        })
-        setFondoTipo('excel')
-        setFondoBase64(dataUrl)
-        setFondoNombre(file.name)
-        setFondoDimensiones({ ancho: width, alto: height })
-        setWidgets([])
-        setPlantillaActiva(null)
-        setZoom(1)
-        setViewport({ x: 0, y: 0 })
-      } catch (err) {
-        console.error('Error renderizando Excel:', err)
-        alert('No se pudo renderizar el archivo Excel: ' + String(err))
-      }
+      setExcelPendiente(file)
+      setRangoDialogo('')
+      setMostrarDialogoRango(true)
       return
     }
 
@@ -946,6 +941,40 @@ export function ModuloMateriales() {
     setPlantillaActiva(null)
     setZoom(1)
     setViewport({ x: 0, y: 0 })
+  }
+
+  const renderizarExcelPendiente = async () => {
+    if (!excelPendiente) return
+    const file = excelPendiente
+    setMostrarDialogoRango(false)
+    setExcelPendiente(null)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const { dataUrl, width, height } = await excelFileToImage(buffer, {
+        scale: 2,
+        pageWidthPx: 1200,
+        range: rangoDialogo.trim() || undefined,
+        debug: true,
+      })
+      setFondoTipo('excel')
+      setFondoBase64(dataUrl)
+      setFondoNombre(file.name)
+      setFondoDimensiones({ ancho: width, alto: height })
+      setWidgets([])
+      setPlantillaActiva(null)
+      setZoom(1)
+      setViewport({ x: 0, y: 0 })
+    } catch (err) {
+      console.error('Error renderizando Excel:', err)
+      alert('No se pudo renderizar el archivo Excel: ' + String(err))
+    }
+  }
+
+  const cancelarRenderizadoExcel = () => {
+    setMostrarDialogoRango(false)
+    setExcelPendiente(null)
+    setRangoDialogo('')
   }
 
   const agregarWidget = (campo: string, etiqueta: string, tipo: 'texto' | 'imagen') => {
@@ -1473,17 +1502,24 @@ export function ModuloMateriales() {
                 Limpiar
               </Button>
 
-              <div className="flex items-center gap-1 rounded border p-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => aplicarZoom(Math.max(0.25, Number((zoom - 0.1).toFixed(2))))}>
-                  <ZoomOut className="h-3 w-3" />
-                </Button>
-                <span className="flex-1 text-center text-xs font-medium">{Math.round(zoom * 100)}%</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => aplicarZoom(Math.min(5, Number((zoom + 0.1).toFixed(2))))}>
-                  <ZoomIn className="h-3 w-3" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => aplicarZoom(1)} title="Restablecer zoom">
-                  <RotateCcw className="h-3 w-3" />
-                </Button>
+              <div className="space-y-2 rounded border p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Zoom</span>
+                  <span className="text-xs font-medium">{Math.round(zoom * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Slider
+                    value={[zoom]}
+                    min={0.25}
+                    max={5}
+                    step={0.05}
+                    onValueChange={([v]) => aplicarZoom(v)}
+                    className="flex-1"
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => aplicarZoom(1)} title="Restablecer zoom">
+                    <RotateCcw className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -1731,30 +1767,20 @@ export function ModuloMateriales() {
           {/* Botones flotantes estáticos */}
           <div className="absolute right-2 top-2 z-30 flex items-center gap-1">
             {fondoBase64 && (
-              <div className="flex items-center gap-1 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => aplicarZoom(Math.max(0.25, Number((zoom - 0.1).toFixed(2))))}
-                  title="Alejar lienzo"
-                >
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </Button>
+              <div className="flex items-center gap-2 rounded-md border bg-background/90 p-2 shadow-sm backdrop-blur">
                 <span className="min-w-10 text-center text-xs font-medium">{Math.round(zoom * 100)}%</span>
+                <Slider
+                  value={[zoom]}
+                  min={0.25}
+                  max={5}
+                  step={0.05}
+                  onValueChange={([v]) => aplicarZoom(v)}
+                  className="w-32"
+                />
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
-                  onClick={() => aplicarZoom(Math.min(5, Number((zoom + 0.1).toFixed(2))))}
-                  title="Acercar lienzo"
-                >
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   onClick={() => aplicarZoom(1)}
                   title="Restablecer zoom del lienzo"
                 >
@@ -2119,6 +2145,57 @@ export function ModuloMateriales() {
           )}
         </CardContent>
       </Card>
+
+      {/* Diálogo para solicitar el rango del Excel */}
+      <Dialog open={mostrarDialogoRango} onOpenChange={setMostrarDialogoRango}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renderizar plantilla Excel</DialogTitle>
+            <DialogDescription>
+              Indica el rango de celdas que contiene la plantilla.
+              Si no lo sabes, déjalo vacío para usar el rango detectado automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="text-sm">
+              <span className="text-muted-foreground">Archivo:</span>{' '}
+              <span className="font-medium">{excelPendiente?.name}</span>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="rango-excel-dialog" className="text-xs text-muted-foreground">
+                Rango (opcional)
+              </label>
+              <Input
+                id="rango-excel-dialog"
+                value={rangoDialogo}
+                onChange={e => setRangoDialogo(e.target.value)}
+                placeholder="Ej: A1:M40 o 12f x 6c"
+                className="h-8 text-xs"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    renderizarExcelPendiente()
+                  }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Formatos: A1:L12 · 12f x 6c · 12x6
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={cancelarRenderizadoExcel}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={renderizarExcelPendiente}>
+              Renderizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

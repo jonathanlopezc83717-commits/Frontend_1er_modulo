@@ -158,6 +158,10 @@ const FUENTE_TEXTO_PREDETERMINADA = 'Arial'
 const TAMANO_TEXTO_PREDETERMINADO = 14
 const LINE_HEIGHT = 1.2
 
+function obtenerPdfWorkerSrc(): string {
+  return new URL(pdfjsWorkerUrl, window.location.origin).href
+}
+
 // =====================================================
 // UTILIDADES
 // =====================================================
@@ -181,7 +185,7 @@ function base64AArrayBuffer(base64: string): ArrayBuffer {
 
 async function pdfBase64ToImage(pdfBase64: string, scale = 2): Promise<{ dataUrl: string; width: number; height: number }> {
   const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
+  pdfjs.GlobalWorkerOptions.workerSrc = obtenerPdfWorkerSrc()
 
   const data = base64AArrayBuffer(pdfBase64)
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) })

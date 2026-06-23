@@ -239,7 +239,9 @@ function obtenerResumenPlantilla(plantilla: PlantillaVisual): string {
 function buscarValorEnFicha(punto: unknown, campo: string): string | undefined {
   if (!punto || typeof punto !== 'object') return undefined
   const moduloData = (punto as Record<string, unknown>).moduloData as Record<string, unknown> | undefined
-  const ficha = moduloData?.ficha as {
+  const fichaWrapper = moduloData?.ficha as Record<string, unknown> | undefined
+  // ModuloFicha guarda la ficha anidada: moduloData.ficha = { ficha: {...}, nombreArchivo, updatedAt }
+  const ficha = (fichaWrapper?.ficha || fichaWrapper) as {
     datos?: Array<{ etiqueta: string; valor: string }>
     descripcionIzquierda?: string
     descripcionDerecha?: string
@@ -304,7 +306,9 @@ function extraerValor(punto: unknown, campo: string): string {
     }
     case 'observaciones': {
       const analisis = (p.moduloData as Record<string, unknown>)?.analisis as Record<string, unknown> | undefined
-      return String(buscarValorEnFicha(punto, campo) || analisis?.descripcionGeneral || '')
+      const results = (analisis?.results || []) as Array<{ description?: string }>
+      const descripcionObra = results[0]?.description
+      return String(descripcionObra || analisis?.descripcionGeneral || buscarValorEnFicha(punto, campo) || '')
     }
     default: {
       const deFicha = buscarValorEnFicha(punto, campo)

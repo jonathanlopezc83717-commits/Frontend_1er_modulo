@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Archive, Clock, MapPin, FileText, Shield, ClipboardCheck, Package, TreePine, BarChart3, Wand2, RotateCcw } from 'lucide-react'
+import { Archive, Clock, MapPin, FileText, Shield, ClipboardCheck, Package, TreePine, BarChart3, Wand2, RotateCcw, AlertTriangle, MapPinned } from 'lucide-react'
 
 const iconosModulo: Record<string, React.ReactNode> = {
   analisis: <Wand2 className="w-4 h-4" />,
@@ -115,10 +115,17 @@ export function HistorialObras() {
                         >
                           {estado.tipo === 'automatico' ? 'backup automatico' : 'estado manual'}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {estado.snapshotCompleto === false ? 'en nube' : `${estado.snapshot.puntos.length} puntos`}
-                        </span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <MapPinned className="mr-1 h-3 w-3" />
+                          {estado.snapshotCompleto === false ? 'puntos en nube' : `${estado.snapshot.puntos.length} punto${estado.snapshot.puntos.length === 1 ? '' : 's'}`}
+                        </Badge>
                       </div>
+                      {estado.tipo === 'automatico' && (
+                        <div className="mb-2 flex items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span>Copia de seguridad automática generada cada 2 horas</span>
+                        </div>
+                      )}
                       <p className="text-sm font-medium">{estado.descripcion}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatearFecha(estado.createdAt)}

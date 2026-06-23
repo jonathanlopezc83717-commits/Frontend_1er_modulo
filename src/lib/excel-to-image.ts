@@ -358,17 +358,23 @@ export async function excelFileToImage(
   const range = obtenerRangoUsado(worksheet, requestedRange)
   log(debug, `Renderizando hoja "${sheetName}" con rango ${range}`)
 
-  // Primer intento: sheet_to_html.
-  let canvas = await intentarRenderizadoSheetToHtml(
-    XLSX,
-    worksheet,
-    scale,
-    pageWidthPx,
-    backgroundColor,
-    debug,
-  )
+  // Primer intento: sheet_to_html (solo si no se indicó un rango explícito,
+  // porque sheet_to_html no respeta rangos y renderizaría toda la hoja).
+  let canvas: HTMLCanvasElement | null = null
+  if (!requestedRange) {
+    canvas = await intentarRenderizadoSheetToHtml(
+      XLSX,
+      worksheet,
+      scale,
+      pageWidthPx,
+      backgroundColor,
+      debug,
+    )
+  } else {
+    log(debug, 'Rango explícito proporcionado, se omite sheet_to_html')
+  }
 
-  // Segundo intento: reconstrucción manual con sheet_to_json.
+  // Segundo intento: reconstrucción manual con sheet_to_json (respeta el rango).
   if (!canvas || esImagenBlanca(canvas, debug)) {
     log(debug, 'sheet_to_html falló o dio imagen blanca, intentando reconstrucción manual')
     const { table, wrapper } = construirTablaManual(

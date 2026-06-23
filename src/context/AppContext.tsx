@@ -251,6 +251,7 @@ interface AppContextType {
   renumerarPuntos: (idsOrdenados: string[]) => void
   sincronizarConSupabase: (descripcion?: string) => Promise<{ success: boolean; message: string }>
   cargarDesdeSupabase: () => Promise<void>
+  cargarEstadoPorIdDesdeSupabase: (id: string) => Promise<boolean>
   guardarCoordenadasDB: (id: string, x: number, y: number, z: number, notas?: string) => Promise<void>
   guardarDocumentacionDB: (id: string, contenido: string, nombreArchivo?: string) => Promise<void>
   guardarAnalisisDB: (id: string, result: unknown, imageUrls: string[]) => Promise<void>
@@ -559,6 +560,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const cargarEstadoPorIdDesdeSupabase = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const estado = await obtenerEstadoAppDesdeNube(id)
+      if (!estado) return false
+
+      const estadosNube = await obtenerEstadosAppDesdeNube(MAX_ESTADOS_GUARDADOS)
+      dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: estado.snapshot })
+      dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
+      console.log(`Estado cargado desde Supabase: ${estado.descripcion}`)
+      return true
+    } catch (error) {
+      console.error('Error cargando estado por id desde Supabase:', error)
+      return false
+    }
+  }, [])
+
   const guardarCoordenadasDB = useCallback(async (id: string, x: number, y: number, z: number, notas?: string) => {
     await guardarCoordenadas(id, x, y, z, notas)
   }, [])
@@ -600,6 +617,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         renumerarPuntos,
         sincronizarConSupabase,
         cargarDesdeSupabase,
+        cargarEstadoPorIdDesdeSupabase,
         guardarCoordenadasDB,
         guardarDocumentacionDB,
         guardarAnalisisDB,

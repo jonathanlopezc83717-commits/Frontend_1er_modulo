@@ -19,12 +19,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { obtenerUltimoEstadoAppDesdeNube } from '@/lib/supabase-service'
+import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube } from '@/lib/supabase-service'
 import type { EstadoGuardado } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 
 function App() {
-  const { state, sincronizarConSupabase, cargarDesdeSupabase, setModuloActivo } = useApp()
+  const { state, sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo } = useApp()
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
@@ -37,14 +37,20 @@ function App() {
   // Estados para el diálogo de confirmación de recarga
   const [mostrarDialogoRecarga, setMostrarDialogoRecarga] = useState(false)
   const [estadoNubeCargando, setEstadoNubeCargando] = useState(false)
-  const [estadoNubeInfo, setEstadoNubeInfo] = useState<EstadoGuardado | null>(null)
+  const [estadosNubeLista, setEstadosNubeLista] = useState<EstadoGuardado[]>([])
+  const [estadoNubeSeleccionado, setEstadoNubeSeleccionado] = useState<string | null>(null)
 
   const handleRecargarClick = async () => {
     setMostrarDialogoRecarga(true)
     setEstadoNubeCargando(true)
+    setEstadoNubeSeleccionado(null)
     try {
-      const ultimo = await obtenerUltimoEstadoAppDesdeNube()
-      setEstadoNubeInfo(ultimo)
+      const [lista, ultimo] = await Promise.all([
+        obtenerEstadosAppDesdeNube(20),
+        obtenerUltimoEstadoAppDesdeNube(),
+      ])
+      setEstadosNubeLista(lista)
+      setEstadoNubeSeleccionado(ultimo?.id || lista[0]?.id || null)
     } finally {
       setEstadoNubeCargando(false)
     }
@@ -52,13 +58,22 @@ function App() {
 
   const cancelarRecarga = () => {
     setMostrarDialogoRecarga(false)
-    setEstadoNubeInfo(null)
+    setEstadosNubeLista([])
+    setEstadoNubeSeleccionado(null)
   }
 
   const confirmarRecarga = async () => {
+    if (!estadoNubeSeleccionado) return
+    const id = estadoNubeSeleccionado
     setMostrarDialogoRecarga(false)
-    setEstadoNubeInfo(null)
-    await cargarDesdeSupabase()
+    setEstadosNubeLista([])
+    setEstadoNubeSeleccionado(null)
+    const ok = await cargarEstadoPorIdDesdeSupabase(id)
+    if (ok) {
+      toast.success('Estado cargado desde la nube')
+    } else {
+      toast.error('No se pudo cargar el estado seleccionado')
+    }
   }
 
   const handleSincronizar = () => {
@@ -293,9 +308,9 @@ function App() {
 
           {estadoNubeCargando ? (
             <div className="py-4 text-center text-muted-foreground">
-              Cargando información del estado...
+              Cargando estados desde la nube...
             </div>
-          ) : estadoNubeInfo ? (
+          ) : estadosNubeLista.length > 0 ? (
             <div className="space-y-3">
               <Alert variant="destructive" className="border-red-200 bg-red-50">
                 <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -305,23 +320,51 @@ function App() {
                 </AlertDescription>
               </Alert>
 
-              <div className="bg-muted rounded-lg p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Estado:</span>
-                  <span className="font-medium">{estadoNubeInfo.descripcion || 'Sin descripción'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tipo:</span>
-                  <span className="font-medium capitalize">{estadoNubeInfo.tipo}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Puntos:</span>
-                  <span className="font-medium">{estadoNubeInfo.snapshot?.puntos?.length || 0} puntos</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Guardado:</span>
-                  <span className="font-medium">{new Date(estadoNubeInfo.createdAt).toLocaleString('es-ES')}</span>
-                </div>
+              <div className="text-sm font-medium">Seleccione un estado para recargar:</div>
+              <div className="max-h-[40vh] overflow-y-auto space-y-1.5 pr-1">
+                {estadosNubeLista.map((estado) => {
+                  const seleccionado = estadoNubeSeleccionado === estado.id
+                  return (
+                    <button
+                      key={estado.id}
+                      type="button"
+                      onClick={() => setEstadoNubeSeleccionado(estado.id)}
+                      className={`w-full text-left rounded-lg border p-2.5 transition-colors ${
+                        seleccionado
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                            seleccionado ? 'border-primary' : 'border-muted-foreground/40'
+                          }`}
+                        >
+                          {seleccionado && <span className="h-2 w-2 rounded-full bg-primary" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm truncate">{estado.descripcion || 'Sin descripción'}</span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] h-4 ${
+                                estado.tipo === 'automatico'
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              }`}
+                            >
+                              {estado.tipo === 'automatico' ? 'auto' : 'manual'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(estado.createdAt).toLocaleString('es-ES')}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ) : (
@@ -338,7 +381,7 @@ function App() {
             <Button variant="outline" onClick={cancelarRecarga}>
               Cancelar
             </Button>
-            {estadoNubeInfo && (
+            {estadosNubeLista.length > 0 && estadoNubeSeleccionado && (
               <Button variant="default" onClick={confirmarRecarga}>
                 Confirmar Recarga
               </Button>

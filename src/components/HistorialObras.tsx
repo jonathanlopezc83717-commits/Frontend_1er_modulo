@@ -116,10 +116,10 @@ export function HistorialObras() {
                           {estado.tipo === 'automatico' ? 'backup automatico' : 'estado manual'}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {estado.snapshotCompleto === false ? 'snapshot en nube' : `${estado.snapshot.puntos.length} puntos`}
+                          {estado.snapshotCompleto === false ? 'en nube' : `${estado.snapshot.puntos.length} puntos`}
                         </span>
                       </div>
-                      <p className="text-sm">{estado.descripcion}</p>
+                      <p className="text-sm font-medium">{estado.descripcion}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatearFecha(estado.createdAt)}
                       </p>

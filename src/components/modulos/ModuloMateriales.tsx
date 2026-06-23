@@ -21,12 +21,15 @@ import {
   AlignRight,
   Bold,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   Clipboard,
   Copy,
   Download,
   FileImage,
   FileSpreadsheet,
   FileText,
+  Filter,
   ImagePlus,
   Italic,
   LayoutTemplate,
@@ -719,6 +722,7 @@ export function ModuloMateriales() {
   const [camposPersonalizados, setCamposPersonalizados] = useState<Array<{ key: string; label: string; tipo: 'texto' | 'imagen' }>>([])
   const [busquedaPlantillas, setBusquedaPlantillas] = useState('')
   const [filtroPlantillaTipo, setFiltroPlantillaTipo] = useState<'todas' | 'imagen' | 'pdf' | 'excel'>('todas')
+  const [mostrarFiltrosPlantillas, setMostrarFiltrosPlantillas] = useState(false)
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
@@ -1844,25 +1848,49 @@ export function ModuloMateriales() {
                   />
                 </div>
 
-                <div className="grid grid-cols-4 gap-1 rounded-md border bg-muted/30 p-1">
-                  {([
-                    { key: 'todas', label: 'Todas', total: plantillas.length },
-                    { key: 'imagen', label: 'Imagen', total: totalPlantillasImagen },
-                    { key: 'pdf', label: 'PDF', total: totalPlantillasPdf },
-                    { key: 'excel', label: 'Excel', total: totalPlantillasExcel },
-                  ] as const).map(opcion => (
-                    <Button
-                      key={opcion.key}
-                      variant={filtroPlantillaTipo === opcion.key ? 'secondary' : 'ghost'}
-                      size="sm"
-                      className="h-7 px-1 text-[11px]"
-                      onClick={() => setFiltroPlantillaTipo(opcion.key)}
-                    >
-                      {opcion.label}
-                      <span className="ml-1 text-[10px] text-muted-foreground">{opcion.total}</span>
-                    </Button>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => setMostrarFiltrosPlantillas(v => !v)}
+                  >
+                    <Filter className="mr-1.5 h-3 w-3" />
+                    Filtros
+                    {mostrarFiltrosPlantillas ? (
+                      <ChevronUp className="ml-1 h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                  {filtroPlantillaTipo !== 'todas' && (
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] capitalize">
+                      {filtroPlantillaTipo}
+                    </Badge>
+                  )}
                 </div>
+
+                {mostrarFiltrosPlantillas && (
+                  <div className="grid grid-cols-4 gap-1 rounded-md border bg-muted/30 p-1">
+                    {([
+                      { key: 'todas', label: 'Todas', total: plantillas.length },
+                      { key: 'imagen', label: 'Imagen', total: totalPlantillasImagen },
+                      { key: 'pdf', label: 'PDF', total: totalPlantillasPdf },
+                      { key: 'excel', label: 'Excel', total: totalPlantillasExcel },
+                    ] as const).map(opcion => (
+                      <Button
+                        key={opcion.key}
+                        variant={filtroPlantillaTipo === opcion.key ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-1 text-[11px]"
+                        onClick={() => setFiltroPlantillaTipo(opcion.key)}
+                      >
+                        {opcion.label}
+                        <span className="ml-1 text-[10px] text-muted-foreground">{opcion.total}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <ScrollArea className="mt-2 max-h-[285px] pr-2">

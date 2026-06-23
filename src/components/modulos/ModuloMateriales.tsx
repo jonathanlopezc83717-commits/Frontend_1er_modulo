@@ -304,7 +304,7 @@ function extraerValor(punto: unknown, campo: string): string {
     }
     case 'observaciones': {
       const analisis = (p.moduloData as Record<string, unknown>)?.analisis as Record<string, unknown> | undefined
-      return String(analisis?.descripcionGeneral || buscarValorEnFicha(punto, campo) || '')
+      return String(buscarValorEnFicha(punto, campo) || analisis?.descripcionGeneral || '')
     }
     default: {
       const deFicha = buscarValorEnFicha(punto, campo)
@@ -1262,6 +1262,20 @@ export function ModuloMateriales() {
     eliminarEdicionLocal()
   }
 
+  function generarNombreUnico(nombre: string, existentes: PlantillaVisual[], idExcluir?: string): string {
+    const nombres = new Set(existentes.filter(p => p.id !== idExcluir).map(p => p.nombre))
+    if (!nombres.has(nombre)) return nombre
+
+    const base = nombre.replace(/\s*\(\d+\)\s*$/, '').trim()
+    let contador = 1
+    let candidato = `${base} (${contador})`
+    while (nombres.has(candidato)) {
+      contador++
+      candidato = `${base} (${contador})`
+    }
+    return candidato
+  }
+
   const guardarPlantilla = () => {
     if (!fondoBase64) {
       alert('Carga primero una imagen o PDF como fondo')
@@ -1272,9 +1286,15 @@ export function ModuloMateriales() {
     const nombre = window.prompt('Nombre de la plantilla', nombreSugerido)?.trim()
     if (!nombre) return
 
+    const id = plantillaActiva?.id || crypto.randomUUID()
+    const nombreFinal = generarNombreUnico(nombre, plantillas, id)
+    if (nombreFinal !== nombre) {
+      alert(`Ya existe una plantilla con el nombre "${nombre}". Se guardó como "${nombreFinal}".`)
+    }
+
     const plantilla: PlantillaVisual = {
-      id: plantillaActiva?.id || crypto.randomUUID(),
-      nombre,
+      id,
+      nombre: nombreFinal,
       tipo: fondoTipo,
       archivoNombre: fondoNombre,
       archivoBase64: fondoBase64,

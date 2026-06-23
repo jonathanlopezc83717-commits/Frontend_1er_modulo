@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext'
-import { excelFileToImage } from '@/lib/excel-to-image'
+import { excelFileToImage, excelToEditableHtml, htmlTableToImage } from '@/lib/excel-to-image'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,7 @@ import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 import * as pdfjsLib from 'pdfjs-dist'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import ExcelJS from 'exceljs'
 import { analizarSimetria, type SimetriaResultado } from '@/lib/simmetry'
 import {
   AlignCenter,
@@ -806,6 +807,9 @@ export function ModuloMateriales() {
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
+  const [tablaHtmlEditable, setTablaHtmlEditable] = useState('')
+  const [mostrarDialogoTabla, setMostrarDialogoTabla] = useState(false)
+  const [renderizandoTabla, setRenderizandoTabla] = useState(false)
   const [dialogoExportarAbierto, setDialogoExportarAbierto] = useState(false)
   const [guia, setGuia] = useState<{ x?: number; y?: number }>({})
   const [selectorImagenAbierto, setSelectorImagenAbierto] = useState(false)
@@ -824,6 +828,7 @@ export function ModuloMateriales() {
   const padreRef = useRef<HTMLDivElement>(null)
   const panelPropiedadesRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const tablaRef = useRef<HTMLDivElement>(null)
   const escalaRef = useRef(1)
   const panStartViewportRef = useRef({ x: 0, y: 0 })
   const huboPanRef = useRef(false)
@@ -1075,28 +1080,56 @@ export function ModuloMateriales() {
     if (!excelPendiente) return
     const file = excelPendiente
     setMostrarDialogoRango(false)
-    setExcelPendiente(null)
 
     try {
       const buffer = await file.arrayBuffer()
-      const { dataUrl, width, height } = await excelFileToImage(buffer, {
+      const { html } = await excelToEditableHtml(buffer, {
+        range: rangoDialogo.trim() || undefined,
+      })
+      setTablaHtmlEditable(html)
+      setMostrarDialogoTabla(true)
+    } catch (err) {
+      console.error('Error procesando Excel:', err)
+      alert('No se pudo procesar el archivo Excel: ' + String(err))
+      setExcelPendiente(null)
+    }
+  }
+
+  const confirmarTablaExcel = async () => {
+    if (!tablaHtmlEditable || !excelPendiente) return
+
+    setRenderizandoTabla(true)
+    try {
+      const htmlFinal = tablaRef.current?.innerHTML ?? tablaHtmlEditable
+      const { dataUrl, width, height } = await htmlTableToImage(htmlFinal, {
         scale: 2,
         pageWidthPx: 1200,
-        range: rangoDialogo.trim() || undefined,
-        debug: true,
       })
       setFondoTipo('excel')
       setFondoBase64(dataUrl)
-      setFondoNombre(file.name)
+      setFondoNombre(excelPendiente.name)
       setFondoDimensiones({ ancho: width, alto: height })
       setWidgets([])
       setPlantillaActiva(null)
       setZoom(1)
       setViewport({ x: 0, y: 0 })
+      setMostrarDialogoTabla(false)
+      setTablaHtmlEditable('')
+      setExcelPendiente(null)
+      setRangoDialogo('')
     } catch (err) {
-      console.error('Error renderizando Excel:', err)
-      alert('No se pudo renderizar el archivo Excel: ' + String(err))
+      console.error('Error renderizando tabla:', err)
+      alert('No se pudo renderizar la tabla: ' + String(err))
+    } finally {
+      setRenderizandoTabla(false)
     }
+  }
+
+  const cancelarTablaExcel = () => {
+    setMostrarDialogoTabla(false)
+    setTablaHtmlEditable('')
+    setExcelPendiente(null)
+    setRangoDialogo('')
   }
 
   const cancelarRenderizadoExcel = () => {
@@ -1632,8 +1665,6 @@ export function ModuloMateriales() {
         fondoImagenDimensiones = { ancho: renderizado.width, alto: renderizado.height }
       }
 
-      const ExcelJSModule = await import('exceljs')
-      const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
       const workbook = new ExcelJS.Workbook()
       const worksheet = workbook.addWorksheet('Formato')
       worksheet.properties.showGridLines = false
@@ -1745,8 +1776,6 @@ export function ModuloMateriales() {
       const arrayBuffer = await blobImagen.arrayBuffer()
       const imagenBase64 = arrayBufferABase64(arrayBuffer)
 
-      const ExcelJSModule = await import('exceljs')
-      const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
       const workbook = new ExcelJS.Workbook()
       const worksheet = workbook.addWorksheet('Formato')
       worksheet.properties.showGridLines = false
@@ -3176,6 +3205,39 @@ export function ModuloMateriales() {
               Cancelar
             </Button>
             <Button size="sm" onClick={renderizarExcelPendiente}>
+              Renderizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de tabla Excel editable */}
+      <Dialog open={mostrarDialogoTabla} onOpenChange={(open) => { if (!open) cancelarTablaExcel() }}>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Editar plantilla Excel</DialogTitle>
+            <DialogDescription>
+              Haz clic en cualquier celda para editar su texto. Cuando termines, pulsa
+              «Renderizar» para generar la imagen de fondo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 border rounded-md overflow-auto" style={{ maxHeight: '60vh' }}>
+            <div
+              ref={tablaRef}
+              contentEditable
+              suppressContentEditableWarning
+              className="p-2 outline-none"
+              dangerouslySetInnerHTML={{ __html: tablaHtmlEditable }}
+            />
+          </ScrollArea>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={cancelarTablaExcel}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={confirmarTablaExcel} disabled={renderizandoTabla}>
+              {renderizandoTabla ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Renderizar
             </Button>
           </DialogFooter>

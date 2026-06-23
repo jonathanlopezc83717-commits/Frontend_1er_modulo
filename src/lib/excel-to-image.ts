@@ -1,4 +1,6 @@
 import html2canvas from 'html2canvas'
+import ExcelJS from 'exceljs'
+import * as XLSX from 'xlsx'
 
 export interface ExcelRenderOptions {
   /** Escala de renderizado. Valores mayores = imagen más nítida pero más pesada. */
@@ -258,8 +260,6 @@ async function renderizarExcelConExceljs(
   },
 ): Promise<ExcelRenderResult | null> {
   try {
-    const ExcelJSModule = await import('exceljs')
-    const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(buffer)
 
@@ -599,7 +599,6 @@ export async function excelFileToImage(
     debug = false,
   } = options
 
-  const XLSX = await import('xlsx')
   const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' })
 
   if (!workbook.SheetNames.length) {
@@ -707,5 +706,210 @@ export async function excelFileToImage(
     width: canvas.width,
     height: canvas.height,
     sheetName,
+  }
+}
+
+// =====================================================
+// Flujo Excel → HTML editable → Imagen
+// =====================================================
+
+export interface ExcelToHtmlResult {
+  /** HTML de la tabla con estilos inline, listo para mostrar y editar. */
+  html: string
+  sheetName: string
+}
+
+/**
+ * Convierte un archivo Excel a una tabla HTML con estilos (bordes, colores,
+ * merges, alineación). Las celdas usan contentEditable para que el usuario
+ * pueda modificar el texto antes de renderizar.
+ */
+export async function excelToEditableHtml(
+  buffer: ArrayBuffer,
+  options: { sheetName?: string; range?: string } = {},
+): Promise<ExcelToHtmlResult> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+
+  if (workbook.worksheets.length === 0) {
+    throw new Error('El archivo Excel no contiene hojas')
+  }
+
+  let worksheet = options.sheetName
+    ? workbook.getWorksheet(options.sheetName)
+    : workbook.worksheets[0]
+
+  if (!worksheet) {
+    throw new Error(`No se encontró la hoja "${options.sheetName || ''}"`)
+  }
+
+  if (worksheet.rowCount === 0) {
+    throw new Error(`La hoja "${worksheet.name}" está vacía`)
+  }
+
+  let startCol = 0
+  let startRow = 0
+  let endCol = worksheet.columnCount - 1
+  let endRow = worksheet.rowCount - 1
+
+  if (options.range) {
+    const requested = decodeRange(normalizarRango(options.range))
+    startCol = Math.max(startCol, requested.s.c)
+    startRow = Math.max(startRow, requested.s.r)
+    endCol = Math.min(endCol, requested.e.c)
+    endRow = Math.min(endRow, requested.e.r)
+  }
+
+  // Mapa de merges.
+  const mergeMap = new Map<string, { rowspan: number; colspan: number; master: boolean }>()
+  const merges = (worksheet.mergeCells as unknown as string[]) || []
+  merges.forEach((mergeRange: string) => {
+    try {
+      const decoded = decodeRange(mergeRange)
+      if (decoded.e.c < startCol || decoded.s.c > endCol || decoded.e.r < startRow || decoded.s.r > endRow) return
+      for (let r = decoded.s.r; r <= decoded.e.r; r++) {
+        for (let c = decoded.s.c; c <= decoded.e.c; c++) {
+          const key = `${r},${c}`
+          const isMaster = r === decoded.s.r && c === decoded.s.c
+          mergeMap.set(key, {
+            rowspan: decoded.e.r - decoded.s.r + 1,
+            colspan: decoded.e.c - decoded.s.c + 1,
+            master: isMaster,
+          })
+        }
+      }
+    } catch {
+      // Ignorar rangos inválidos.
+    }
+  })
+
+  const rows: string[] = []
+  for (let r = startRow; r <= endRow; r++) {
+    const row = worksheet.getRow(r + 1)
+    const heightPx = row.height ? Math.round(row.height * 1.333) : 20
+    const tds: string[] = []
+
+    for (let c = startCol; c <= endCol; c++) {
+      const mergeKey = `${r},${c}`
+      const merge = mergeMap.get(mergeKey)
+      if (merge && !merge.master) continue
+
+      const cell = worksheet.getCell(r + 1, c + 1)
+      const col = worksheet.getColumn(c + 1)
+      const widthPx = col.width ? Math.round(col.width * 7) : 80
+
+      const text = (cellValueToString(cell.value) || '&nbsp;')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/&nbsp;/g, '&nbsp;')
+
+      let styleStr = `width:${widthPx}px;min-width:${widthPx}px;max-width:${widthPx}px;height:${heightPx}px;`
+
+      const s = cell.style as Record<string, unknown> | undefined
+      if (s) {
+        const font = s.font as Record<string, unknown> | undefined
+        if (font) {
+          if (font.bold) styleStr += 'font-weight:bold;'
+          if (font.italic) styleStr += 'font-style:italic;'
+          if (font.underline) styleStr += 'text-decoration:underline;'
+          if (font.size) styleStr += `font-size:${font.size}px;`
+          const color = argbToCss((font?.color as { argb?: string })?.argb)
+          if (color) styleStr += `color:${color};`
+        }
+
+        const fill = s.fill as Record<string, unknown> | undefined
+        if (fill && fill.type === 'pattern' && fill.fgColor) {
+          const bgColor = argbToCss((fill.fgColor as { argb?: string }).argb)
+          if (bgColor && bgColor.toLowerCase() !== '#ffffff') {
+            styleStr += `background-color:${bgColor};`
+          }
+        }
+
+        const alignment = s.alignment as Record<string, unknown> | undefined
+        if (alignment) {
+          if (alignment.horizontal) styleStr += `text-align:${alignment.horizontal};`
+          if (alignment.vertical) styleStr += `vertical-align:${alignment.vertical};`
+          if (alignment.wrapText) styleStr += 'white-space:normal;'
+        }
+
+        const border = s.border as Record<string, { style?: string; color?: { argb?: string } }> | undefined
+        if (border) {
+          (['top', 'left', 'bottom', 'right'] as const).forEach((side) => {
+            const b = border[side]
+            if (b?.style) {
+              const bColor = argbToCss(b.color?.argb) || '#000000'
+              styleStr += `border-${side}:${borderStyleToCss(b.style)} ${bColor};`
+            }
+          })
+        }
+      }
+
+      let attrs = ` style="${styleStr}"`
+      if (merge?.master) {
+        attrs += ` rowspan="${merge.rowspan}" colspan="${merge.colspan}"`
+      }
+
+      tds.push(`<td${attrs}>${text}</td>`)
+    }
+
+    rows.push(`<tr style="height:${heightPx}px;">${tds.join('')}</tr>`)
+  }
+
+  const html = `<table id="excel-editable-table" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;">${rows.join('')}</table>`
+
+  return { html, sheetName: worksheet.name }
+}
+
+/**
+ * Renderiza un string de tabla HTML a imagen PNG.
+ */
+export async function htmlTableToImage(
+  html: string,
+  options: { scale?: number; pageWidthPx?: number; backgroundColor?: string } = {},
+): Promise<ExcelRenderResult> {
+  const { scale = 2, pageWidthPx = 1200, backgroundColor = '#ffffff' } = options
+
+  const wrapper = crearContenedorTemporal(pageWidthPx)
+  wrapper.innerHTML = html
+
+  const style = document.createElement('style')
+  style.textContent = `
+    #excel-editable-table td {
+      box-sizing: border-box;
+      border: 1px solid #808080;
+      padding: 2px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background-color: ${backgroundColor};
+    }
+  `
+  wrapper.appendChild(style)
+  document.body.appendChild(wrapper)
+
+  try {
+    const table = wrapper.querySelector('table') as HTMLTableElement | null
+    if (!table) throw new Error('El HTML no contiene una tabla')
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    table.offsetHeight
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const canvas = await html2canvas(table, {
+      scale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor,
+    })
+
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      width: canvas.width,
+      height: canvas.height,
+      sheetName: 'editable',
+    }
+  } finally {
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper)
   }
 }

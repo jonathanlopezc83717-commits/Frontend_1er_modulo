@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import {
   AlignCenter,
   AlignLeft,
@@ -174,7 +175,7 @@ function base64AArrayBuffer(base64: string): ArrayBuffer {
 
 async function pdfBase64ToImage(pdfBase64: string, scale = 2): Promise<{ dataUrl: string; width: number; height: number }> {
   const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
   const data = base64AArrayBuffer(pdfBase64)
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) })

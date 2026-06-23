@@ -178,6 +178,282 @@ function aplicarEstilosTabla(wrapper: HTMLDivElement, backgroundColor: string) {
   wrapper.appendChild(style)
 }
 
+// =====================================================
+// Renderizado fiel con exceljs (merges, dimensiones, estilos)
+// =====================================================
+
+function argbToCss(argb?: string): string | undefined {
+  if (!argb) return undefined
+  const hex = argb.replace(/^#/, '').trim()
+  if (hex.length === 8) {
+    return `#${hex.slice(2)}`
+  }
+  if (hex.length === 6) {
+    return `#${hex}`
+  }
+  return undefined
+}
+
+function borderStyleToCss(style?: string): string {
+  switch (style) {
+    case 'thin': return '1px solid'
+    case 'medium': return '2px solid'
+    case 'thick': return '3px solid'
+    case 'dashed': return '1px dashed'
+    case 'dotted': return '1px dotted'
+    case 'double': return '3px double'
+    default: return '1px solid'
+  }
+}
+
+function cellValueToString(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value instanceof Date) return value.toLocaleDateString()
+  if (Array.isArray(value)) return value.map(cellValueToString).join(' ')
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    if (obj.richText && Array.isArray(obj.richText)) {
+      return obj.richText.map((t: { text?: string }) => t.text || '').join('')
+    }
+    if (obj.text !== undefined) return String(obj.text)
+    if (obj.result !== undefined) return String(obj.result)
+  }
+  return String(value)
+}
+
+function decodeRange(range: string): { s: { c: number; r: number }; e: { c: number; r: number } } {
+  const [start, end] = range.split(':')
+  return {
+    s: { c: colToIndex(start), r: rowToIndex(start) },
+    e: { c: colToIndex(end || start), r: rowToIndex(end || start) },
+  }
+}
+
+function colToIndex(col: string): number {
+  const letters = col.toUpperCase().replace(/[^A-Z]/g, '')
+  let num = 0
+  for (const char of letters) {
+    num = num * 26 + (char.charCodeAt(0) - 64)
+  }
+  return Math.max(0, num - 1)
+}
+
+function rowToIndex(cell: string): number {
+  const match = cell.match(/(\d+)/)
+  return match ? Math.max(0, Number(match[1]) - 1) : 0
+}
+
+async function renderizarExcelConExceljs(
+  buffer: ArrayBuffer,
+  options: {
+    scale: number
+    pageWidthPx: number
+    sheetName?: string
+    backgroundColor: string
+    range?: string
+    fallbackAHojaConContenido: boolean
+    debug: boolean
+  },
+): Promise<ExcelRenderResult | null> {
+  try {
+    const ExcelJSModule = await import('exceljs')
+    const ExcelJS = ((ExcelJSModule as unknown as { default?: unknown }).default || ExcelJSModule) as typeof ExcelJSModule
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer)
+
+    if (workbook.worksheets.length === 0) {
+      throw new Error('El archivo Excel no contiene hojas')
+    }
+
+    let worksheet = options.sheetName
+      ? workbook.getWorksheet(options.sheetName)
+      : workbook.worksheets[0]
+
+    if (options.fallbackAHojaConContenido && worksheet && worksheet.rowCount === 0) {
+      const hojaConContenido = workbook.worksheets.find(ws => ws.rowCount > 0)
+      if (hojaConContenido) worksheet = hojaConContenido
+    }
+
+    if (!worksheet) {
+      throw new Error(`No se encontró la hoja "${options.sheetName || ''}"`)
+    }
+
+    if (worksheet.rowCount === 0) {
+      throw new Error(`La hoja "${worksheet.name}" está vacía`)
+    }
+
+    const dimensions = decodeRange(`A1:${numeroAColumnaExcel(worksheet.columnCount)}${worksheet.rowCount}`)
+    let startCol = dimensions.s.c
+    let startRow = dimensions.s.r
+    let endCol = dimensions.e.c
+    let endRow = dimensions.e.r
+
+    if (options.range) {
+      const requested = decodeRange(normalizarRango(options.range))
+      startCol = Math.max(startCol, requested.s.c)
+      startRow = Math.max(startRow, requested.s.r)
+      endCol = Math.min(endCol, requested.e.c)
+      endRow = Math.min(endRow, requested.e.r)
+    }
+
+    log(options.debug, `Renderizando con exceljs hoja "${worksheet.name}" rango ${numeroAColumnaExcel(startCol + 1)}${startRow + 1}:${numeroAColumnaExcel(endCol + 1)}${endRow + 1}`)
+
+    // Mapa de merges.
+    const mergeMap = new Map<string, { rowspan: number; colspan: number; master: boolean }>()
+    const merges = (worksheet.mergeCells as unknown as string[]) || []
+    merges.forEach((mergeRange: string) => {
+      try {
+        const decoded = decodeRange(mergeRange)
+        // Solo considerar merges dentro del rango a renderizar.
+        if (decoded.e.c < startCol || decoded.s.c > endCol || decoded.e.r < startRow || decoded.s.r > endRow) return
+        for (let r = decoded.s.r; r <= decoded.e.r; r++) {
+          for (let c = decoded.s.c; c <= decoded.e.c; c++) {
+            const key = `${r},${c}`
+            const isMaster = r === decoded.s.r && c === decoded.s.c
+            mergeMap.set(key, {
+              rowspan: decoded.e.r - decoded.s.r + 1,
+              colspan: decoded.e.c - decoded.s.c + 1,
+              master: isMaster,
+            })
+          }
+        }
+      } catch {
+        // Ignorar rangos inválidos.
+      }
+    })
+
+    const wrapper = crearContenedorTemporal(options.pageWidthPx)
+    const table = document.createElement('table')
+    table.id = 'excel-render-sheet'
+
+    const style = document.createElement('style')
+    style.textContent = `
+      #excel-render-sheet {
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        color: #111111;
+        background-color: ${options.backgroundColor};
+      }
+      #excel-render-sheet td, #excel-render-sheet th {
+        box-sizing: border-box;
+        padding: 2px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `
+    wrapper.appendChild(style)
+    wrapper.appendChild(table)
+    document.body.appendChild(wrapper)
+
+    try {
+      const colWidths: number[] = []
+      for (let c = startCol; c <= endCol; c++) {
+        const col = worksheet.getColumn(c + 1)
+        const widthPx = col.width ? Math.round(col.width * 7) : 80
+        colWidths.push(widthPx)
+      }
+
+      for (let r = startRow; r <= endRow; r++) {
+        const tr = document.createElement('tr')
+        const row = worksheet.getRow(r + 1)
+        const heightPx = row.height ? Math.round(row.height * 1.333) : 20
+        tr.style.height = `${heightPx}px`
+
+        for (let c = startCol; c <= endCol; c++) {
+          const mergeKey = `${r},${c}`
+          const merge = mergeMap.get(mergeKey)
+          if (merge && !merge.master) continue
+
+          const td = document.createElement('td')
+          const cell = worksheet.getCell(r + 1, c + 1)
+          td.textContent = cellValueToString(cell.value) || '\u00A0'
+
+          const widthPx = colWidths[c - startCol]
+          td.style.width = `${widthPx}px`
+          td.style.minWidth = `${widthPx}px`
+          td.style.maxWidth = `${widthPx}px`
+
+          if (merge?.master) {
+            td.rowSpan = merge.rowspan
+            td.colSpan = merge.colspan
+          }
+
+          const s = cell.style as Record<string, unknown> | undefined
+          if (s) {
+            const font = s.font as Record<string, unknown> | undefined
+            if (font) {
+              if (font.bold) td.style.fontWeight = 'bold'
+              if (font.italic) td.style.fontStyle = 'italic'
+              if (font.underline) td.style.textDecoration = 'underline'
+              if (font.size) td.style.fontSize = `${font.size}px`
+              const color = argbToCss((font?.color as { argb?: string })?.argb)
+              if (color) td.style.color = color
+            }
+
+            const fill = s.fill as Record<string, unknown> | undefined
+            if (fill && fill.type === 'pattern' && fill.fgColor) {
+              const bgColor = argbToCss((fill.fgColor as { argb?: string }).argb)
+              if (bgColor && bgColor.toLowerCase() !== '#ffffff') {
+                td.style.backgroundColor = bgColor
+              }
+            }
+
+            const alignment = s.alignment as Record<string, unknown> | undefined
+            if (alignment) {
+              if (alignment.horizontal) td.style.textAlign = String(alignment.horizontal)
+              if (alignment.vertical) td.style.verticalAlign = String(alignment.vertical)
+              if (alignment.wrapText) td.style.whiteSpace = 'normal'
+            }
+
+            const border = s.border as Record<string, { style?: string; color?: { argb?: string } }> | undefined
+            if (border) {
+              (['top', 'left', 'bottom', 'right'] as const).forEach((side) => {
+                const b = border[side]
+                if (b?.style) {
+                  const color = argbToCss(b.color?.argb) || '#000000'
+                  td.style.setProperty(`border-${side}`, `${borderStyleToCss(b.style)} ${color}`)
+                }
+              })
+            }
+          }
+
+          tr.appendChild(td)
+        }
+        table.appendChild(tr)
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      table.offsetHeight
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      const canvas = await html2canvas(table, {
+        scale: options.scale,
+        useCORS: true,
+        allowTaint: true,
+        logging: options.debug,
+        backgroundColor: options.backgroundColor,
+      })
+
+      return {
+        dataUrl: canvas.toDataURL('image/png'),
+        width: canvas.width,
+        height: canvas.height,
+        sheetName: worksheet.name,
+      }
+    } finally {
+      if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper)
+    }
+  } catch (err) {
+    log(options.debug, 'Error en renderizado con exceljs:', err)
+    return null
+  }
+}
+
 async function renderizarTabla(
   table: HTMLTableElement,
   scale: number,
@@ -358,7 +634,25 @@ export async function excelFileToImage(
   const range = obtenerRangoUsado(worksheet, requestedRange)
   log(debug, `Renderizando hoja "${sheetName}" con rango ${range}`)
 
-  // Primer intento: sheet_to_html (solo si no se indicó un rango explícito,
+  // Primer intento: renderizado fiel con exceljs (lee merges, dimensiones y estilos básicos).
+  const resultadoExceljs = await renderizarExcelConExceljs(buffer, {
+    scale,
+    pageWidthPx,
+    sheetName: requestedSheet,
+    backgroundColor,
+    range: requestedRange,
+    fallbackAHojaConContenido,
+    debug,
+  })
+
+  if (resultadoExceljs) {
+    log(debug, 'Renderizado con exceljs exitoso')
+    return resultadoExceljs
+  }
+
+  log(debug, 'Renderizado con exceljs no disponible, usando fallback con xlsx')
+
+  // Fallback 1: sheet_to_html (solo si no se indicó un rango explícito,
   // porque sheet_to_html no respeta rangos y renderizaría toda la hoja).
   let canvas: HTMLCanvasElement | null = null
   if (!requestedRange) {
@@ -374,7 +668,7 @@ export async function excelFileToImage(
     log(debug, 'Rango explícito proporcionado, se omite sheet_to_html')
   }
 
-  // Segundo intento: reconstrucción manual con sheet_to_json (respeta el rango).
+  // Fallback 2: reconstrucción manual con sheet_to_json (respeta el rango).
   if (!canvas || esImagenBlanca(canvas, debug)) {
     log(debug, 'sheet_to_html falló o dio imagen blanca, intentando reconstrucción manual')
     const { table, wrapper } = construirTablaManual(

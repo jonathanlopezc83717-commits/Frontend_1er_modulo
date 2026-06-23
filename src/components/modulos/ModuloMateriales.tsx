@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
 import {
   AlignCenter,
   AlignLeft,
@@ -75,6 +76,8 @@ interface WidgetPosicionado {
   height: number
   color: string
   backgroundColor: string
+  /** Data URL de imagen asignada manualmente al widget. Si no existe, se usa extraerImagen. */
+  imagenSrc?: string
 }
 
 interface FormatoCopiado {
@@ -333,6 +336,11 @@ function extraerImagen(punto: unknown, campo: string): string {
   return ''
 }
 
+function obtenerImagenWidget(widget: WidgetPosicionado, punto: unknown): string {
+  if (widget.imagenSrc) return widget.imagenSrc
+  return extraerImagen(punto, widget.campo)
+}
+
 function dividirTextoCanvas(ctx: CanvasRenderingContext2D, texto: string, maxWidth: number): string[] {
   const lineas: string[] = []
   const parrafos = String(texto).split(/\r?\n/)
@@ -443,7 +451,7 @@ async function exportarConFondoImagen(
   ctx.drawImage(img, 0, 0)
 
   for (const w of widgets) {
-    const valor = w.tipo === 'texto' ? extraerValor(punto, w.campo) : extraerImagen(punto, w.campo)
+    const valor = w.tipo === 'texto' ? extraerValor(punto, w.campo) : obtenerImagenWidget(w, punto)
     if (!valor) continue
 
     if (w.tipo === 'texto') {
@@ -560,7 +568,7 @@ async function exportarConFondoPdf(
   }
 
   for (const w of widgets) {
-    const valor = w.tipo === 'texto' ? extraerValor(punto, w.campo) : extraerImagen(punto, w.campo)
+    const valor = w.tipo === 'texto' ? extraerValor(punto, w.campo) : obtenerImagenWidget(w, punto)
     if (!valor) continue
 
     const pdfY = height - w.y - (w.tipo === 'texto' ? w.fontSize : w.height)
@@ -728,6 +736,7 @@ export function ModuloMateriales() {
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
+  const [selectorImagenAbierto, setSelectorImagenAbierto] = useState(false)
   const [rangoDialogo, setRangoDialogo] = useState('')
   const [formatoCopiado, setFormatoCopiado] = useState<FormatoCopiado | null>(null)
   const [widgetOrigenFormato, setWidgetOrigenFormato] = useState<string | null>(null)
@@ -2113,6 +2122,7 @@ export function ModuloMateriales() {
                 {widgets.map(w => {
                   const seleccionado = widgetSeleccionado === w.id
                   const valorTexto = w.tipo === 'texto' ? extraerValor(punto, w.campo) : ''
+                  const imagenWidgetSrc = w.tipo === 'imagen' ? obtenerImagenWidget(w, punto) : ''
                   return (
                     <div
                       key={w.id}
@@ -2146,6 +2156,13 @@ export function ModuloMateriales() {
                         >
                           {valorTexto || w.etiqueta}
                         </span>
+                      ) : imagenWidgetSrc ? (
+                        <img
+                          src={imagenWidgetSrc}
+                          alt={w.etiqueta}
+                          className="h-full w-full object-contain"
+                          draggable={false}
+                        />
                       ) : (
                         <div className="flex items-center gap-1 whitespace-nowrap">
                           <ImagePlus className="h-3 w-3" />
@@ -2195,6 +2212,7 @@ export function ModuloMateriales() {
                 >
                   {(() => {
                     const w = widgetSeleccionado ? widgets.find(x => x.id === widgetSeleccionado) : null
+                    const imagenWidgetSrc = w && w.tipo === 'imagen' ? obtenerImagenWidget(w, punto) : ''
                     if (!w) {
                       return (
                         <div
@@ -2455,6 +2473,43 @@ export function ModuloMateriales() {
                           </>
                         )}
 
+                        {w.tipo === 'imagen' && (
+                          <div className="space-y-2 rounded border p-1.5">
+                            <p className="text-[10px] font-medium text-muted-foreground">Imagen del campo</p>
+                            {imagenWidgetSrc ? (
+                              <div className="relative aspect-video w-full overflow-hidden rounded border bg-muted">
+                                <img src={imagenWidgetSrc} alt={w.etiqueta} className="h-full w-full object-contain" />
+                              </div>
+                            ) : (
+                              <div className="flex aspect-video w-full flex-col items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground">
+                                <ImagePlus className="mb-1 h-4 w-4" />
+                                <span>Sin imagen asignada</span>
+                              </div>
+                            )}
+                            <div className="flex gap-1">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-7 flex-1 text-[10px]"
+                                onClick={() => setSelectorImagenAbierto(true)}
+                              >
+                                <ImagePlus className="mr-1 h-3 w-3" />
+                                {w.imagenSrc ? 'Cambiar imagen' : 'Asignar imagen'}
+                              </Button>
+                              {w.imagenSrc && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => actualizarWidget(w.id, { imagenSrc: undefined })}
+                                >
+                                  Limpiar
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <Button variant="destructive" size="sm" className="h-7 w-full text-xs" onClick={() => eliminarWidget(w.id)}>
                           <Trash2 className="mr-2 h-3 w-3" />
                           Eliminar
@@ -2519,6 +2574,16 @@ export function ModuloMateriales() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SelectorImagenWidget
+        open={selectorImagenAbierto}
+        onOpenChange={setSelectorImagenAbierto}
+        punto={punto}
+        onSeleccionar={(src) => {
+          const w = widgetSeleccionado ? widgets.find(x => x.id === widgetSeleccionado) : null
+          if (w) actualizarWidget(w.id, { imagenSrc: src })
+        }}
+      />
     </div>
   )
 }

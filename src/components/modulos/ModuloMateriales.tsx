@@ -604,12 +604,21 @@ function hexToRgb(hex: string) {
 async function exportarConFondoPdf(
   fondoBase64: string,
   widgets: WidgetPosicionado[],
-  punto: unknown
+  punto: unknown,
+  fondoDimensiones: { ancho: number; alto: number }
 ): Promise<Blob> {
   const pdfDoc = await PDFDocument.load(base64AArrayBuffer(fondoBase64))
   const pages = pdfDoc.getPages()
   const page = pages[0]
-  const { height } = page.getSize()
+  const { width: pdfWidth, height: pdfHeight } = page.getSize()
+
+  // Los widgets están en píxeles (espacio de la imagen renderizada);
+  // hay que escalarlos al espacio de puntos del PDF.
+  const scaleX = pdfWidth / fondoDimensiones.ancho
+  const scaleY = pdfHeight / fondoDimensiones.alto
+  const sx = (v: number) => v * scaleX
+  const sy = (v: number) => v * scaleY
+  const height = pdfHeight
 
   const fuentes: Record<string, Awaited<ReturnType<typeof pdfDoc.embedFont>>> = {}
   const getFont = async (fontFamily: string, fontWeight: string, fontStyle: string) => {
@@ -625,28 +634,33 @@ async function exportarConFondoPdf(
     const valor = w.tipo === 'texto' ? extraerValor(punto, w.campo) : obtenerImagenWidget(w, punto)
     if (!valor) continue
 
-    const pdfY = height - w.y - (w.tipo === 'texto' ? w.fontSize : w.height)
+    const wx = sx(w.x)
+    const wy = sy(w.y)
+    const ww = sx(w.width)
+    const wh = sy(w.height)
+    const pdfY = height - wy - (w.tipo === 'texto' ? sy(w.fontSize) : wh)
 
     if (w.tipo === 'texto') {
       const font = await getFont(w.fontFamily, w.fontWeight, w.fontStyle)
       if (w.backgroundColor && w.backgroundColor !== 'transparent') {
         const bg = hexToRgb(w.backgroundColor)
         page.drawRectangle({
-          x: w.x,
-          y: height - w.y - w.height,
-          width: w.width,
-          height: w.height,
+          x: wx,
+          y: height - wy - wh,
+          width: ww,
+          height: wh,
           color: rgb(bg.r, bg.g, bg.b),
         })
       }
 
-      let fittedFontSize = w.fontSize
+      const scaledFontSize = sy(w.fontSize)
+      let fittedFontSize = scaledFontSize
       let lineHeight = fittedFontSize * LINE_HEIGHT
-      let lineas = dividirTextoPdf(font, valor, Math.max(1, w.width), fittedFontSize)
-      for (let size = w.fontSize; size >= 6; size -= 1) {
+      let lineas = dividirTextoPdf(font, valor, Math.max(1, ww), fittedFontSize)
+      for (let size = scaledFontSize; size >= 6; size -= 1) {
         const candidateLineHeight = size * LINE_HEIGHT
-        const candidateLines = dividirTextoPdf(font, valor, Math.max(1, w.width), size)
-        if (candidateLines.length * candidateLineHeight <= Math.max(1, w.height)) {
+        const candidateLines = dividirTextoPdf(font, valor, Math.max(1, ww), size)
+        if (candidateLines.length * candidateLineHeight <= Math.max(1, wh)) {
           fittedFontSize = size
           lineHeight = candidateLineHeight
           lineas = candidateLines
@@ -658,8 +672,8 @@ async function exportarConFondoPdf(
       lineas.forEach((linea, index) => {
         const textWidth = font.widthOfTextAtSize(linea, fittedFontSize)
         page.drawText(linea, {
-          x: alinearTextoX(w.textAlign, w.x, w.width, textWidth),
-          y: height - w.y - fittedFontSize - index * lineHeight,
+          x: alinearTextoX(w.textAlign, wx, ww, textWidth),
+          y: height - wy - fittedFontSize - index * lineHeight,
           size: fittedFontSize,
           font,
           color: rgb(color.r, color.g, color.b),
@@ -668,15 +682,15 @@ async function exportarConFondoPdf(
 
       if (w.textDecoration === 'underline') {
         page.drawLine({
-          start: { x: w.x, y: height - w.y - fittedFontSize - 2 },
-          end: { x: w.x + w.width, y: height - w.y - fittedFontSize - 2 },
+          start: { x: wx, y: height - wy - fittedFontSize - 2 },
+          end: { x: wx + ww, y: height - wy - fittedFontSize - 2 },
           thickness: 1,
           color: rgb(color.r, color.g, color.b),
         })
       } else if (w.textDecoration === 'line-through') {
         page.drawLine({
-          start: { x: w.x, y: height - w.y - fittedFontSize / 2 },
-          end: { x: w.x + w.width, y: height - w.y - fittedFontSize / 2 },
+          start: { x: wx, y: height - wy - fittedFontSize / 2 },
+          end: { x: wx + ww, y: height - wy - fittedFontSize / 2 },
           thickness: 1,
           color: rgb(color.r, color.g, color.b),
         })
@@ -690,10 +704,10 @@ async function exportarConFondoPdf(
       }
       if (imageEmbed) {
         page.drawImage(imageEmbed, {
-          x: w.x,
+          x: wx,
           y: pdfY,
-          width: w.width,
-          height: w.height,
+          width: ww,
+          height: wh,
         })
       }
     }
@@ -1590,7 +1604,7 @@ export function ModuloMateriales() {
 
     setExportando(true)
     try {
-      const blob = await exportarConFondoPdf(fondoBase64, widgets, punto)
+      const blob = await exportarConFondoPdf(fondoBase64, widgets, punto, fondoDimensiones)
       descargarArchivo(blob, `${fondoNombre.replace(/\.pdf$/i, '')}-${punto.nombre}.pdf`)
       toast.success('PDF exportado')
     } catch (err) {

@@ -776,6 +776,7 @@ export function ModuloMateriales() {
   const [posicionPanelPropiedades, setPosicionPanelPropiedades] = useState<{ x: number; y: number } | null>(null)
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
+  const [dialogoExportarAbierto, setDialogoExportarAbierto] = useState(false)
   const [selectorImagenAbierto, setSelectorImagenAbierto] = useState(false)
   const [rangoDialogo, setRangoDialogo] = useState('')
   const [formatoCopiado, setFormatoCopiado] = useState<FormatoCopiado | null>(null)
@@ -1405,7 +1406,7 @@ export function ModuloMateriales() {
     setPlantillasPdfFormato(plantillasPdf)
   }
 
-  const exportar = async () => {
+  const exportarComoImagen = async () => {
     if (!fondoBase64 || !punto) {
       alert('Carga un fondo y selecciona un punto para exportar')
       return
@@ -1413,17 +1414,41 @@ export function ModuloMateriales() {
 
     setExportando(true)
     try {
-      let blob: Blob
+      let fondoImagen = fondoBase64
       if (fondoTipo === 'pdf') {
-        blob = await exportarConFondoPdf(fondoBase64, widgets, punto)
-        descargarArchivo(blob, `${fondoNombre.replace(/\.pdf$/i, '')}-${punto.nombre}.pdf`)
-      } else {
-        blob = await exportarConFondoImagen(fondoBase64, widgets, punto)
-        descargarArchivo(blob, `${fondoNombre.replace(/\.(jpg|jpeg|png|xlsx|xls)$/i, '')}-${punto.nombre}.png`)
+        const renderizado = await pdfBase64ToImage(fondoBase64, 2)
+        fondoImagen = renderizado.dataUrl
       }
+      const blob = await exportarConFondoImagen(fondoImagen, widgets, punto)
+      const nombreBase = fondoNombre.replace(/\.(jpg|jpeg|png|pdf|xlsx|xls)$/i, '')
+      descargarArchivo(blob, `${nombreBase}-${punto.nombre}.png`)
+      toast.success('Imagen exportada')
     } catch (err) {
-      console.error('Error exportando:', err)
-      alert('Error al exportar: ' + String(err))
+      console.error('Error exportando imagen:', err)
+      alert('Error al exportar imagen: ' + String(err))
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  const exportarComoPdf = async () => {
+    if (!fondoBase64 || !punto) {
+      alert('Carga un fondo y selecciona un punto para exportar')
+      return
+    }
+    if (fondoTipo !== 'pdf') {
+      alert('Esta opción solo está disponible cuando el fondo es un PDF')
+      return
+    }
+
+    setExportando(true)
+    try {
+      const blob = await exportarConFondoPdf(fondoBase64, widgets, punto)
+      descargarArchivo(blob, `${fondoNombre.replace(/\.pdf$/i, '')}-${punto.nombre}.pdf`)
+      toast.success('PDF exportado')
+    } catch (err) {
+      console.error('Error exportando PDF:', err)
+      alert('Error al exportar PDF: ' + String(err))
     } finally {
       setExportando(false)
     }
@@ -1956,29 +1981,14 @@ export function ModuloMateriales() {
                 <Save className="mr-2 h-4 w-4" />
                 Guardar plantilla
               </Button>
-              <Button size="sm" className="w-full" onClick={exportar} disabled={exportando}>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => setDialogoExportarAbierto(true)}
+                disabled={exportando || exportandoExcel}
+              >
                 <Download className="mr-2 h-4 w-4" />
-                {exportando ? 'Exportando...' : 'Exportar'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={exportarPlantillaExcel}
-                disabled={exportandoExcel}
-              >
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {exportandoExcel ? 'Generando Excel...' : 'Exportar Excel'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={exportarImagenYExcel}
-                disabled={exportandoExcel}
-              >
-                <FileImage className="mr-2 h-4 w-4" />
-                {exportandoExcel ? 'Generando...' : 'Exportar imagen + Excel'}
+                {exportando || exportandoExcel ? 'Exportando...' : 'Exportar'}
               </Button>
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={limpiarTodo}>
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -2848,6 +2858,84 @@ export function ModuloMateriales() {
             </Button>
             <Button size="sm" onClick={renderizarExcelPendiente}>
               Renderizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de opciones de exportación */}
+      <Dialog open={dialogoExportarAbierto} onOpenChange={setDialogoExportarAbierto}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Opciones de exportación</DialogTitle>
+            <DialogDescription>
+              Elige el formato en el que deseas exportar el formato actual.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-2 py-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                setDialogoExportarAbierto(false)
+                exportarComoImagen()
+              }}
+              disabled={exportando}
+            >
+              <FileImage className="mr-2 h-4 w-4" />
+              Exportar como imagen PNG
+            </Button>
+
+            {fondoTipo === 'pdf' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => {
+                  setDialogoExportarAbierto(false)
+                  exportarComoPdf()
+                }}
+                disabled={exportando}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Exportar como PDF
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                setDialogoExportarAbierto(false)
+                exportarPlantillaExcel()
+              }}
+              disabled={exportandoExcel}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar como Excel
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                setDialogoExportarAbierto(false)
+                exportarImagenYExcel()
+              }}
+              disabled={exportandoExcel}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar imagen + Excel
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => setDialogoExportarAbierto(false)}>
+              Cancelar
             </Button>
           </DialogFooter>
         </DialogContent>

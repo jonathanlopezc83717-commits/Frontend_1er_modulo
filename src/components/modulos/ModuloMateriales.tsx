@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 import { analizarSimetria, type SimetriaResultado } from '@/lib/simmetry'
 import {
   AlignCenter,
@@ -158,8 +158,12 @@ const FUENTE_TEXTO_PREDETERMINADA = 'Arial'
 const TAMANO_TEXTO_PREDETERMINADO = 14
 const LINE_HEIGHT = 1.2
 
-function obtenerPdfWorkerSrc(): string {
-  return new URL(pdfjsWorkerUrl, window.location.origin).href
+let pdfWorkerInstance: Worker | null = null
+function obtenerPdfWorkerPort(): Worker {
+  if (!pdfWorkerInstance) {
+    pdfWorkerInstance = new PdfWorker()
+  }
+  return pdfWorkerInstance
 }
 
 // =====================================================
@@ -185,7 +189,7 @@ function base64AArrayBuffer(base64: string): ArrayBuffer {
 
 async function pdfBase64ToImage(pdfBase64: string, scale = 2): Promise<{ dataUrl: string; width: number; height: number }> {
   const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = obtenerPdfWorkerSrc()
+  pdfjs.GlobalWorkerOptions.workerPort = obtenerPdfWorkerPort()
 
   const data = base64AArrayBuffer(pdfBase64)
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) })

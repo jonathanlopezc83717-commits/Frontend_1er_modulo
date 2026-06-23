@@ -184,6 +184,40 @@ function aplicarEstilosTabla(wrapper: HTMLDivElement, backgroundColor: string) {
 // Renderizado fiel con exceljs (merges, dimensiones, estilos)
 // =====================================================
 
+/**
+ * Extrae los rangos de celdas combinadas de un worksheet de ExcelJS.
+ * Compatible con múltiples versiones: `mergeCells` puede ser array, objeto
+ * con claves de rango, o un método. También se revisa `model.merges`.
+ */
+function obtenerMerges(worksheet: unknown): string[] {
+  const ws = worksheet as Record<string, unknown>
+  const result: string[] = []
+
+  // 1. model.merges (formato común en ExcelJS v4+)
+  const model = ws.model as Record<string, unknown> | undefined
+  if (model && Array.isArray(model.merges)) {
+    result.push(...model.merges as string[])
+  }
+
+  // 2. mergeCells como array
+  if (Array.isArray(ws.mergeCells)) {
+    result.push(...(ws.mergeCells as string[]))
+  }
+
+  // 3. mergeCells como objeto { "A1:B2": {...}, ... }
+  if (ws.mergeCells && typeof ws.mergeCells === 'object' && !Array.isArray(ws.mergeCells)) {
+    result.push(...Object.keys(ws.mergeCells as Record<string, unknown>))
+  }
+
+  // 4. _merges interno (fallback)
+  const internalMerges = ws['_merges'] as Record<string, unknown> | undefined
+  if (internalMerges && typeof internalMerges === 'object') {
+    result.push(...Object.keys(internalMerges))
+  }
+
+  return [...new Set(result)]
+}
+
 function argbToCss(argb?: string): string | undefined {
   if (!argb) return undefined
   const hex = argb.replace(/^#/, '').trim()
@@ -302,8 +336,7 @@ async function renderizarExcelConExceljs(
 
     // Mapa de merges.
     const mergeMap = new Map<string, { rowspan: number; colspan: number; master: boolean }>()
-    const merges = (worksheet.mergeCells as unknown as string[]) || []
-    merges.forEach((mergeRange: string) => {
+    obtenerMerges(worksheet).forEach((mergeRange: string) => {
       try {
         const decoded = decodeRange(mergeRange)
         // Solo considerar merges dentro del rango a renderizar.
@@ -762,8 +795,7 @@ export async function excelToEditableHtml(
 
   // Mapa de merges.
   const mergeMap = new Map<string, { rowspan: number; colspan: number; master: boolean }>()
-  const merges = (worksheet.mergeCells as unknown as string[]) || []
-  merges.forEach((mergeRange: string) => {
+  obtenerMerges(worksheet).forEach((mergeRange: string) => {
     try {
       const decoded = decodeRange(mergeRange)
       if (decoded.e.c < startCol || decoded.s.c > endCol || decoded.e.r < startRow || decoded.s.r > endRow) return

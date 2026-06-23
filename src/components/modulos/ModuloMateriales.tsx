@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext'
-import { excelFileToImage, excelToEditableHtml, htmlTableToImage } from '@/lib/excel-to-image'
+import { excelToEditableHtml, htmlTableToImage } from '@/lib/excel-to-image'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

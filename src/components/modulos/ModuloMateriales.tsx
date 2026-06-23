@@ -17,10 +17,16 @@ import {
 } from '@/components/ui/dialog'
 import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { analizarSimetria, type SimetriaResultado } from '@/lib/simmetry'
 import {
   AlignCenter,
+  AlignHorizontalSpaceBetween,
   AlignLeft,
   AlignRight,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  AlignVerticalSpaceBetween,
   Bold,
   Calendar,
   ChevronDown,
@@ -760,6 +766,7 @@ export function ModuloMateriales() {
   } | null>(null)
   const [offsetArrastre, setOffsetArrastre] = useState({ x: 0, y: 0 })
   const [widgetSeleccionado, setWidgetSeleccionado] = useState<string | null>(null)
+  const [widgetsSeleccionados, setWidgetsSeleccionados] = useState<string[]>([])
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [masPropiedades, setMasPropiedades] = useState(false)
   const [exportando, setExportando] = useState(false)
@@ -778,14 +785,17 @@ export function ModuloMateriales() {
   const [excelPendiente, setExcelPendiente] = useState<File | null>(null)
   const [mostrarDialogoRango, setMostrarDialogoRango] = useState(false)
   const [dialogoExportarAbierto, setDialogoExportarAbierto] = useState(false)
+  const [guia, setGuia] = useState<{ x?: number; y?: number }>({})
   const [selectorImagenAbierto, setSelectorImagenAbierto] = useState(false)
+  const [simetriaImagen, setSimetriaImagen] = useState<SimetriaResultado | null>(null)
+  const [analizandoSimetria, setAnalizandoSimetria] = useState(false)
   const [rangoDialogo, setRangoDialogo] = useState('')
   const [formatoCopiado, setFormatoCopiado] = useState<FormatoCopiado | null>(null)
   const [widgetOrigenFormato, setWidgetOrigenFormato] = useState<string | null>(null)
   const [modoFormatPainter, setModoFormatPainter] = useState(false)
   const [clicksFormatPainter, setClicksFormatPainter] = useState(0)
   const [arrastrandoPanelPropiedades, setArrastrandoPanelPropiedades] = useState(false)
-  const [widgetCopiado, setWidgetCopiado] = useState<WidgetPosicionado | null>(null)
+  const [widgetsCopiados, setWidgetsCopiados] = useState<WidgetPosicionado[]>([])
   const [offsetPegar, setOffsetPegar] = useState(0)
 
   const areaRef = useRef<HTMLDivElement>(null)
@@ -957,17 +967,17 @@ export function ModuloMateriales() {
     setPlantillaActiva(prev => prev ? { ...prev, widgets } : null)
   }, [widgets])
 
-  // Eliminar widget seleccionado con la tecla Suprimir
+  // Eliminar widgets seleccionados con la tecla Suprimir
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Delete' || !widgetSeleccionado) return
+      if (e.key !== 'Delete' || widgetsSeleccionados.length === 0) return
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      eliminarWidget(widgetSeleccionado)
+      eliminarWidget()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [widgetSeleccionado])
+  }, [widgetsSeleccionados])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -978,6 +988,10 @@ export function ModuloMateriales() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [modoFormatPainter])
+
+  useEffect(() => {
+    setSimetriaImagen(null)
+  }, [widgetSeleccionado])
 
   const cargarFondo = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -1106,54 +1120,177 @@ export function ModuloMateriales() {
     setWidgets(prev => prev.map(w => w.id === id ? { ...w, ...data } : w))
   }, [])
 
-  const eliminarWidget = (id: string) => {
-    setWidgets(prev => prev.filter(w => w.id !== id))
-    if (widgetSeleccionado === id) setWidgetSeleccionado(null)
+  const alinearWidgets = (direccion: 'izquierda' | 'centro-h' | 'derecha' | 'arriba' | 'centro-v' | 'abajo') => {
+    if (widgetsSeleccionados.length < 2) return
+    const seleccionados = widgets.filter(w => widgetsSeleccionados.includes(w.id))
+    const minX = Math.min(...seleccionados.map(w => w.x))
+    const maxX = Math.max(...seleccionados.map(w => w.x + w.width))
+    const minY = Math.min(...seleccionados.map(w => w.y))
+    const maxY = Math.max(...seleccionados.map(w => w.y + w.height))
+
+    seleccionados.forEach(w => {
+      let update: Partial<WidgetPosicionado> = {}
+      if (direccion === 'izquierda') update.x = minX
+      else if (direccion === 'centro-h') update.x = (minX + maxX) / 2 - w.width / 2
+      else if (direccion === 'derecha') update.x = maxX - w.width
+      else if (direccion === 'arriba') update.y = minY
+      else if (direccion === 'centro-v') update.y = (minY + maxY) / 2 - w.height / 2
+      else if (direccion === 'abajo') update.y = maxY - w.height
+      actualizarWidget(w.id, update)
+    })
+  }
+
+  const distribuirWidgets = (eje: 'horizontal' | 'vertical') => {
+    if (widgetsSeleccionados.length < 3) return
+    const seleccionados = widgets.filter(w => widgetsSeleccionados.includes(w.id))
+    if (eje === 'horizontal') {
+      const sorted = [...seleccionados].sort((a, b) => a.x - b.x)
+      const totalSpan = sorted[sorted.length - 1].x - sorted[0].x
+      const step = totalSpan / (sorted.length - 1)
+      sorted.forEach((w, i) => actualizarWidget(w.id, { x: sorted[0].x + i * step }))
+    } else {
+      const sorted = [...seleccionados].sort((a, b) => a.y - b.y)
+      const totalSpan = sorted[sorted.length - 1].y - sorted[0].y
+      const step = totalSpan / (sorted.length - 1)
+      sorted.forEach((w, i) => actualizarWidget(w.id, { y: sorted[0].y + i * step }))
+    }
+  }
+
+  const analizarSimetriaWidget = async (src: string) => {
+    setAnalizandoSimetria(true)
+    try {
+      const resultado = await analizarSimetria(src)
+      setSimetriaImagen(resultado)
+    } catch (err) {
+      console.error('Error analizando simetría:', err)
+      toast.error('No se pudo analizar la simetría')
+    } finally {
+      setAnalizandoSimetria(false)
+    }
+  }
+
+  const calcularGuiaArrastre = (w: WidgetPosicionado, x: number, y: number) => {
+    const THRESHOLD = 8 / escalaRef.current
+    const referencias: number[] = []
+    const centroAreaX = fondoDimensiones.ancho / 2
+    const centroAreaY = fondoDimensiones.alto / 2
+
+    widgets.forEach(otro => {
+      if (otro.id === w.id || widgetsSeleccionados.includes(otro.id)) return
+      referencias.push(otro.x)
+      referencias.push(otro.x + otro.width / 2)
+      referencias.push(otro.x + otro.width)
+      referencias.push(otro.y)
+      referencias.push(otro.y + otro.height / 2)
+      referencias.push(otro.y + otro.height)
+    })
+    referencias.push(centroAreaX - w.width / 2)
+    referencias.push(centroAreaX)
+    referencias.push(centroAreaX + w.width / 2)
+    referencias.push(centroAreaY - w.height / 2)
+    referencias.push(centroAreaY)
+    referencias.push(centroAreaY + w.height / 2)
+
+    const candidatosX = [
+      x,
+      x + w.width / 2,
+      x + w.width,
+    ]
+    const candidatosY = [
+      y,
+      y + w.height / 2,
+      y + w.height,
+    ]
+
+    let mejorX: number | undefined
+    let mejorY: number | undefined
+    let minDifX = THRESHOLD
+    let minDifY = THRESHOLD
+
+    candidatosX.forEach(cx => {
+      referencias.forEach(ref => {
+        const dif = Math.abs(cx - ref)
+        if (dif < minDifX) {
+          minDifX = dif
+          mejorX = ref
+        }
+      })
+    })
+
+    candidatosY.forEach(cy => {
+      referencias.forEach(ref => {
+        const dif = Math.abs(cy - ref)
+        if (dif < minDifY) {
+          minDifY = dif
+          mejorY = ref
+        }
+      })
+    })
+
+    setGuia({ x: mejorX, y: mejorY })
+    return { snapX: mejorX, snapY: mejorY }
+  }
+
+  const eliminarWidget = (id?: string) => {
+    if (id) {
+      setWidgets(prev => prev.filter(w => w.id !== id))
+      if (widgetSeleccionado === id) setWidgetSeleccionado(null)
+      setWidgetsSeleccionados(prev => prev.filter(x => x !== id))
+    } else {
+      setWidgets(prev => prev.filter(w => !widgetsSeleccionados.includes(w.id)))
+      setWidgetSeleccionado(null)
+      setWidgetsSeleccionados([])
+    }
   }
 
   const copiarWidget = (id?: string) => {
-    const targetId = id || widgetSeleccionado
-    if (!targetId) return
-    const w = widgets.find(x => x.id === targetId)
-    if (!w) return
-    setWidgetCopiado({ ...w })
+    const ids = id ? [id] : widgetsSeleccionados
+    if (ids.length === 0) return
+    const copiados = widgets.filter(x => ids.includes(x.id)).map(w => ({ ...w }))
+    setWidgetsCopiados(copiados)
     setOffsetPegar(0)
-    toast.success('Elemento copiado')
+    toast.success(ids.length === 1 ? 'Elemento copiado' : `${copiados.length} elementos copiados`)
   }
 
   const cortarWidget = (id?: string) => {
-    const targetId = id || widgetSeleccionado
-    if (!targetId) return
-    copiarWidget(targetId)
-    eliminarWidget(targetId)
-    toast.success('Elemento cortado')
+    const ids = id ? [id] : widgetsSeleccionados
+    if (ids.length === 0) return
+    copiarWidget(id)
+    eliminarWidget(id)
+    toast.success(ids.length === 1 ? 'Elemento cortado' : `${ids.length} elementos cortados`)
   }
 
   const pegarWidget = useCallback(() => {
-    if (!widgetCopiado) {
+    if (!widgetsCopiados || widgetsCopiados.length === 0) {
       toast.info('No hay nada para pegar')
       return
     }
-    const nuevoId = crypto.randomUUID()
-    const offset = offsetPegar + 20
+    let offset = offsetPegar
+    const nuevosIds: string[] = []
+    const nuevos = widgetsCopiados.map(w => {
+      offset += 20
+      const nuevoId = crypto.randomUUID()
+      nuevosIds.push(nuevoId)
+      return {
+        ...w,
+        id: nuevoId,
+        x: w.x + offset,
+        y: w.y + offset,
+      }
+    })
     setOffsetPegar(offset)
-    const nuevo: WidgetPosicionado = {
-      ...widgetCopiado,
-      id: nuevoId,
-      x: widgetCopiado.x + offset,
-      y: widgetCopiado.y + offset,
-    }
-    setWidgets(prev => [...prev, nuevo])
-    setWidgetSeleccionado(nuevoId)
+    setWidgets(prev => [...prev, ...nuevos])
+    setWidgetSeleccionado(nuevosIds[nuevosIds.length - 1])
+    setWidgetsSeleccionados(nuevosIds)
     setPanelAbierto(true)
-    toast.success('Elemento pegado')
-  }, [widgetCopiado, offsetPegar])
+    toast.success(nuevos.length === 1 ? 'Elemento pegado' : `${nuevos.length} elementos pegados`)
+  }, [widgetsCopiados, offsetPegar])
 
   // Atajos de teclado: copiar, cortar y pegar widgets.
   useEffect(() => {
-    const widgetSeleccionadoRef = { current: widgetSeleccionado }
+    const widgetsSeleccionadosRef = { current: widgetsSeleccionados }
     const widgetsRef = { current: widgets }
-    widgetSeleccionadoRef.current = widgetSeleccionado
+    widgetsSeleccionadosRef.current = widgetsSeleccionados
     widgetsRef.current = widgets
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1165,22 +1302,23 @@ export function ModuloMateriales() {
 
       if (e.key === 'c' || e.key === 'C') {
         e.preventDefault()
-        const w = widgetsRef.current.find(x => x.id === widgetSeleccionadoRef.current)
-        if (w) {
-          setWidgetCopiado({ ...w })
+        const copiados = widgetsRef.current.filter(x => widgetsSeleccionadosRef.current.includes(x.id)).map(w => ({ ...w }))
+        if (copiados.length > 0) {
+          setWidgetsCopiados(copiados)
           setOffsetPegar(0)
-          toast.success('Elemento copiado')
+          toast.success(copiados.length === 1 ? 'Elemento copiado' : `${copiados.length} elementos copiados`)
         }
       } else if (e.key === 'x' || e.key === 'X') {
         e.preventDefault()
-        const id = widgetSeleccionadoRef.current
-        const w = widgetsRef.current.find(x => x.id === id)
-        if (w) {
-          setWidgetCopiado({ ...w })
+        const ids = widgetsSeleccionadosRef.current
+        const copiados = widgetsRef.current.filter(x => ids.includes(x.id)).map(w => ({ ...w }))
+        if (copiados.length > 0) {
+          setWidgetsCopiados(copiados)
           setOffsetPegar(0)
-          setWidgets(prev => prev.filter(x => x.id !== id))
-          if (widgetSeleccionadoRef.current === id) setWidgetSeleccionado(null)
-          toast.success('Elemento cortado')
+          setWidgets(prev => prev.filter(x => !ids.includes(x.id)))
+          setWidgetSeleccionado(null)
+          setWidgetsSeleccionados([])
+          toast.success(copiados.length === 1 ? 'Elemento cortado' : `${copiados.length} elementos cortados`)
         }
       } else if (e.key === 'v' || e.key === 'V') {
         e.preventDefault()
@@ -1190,7 +1328,7 @@ export function ModuloMateriales() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [widgetSeleccionado, widgets, pegarWidget])
+  }, [widgetsSeleccionados, widgets, pegarWidget])
 
   const copiarFormato = () => {
     const w = widgets.find(x => x.id === widgetSeleccionado)
@@ -1651,6 +1789,7 @@ export function ModuloMateriales() {
         ratio: widget.width / widget.height,
       })
       setWidgetSeleccionado(id)
+      setWidgetsSeleccionados(prev => prev.includes(id) ? prev : [...prev, id])
       setPanelAbierto(true)
       return
     }
@@ -1658,9 +1797,26 @@ export function ModuloMateriales() {
     const rect = areaRef.current?.getBoundingClientRect()
     if (!rect) return
 
+    if (e.ctrlKey || e.metaKey) {
+      setWidgetsSeleccionados(prev => {
+        if (prev.includes(id)) {
+          const next = prev.filter(x => x !== id)
+          if (widgetSeleccionado === id) {
+            setWidgetSeleccionado(next.length > 0 ? next[next.length - 1] : null)
+          }
+          return next
+        }
+        setWidgetSeleccionado(id)
+        return [...prev, id]
+      })
+      setPanelAbierto(true)
+    } else {
+      setWidgetsSeleccionados([id])
+      setWidgetSeleccionado(id)
+      setPanelAbierto(true)
+    }
+
     setArrastrando(id)
-    setWidgetSeleccionado(id)
-    setPanelAbierto(true)
     setOffsetArrastre({
       x: e.clientX - rect.left - widget.x * escala,
       y: e.clientY - rect.top - widget.y * escala,
@@ -1682,6 +1838,7 @@ export function ModuloMateriales() {
       return
     }
     setWidgetSeleccionado(null)
+    setWidgetsSeleccionados([])
   }
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -1893,15 +2050,42 @@ export function ModuloMateriales() {
 
     if (!arrastrando || !areaRef.current) return
     const rect = areaRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left - offsetArrastre.x
-    const y = e.clientY - rect.top - offsetArrastre.y
-    actualizarWidget(arrastrando, { x: Math.max(0, x) / escalaRef.current, y: Math.max(0, y) / escalaRef.current })
-  }, [arrastrando, offsetArrastre, actualizarWidget, redimensionando, panning, startPan, limitarViewport])
+    const rawX = (e.clientX - rect.left - offsetArrastre.x) / escalaRef.current
+    const rawY = (e.clientY - rect.top - offsetArrastre.y) / escalaRef.current
+    const widget = widgets.find(w => w.id === arrastrando)
+    if (!widget) return
+
+    const x = Math.max(0, rawX)
+    const y = Math.max(0, rawY)
+    const { snapX, snapY } = calcularGuiaArrastre(widget, x, y)
+
+    let finalX = x
+    let finalY = y
+    if (snapX !== undefined) {
+      const candidatosX = [
+        snapX,
+        snapX - widget.width / 2,
+        snapX - widget.width,
+      ]
+      finalX = candidatosX.reduce((mejor, cx) => Math.abs(cx - x) < Math.abs(mejor - x) ? cx : mejor, x)
+    }
+    if (snapY !== undefined) {
+      const candidatosY = [
+        snapY,
+        snapY - widget.height / 2,
+        snapY - widget.height,
+      ]
+      finalY = candidatosY.reduce((mejor, cy) => Math.abs(cy - y) < Math.abs(mejor - y) ? cy : mejor, y)
+    }
+
+    actualizarWidget(arrastrando, { x: Math.max(0, finalX), y: Math.max(0, finalY) })
+  }, [arrastrando, offsetArrastre, actualizarWidget, redimensionando, panning, startPan, limitarViewport, widgets, widgetsSeleccionados])
 
   const handleMouseUp = useCallback(() => {
     setArrastrando(null)
     setRedimensionando(null)
     setPanning(false)
+    setGuia({})
   }, [])
 
   const handlePanelPointerMove = useCallback((e: PointerEvent) => {
@@ -2409,7 +2593,7 @@ export function ModuloMateriales() {
 
                 {/* Widgets */}
                 {widgets.map(w => {
-                  const seleccionado = widgetSeleccionado === w.id
+                  const seleccionado = widgetsSeleccionados.includes(w.id)
                   const valorTexto = w.tipo === 'texto' ? extraerValor(punto, w.campo) : ''
                   const imagenWidgetSrc = w.tipo === 'imagen' ? obtenerImagenWidget(w, punto) : ''
                   return (
@@ -2485,6 +2669,20 @@ export function ModuloMateriales() {
                     </div>
                   )
                 })}
+
+                {/* Guías de alineación */}
+                {guia.x !== undefined && (
+                  <div
+                    className="pointer-events-none absolute z-20 border-l border-dashed border-primary"
+                    style={{ left: guia.x, top: 0, height: fondoDimensiones.alto }}
+                  />
+                )}
+                {guia.y !== undefined && (
+                  <div
+                    className="pointer-events-none absolute z-20 border-t border-dashed border-primary"
+                    style={{ left: 0, top: guia.y, width: fondoDimensiones.ancho }}
+                  />
+                )}
               </div>
 
               {/* Panel flotante de propiedades */}
@@ -2502,6 +2700,77 @@ export function ModuloMateriales() {
                   {(() => {
                     const w = widgetSeleccionado ? widgets.find(x => x.id === widgetSeleccionado) : null
                     const imagenWidgetSrc = w && w.tipo === 'imagen' ? obtenerImagenWidget(w, punto) : ''
+                    if (widgetsSeleccionados.length === 0) {
+                      return (
+                        <div
+                          className="flex cursor-move touch-none items-center justify-between rounded px-1 py-0.5"
+                          onPointerDown={iniciarArrastrePanelPropiedades}
+                          title="Arrastrar panel de propiedades"
+                        >
+                          <p className="text-xs text-muted-foreground">Selecciona un elemento.</p>
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setPanelAbierto(false)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )
+                    }
+
+                    if (widgetsSeleccionados.length > 1) {
+                      return (
+                        <div className="space-y-2">
+                          <div
+                            className="flex cursor-move touch-none items-center justify-between rounded"
+                            onPointerDown={iniciarArrastrePanelPropiedades}
+                            title="Arrastrar panel de propiedades"
+                          >
+                            <p className="max-w-[140px] truncate text-xs font-semibold">{widgetsSeleccionados.length} elementos</p>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setPanelAbierto(false)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <p className="text-[10px] text-muted-foreground">Alinear</p>
+                          <div className="grid grid-cols-3 gap-0.5">
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('izquierda')} title="Alinear a la izquierda">
+                              <AlignLeft className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('centro-h')} title="Alinear al centro horizontal">
+                              <AlignCenter className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('derecha')} title="Alinear a la derecha">
+                              <AlignRight className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('arriba')} title="Alinear arriba">
+                              <AlignVerticalJustifyStart className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('centro-v')} title="Alinear al centro vertical">
+                              <AlignVerticalJustifyCenter className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-full" onClick={() => alinearWidgets('abajo')} title="Alinear abajo">
+                              <AlignVerticalJustifyEnd className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <p className="text-[10px] text-muted-foreground">Distribuir</p>
+                          <div className="grid grid-cols-2 gap-0.5">
+                            <Button variant="ghost" size="sm" className="h-6 w-full text-[10px]" onClick={() => distribuirWidgets('horizontal')} disabled={widgetsSeleccionados.length < 3} title="Distribuir horizontalmente">
+                              <AlignHorizontalSpaceBetween className="mr-1 h-3 w-3" />
+                              Horizontal
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 w-full text-[10px]" onClick={() => distribuirWidgets('vertical')} disabled={widgetsSeleccionados.length < 3} title="Distribuir verticalmente">
+                              <AlignVerticalSpaceBetween className="mr-1 h-3 w-3" />
+                              Vertical
+                            </Button>
+                          </div>
+
+                          <Button variant="destructive" size="sm" className="h-7 w-full text-xs" onClick={() => eliminarWidget()}>
+                            <Trash2 className="mr-2 h-3 w-3" />
+                            Eliminar {widgetsSeleccionados.length}
+                          </Button>
+                        </div>
+                      )
+                    }
+
                     if (!w) {
                       return (
                         <div
@@ -2516,6 +2785,7 @@ export function ModuloMateriales() {
                         </div>
                       )
                     }
+
                     return (
                       <div className="space-y-2">
                         {/* Header compacto */}
@@ -2585,7 +2855,7 @@ export function ModuloMateriales() {
                             <Scissors className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant={widgetCopiado ? 'secondary' : 'ghost'}
+                            variant={widgetsCopiados.length > 0 ? 'secondary' : 'ghost'}
                             size="icon"
                             className="h-6 w-6"
                             onPointerDown={e => e.stopPropagation()}
@@ -2796,6 +3066,32 @@ export function ModuloMateriales() {
                                 </Button>
                               )}
                             </div>
+
+                            {imagenWidgetSrc && (
+                              <div className="space-y-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-full text-[10px]"
+                                  onClick={() => analizarSimetriaWidget(imagenWidgetSrc)}
+                                  disabled={analizandoSimetria}
+                                >
+                                  {analizandoSimetria ? 'Analizando...' : 'Medir simetría'}
+                                </Button>
+                                {simetriaImagen && (
+                                  <div className="grid grid-cols-2 gap-1 text-[10px]">
+                                    <div className="rounded border px-1.5 py-1 text-center">
+                                      <span className="text-muted-foreground">Vertical</span>
+                                      <p className="font-semibold">{simetriaImagen.vertical}%</p>
+                                    </div>
+                                    <div className="rounded border px-1.5 py-1 text-center">
+                                      <span className="text-muted-foreground">Horizontal</span>
+                                      <p className="font-semibold">{simetriaImagen.horizontal}%</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
 

@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dialog'
 import { SelectorImagenWidget } from '@/components/SelectorImagenWidget'
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
+import * as pdfjsLib from 'pdfjs-dist'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { analizarSimetria, type SimetriaResultado } from '@/lib/simmetry'
 import {
   AlignCenter,
@@ -188,11 +190,10 @@ function base64AArrayBuffer(base64: string): ArrayBuffer {
 }
 
 async function pdfBase64ToImage(pdfBase64: string, scale = 2): Promise<{ dataUrl: string; width: number; height: number }> {
-  const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerPort = obtenerPdfWorkerPort()
+  pdfjsLib.GlobalWorkerOptions.workerPort = obtenerPdfWorkerPort()
 
   const data = base64AArrayBuffer(pdfBase64)
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) })
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data) })
   const pdf = await loadingTask.promise
   const page = await pdf.getPage(1)
 
@@ -605,7 +606,6 @@ async function exportarConFondoPdf(
   widgets: WidgetPosicionado[],
   punto: unknown
 ): Promise<Blob> {
-  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
   const pdfDoc = await PDFDocument.load(base64AArrayBuffer(fondoBase64))
   const pages = pdfDoc.getPages()
   const page = pages[0]

@@ -214,15 +214,90 @@ function obtenerMerges(worksheet: unknown): string[] {
   return [...new Set(result)]
 }
 
-function argbToCss(argb?: string): string | undefined {
-  if (!argb) return undefined
-  const hex = argb.replace(/^#/, '').trim()
-  if (hex.length === 8) {
-    return `#${hex.slice(2)}`
+/**
+ * Determina si una celda tiene estilos visibles (fondo o bordes) aunque su valor esté vacío.
+ */
+function tieneEstiloVisible(cell: ExcelJS.Cell): boolean {
+  const s = cell.style as Record<string, unknown> | undefined
+  if (!s) return false
+
+  const fill = s.fill as Record<string, unknown> | undefined
+  if (fill && fill.type === 'pattern' && fill.fgColor) {
+    return true
   }
-  if (hex.length === 6) {
-    return `#${hex}`
+
+  const border = s.border as Record<string, { style?: string }> | undefined
+  if (border) {
+    for (const side of ['top', 'left', 'bottom', 'right'] as const) {
+      if (border[side]?.style) return true
+    }
   }
+
+  return false
+}
+
+/**
+ * Devuelve el rango real usado en el worksheet, considerando contenido, estilos y merges.
+ * Útil porque ExcelJS/SheetJS a veces reportan rangos muy grandes (p. ej. A1:Z1000)
+ * cuando solo las primeras filas/columnas tienen contenido real.
+ */
+function obtenerRangoRealUsadoExcelJS(worksheet: ExcelJS.Worksheet): { startRow: number; startCol: number; endRow: number; endCol: number } {
+  let minRow = Infinity
+  let minCol = Infinity
+  let maxRow = 0
+  let maxCol = 0
+
+  const update = (row: number, col: number) => {
+    minRow = Math.min(minRow, row)
+    minCol = Math.min(minCol, col)
+    maxRow = Math.max(maxRow, row)
+    maxCol = Math.max(maxCol, col)
+  }
+
+  worksheet.eachRow((row, rowNumber) => {
+    row.eachCell((cell, colNumber) => {
+      const value = cellValueToString(cell.value)
+      if (value && value.trim() !== '') {
+        update(rowNumber, colNumber)
+      } else if (tieneEstiloVisible(cell)) {
+        update(rowNumber, colNumber)
+      }
+    })
+  })
+
+  // Considerar merges aunque sus celdas estén vacías.
+  for (const mergeRange of obtenerMerges(worksheet)) {
+    try {
+      const decoded = decodeRange(mergeRange)
+      update(decoded.s.r + 1, decoded.s.c + 1)
+      update(decoded.e.r + 1, decoded.e.c + 1)
+    } catch {
+      // Ignorar rangos inválidos.
+    }
+  }
+
+  return {
+    startRow: minRow === Infinity ? 1 : minRow,
+    startCol: minCol === Infinity ? 1 : minCol,
+    endRow: maxRow === 0 ? worksheet.rowCount : maxRow,
+    endCol: maxCol === 0 ? worksheet.columnCount : maxCol,
+  }
+}
+
+function argbToCss(color?: { argb?: string; theme?: number; tint?: number }): string | undefined {
+  if (!color) return undefined
+  if (color.argb) {
+    const hex = color.argb.replace(/^#/, '').trim()
+    if (hex.length === 8) {
+      return `#${hex.slice(2)}`
+    }
+    if (hex.length === 6) {
+      return `#${hex}`
+    }
+  }
+  // Fallback para colores de tema cuando no hay argb.
+  if (color.theme === 1) return '#000000'
+  if (color.theme === 0) return '#ffffff'
   return undefined
 }
 
@@ -314,11 +389,11 @@ async function renderizarExcelConExceljs(
       throw new Error(`La hoja "${worksheet.name}" está vacía`)
     }
 
-    const dimensions = decodeRange(`A1:${numeroAColumnaExcel(worksheet.columnCount)}${worksheet.rowCount}`)
-    let startCol = dimensions.s.c
-    let startRow = dimensions.s.r
-    let endCol = dimensions.e.c
-    let endRow = dimensions.e.r
+    const usedRange = obtenerRangoRealUsadoExcelJS(worksheet)
+    let startCol = usedRange.startCol - 1
+    let startRow = usedRange.startRow - 1
+    let endCol = usedRange.endCol - 1
+    let endRow = usedRange.endRow - 1
 
     if (options.range) {
       const requested = decodeRange(normalizarRango(options.range))
@@ -436,13 +511,13 @@ async function renderizarExcelConExceljs(
               if (font.italic) td.style.fontStyle = 'italic'
               if (font.underline) td.style.textDecoration = 'underline'
               if (font.size) td.style.fontSize = `${font.size}px`
-              const color = argbToCss((font?.color as { argb?: string })?.argb)
+              const color = argbToCss(font?.color as { argb?: string; theme?: number })
               if (color) td.style.color = color
             }
 
             const fill = s.fill as Record<string, unknown> | undefined
             if (fill && fill.type === 'pattern' && fill.fgColor) {
-              const bgColor = argbToCss((fill.fgColor as { argb?: string }).argb)
+              const bgColor = argbToCss(fill.fgColor as { argb?: string; theme?: number })
               if (bgColor && bgColor.toLowerCase() !== '#ffffff') {
                 td.style.backgroundColor = bgColor
               }
@@ -460,7 +535,7 @@ async function renderizarExcelConExceljs(
               (['top', 'left', 'bottom', 'right'] as const).forEach((side) => {
                 const b = border[side]
                 if (b?.style) {
-                  const color = argbToCss(b.color?.argb) || '#000000'
+                  const color = argbToCss(b.color) || '#000000'
                   td.style.setProperty(`border-${side}`, `${borderStyleToCss(b.style)} ${color}`)
                 }
               })
@@ -792,10 +867,11 @@ export async function excelToEditableHtml(
     throw new Error(`La hoja "${worksheet.name}" está vacía`)
   }
 
-  let startCol = 0
-  let startRow = 0
-  let endCol = worksheet.columnCount - 1
-  let endRow = worksheet.rowCount - 1
+  const usedRange = obtenerRangoRealUsadoExcelJS(worksheet)
+  let startCol = usedRange.startCol - 1
+  let startRow = usedRange.startRow - 1
+  let endCol = usedRange.endCol - 1
+  let endRow = usedRange.endRow - 1
 
   if (options.range) {
     const requested = decodeRange(normalizarRango(options.range))
@@ -876,13 +952,13 @@ export async function excelToEditableHtml(
           if (font.italic) styleStr += 'font-style:italic;'
           if (font.underline) styleStr += 'text-decoration:underline;'
           if (font.size) styleStr += `font-size:${font.size}px;`
-          const color = argbToCss((font?.color as { argb?: string })?.argb)
+          const color = argbToCss(font?.color as { argb?: string; theme?: number })
           if (color) styleStr += `color:${color};`
         }
 
         const fill = s.fill as Record<string, unknown> | undefined
         if (fill && fill.type === 'pattern' && fill.fgColor) {
-          const bgColor = argbToCss((fill.fgColor as { argb?: string }).argb)
+          const bgColor = argbToCss(fill.fgColor as { argb?: string; theme?: number })
           if (bgColor && bgColor.toLowerCase() !== '#ffffff') {
             styleStr += `background-color:${bgColor};`
           }
@@ -900,7 +976,7 @@ export async function excelToEditableHtml(
           (['top', 'left', 'bottom', 'right'] as const).forEach((side) => {
             const b = border[side]
             if (b?.style) {
-              const bColor = argbToCss(b.color?.argb) || '#000000'
+              const bColor = argbToCss(b.color) || '#000000'
               styleStr += `border-${side}:${borderStyleToCss(b.style)} ${bColor};`
             }
           })

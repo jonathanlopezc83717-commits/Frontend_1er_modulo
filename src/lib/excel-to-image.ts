@@ -186,8 +186,8 @@ function aplicarEstilosTabla(wrapper: HTMLDivElement, backgroundColor: string) {
 
 /**
  * Extrae los rangos de celdas combinadas de un worksheet de ExcelJS.
- * Compatible con múltiples versiones: `mergeCells` puede ser array, objeto
- * con claves de rango, o un método. También se revisa `model.merges`.
+ * Compatible con múltiples versiones: `model.merges` en ExcelJS v4+ y el
+ * objeto interno `_merges` cuyos valores contienen la propiedad `.range`.
  */
 function obtenerMerges(worksheet: unknown): string[] {
   const ws = worksheet as Record<string, unknown>
@@ -196,23 +196,19 @@ function obtenerMerges(worksheet: unknown): string[] {
   // 1. model.merges (formato común en ExcelJS v4+)
   const model = ws.model as Record<string, unknown> | undefined
   if (model && Array.isArray(model.merges)) {
-    result.push(...model.merges as string[])
+    result.push(...(model.merges as string[]))
   }
 
-  // 2. mergeCells como array
-  if (Array.isArray(ws.mergeCells)) {
-    result.push(...(ws.mergeCells as string[]))
-  }
-
-  // 3. mergeCells como objeto { "A1:B2": {...}, ... }
-  if (ws.mergeCells && typeof ws.mergeCells === 'object' && !Array.isArray(ws.mergeCells)) {
-    result.push(...Object.keys(ws.mergeCells as Record<string, unknown>))
-  }
-
-  // 4. _merges interno (fallback)
-  const internalMerges = ws['_merges'] as Record<string, unknown> | undefined
+  // 2. _merges interno de ExcelJS.
+  //    Las claves son las celdas maestras ('A1'); los valores son objetos
+  //    con la propiedad .range que contiene el rango completo ('A1:C1').
+  const internalMerges = ws['_merges'] as Record<string, { range?: string }> | undefined
   if (internalMerges && typeof internalMerges === 'object') {
-    result.push(...Object.keys(internalMerges))
+    for (const merge of Object.values(internalMerges)) {
+      if (merge && typeof merge === 'object' && typeof merge.range === 'string') {
+        result.push(merge.range)
+      }
+    }
   }
 
   return [...new Set(result)]
@@ -391,11 +387,16 @@ async function renderizarExcelConExceljs(
         colWidths.push(widthPx)
       }
 
+      const rowHeights: number[] = []
       for (let r = startRow; r <= endRow; r++) {
-        const tr = document.createElement('tr')
         const row = worksheet.getRow(r + 1)
         const heightPx = row.height ? Math.round(row.height * 1.333) : 20
-        tr.style.height = `${heightPx}px`
+        rowHeights.push(heightPx)
+      }
+
+      for (let r = startRow; r <= endRow; r++) {
+        const tr = document.createElement('tr')
+        tr.style.height = `${rowHeights[r - startRow]}px`
 
         for (let c = startCol; c <= endCol; c++) {
           const mergeKey = `${r},${c}`
@@ -406,10 +407,21 @@ async function renderizarExcelConExceljs(
           const cell = worksheet.getCell(r + 1, c + 1)
           td.textContent = cellValueToString(cell.value) || '\u00A0'
 
-          const widthPx = colWidths[c - startCol]
+          const colspan = merge?.colspan || 1
+          const rowspan = merge?.rowspan || 1
+          let widthPx = 0
+          for (let cc = c; cc < c + colspan && cc <= endCol; cc++) {
+            widthPx += colWidths[cc - startCol]
+          }
+          let heightPx = 0
+          for (let rr = r; rr < r + rowspan && rr <= endRow; rr++) {
+            heightPx += rowHeights[rr - startRow]
+          }
+
           td.style.width = `${widthPx}px`
           td.style.minWidth = `${widthPx}px`
           td.style.maxWidth = `${widthPx}px`
+          td.style.height = `${heightPx}px`
 
           if (merge?.master) {
             td.rowSpan = merge.rowspan
@@ -815,10 +827,20 @@ export async function excelToEditableHtml(
     }
   })
 
-  const rows: string[] = []
+  const colWidths: number[] = []
+  for (let c = startCol; c <= endCol; c++) {
+    const col = worksheet.getColumn(c + 1)
+    colWidths.push(col.width ? Math.round(col.width * 7) : 80)
+  }
+
+  const rowHeights: number[] = []
   for (let r = startRow; r <= endRow; r++) {
     const row = worksheet.getRow(r + 1)
-    const heightPx = row.height ? Math.round(row.height * 1.333) : 20
+    rowHeights.push(row.height ? Math.round(row.height * 1.333) : 20)
+  }
+
+  const rows: string[] = []
+  for (let r = startRow; r <= endRow; r++) {
     const tds: string[] = []
 
     for (let c = startCol; c <= endCol; c++) {
@@ -827,14 +849,22 @@ export async function excelToEditableHtml(
       if (merge && !merge.master) continue
 
       const cell = worksheet.getCell(r + 1, c + 1)
-      const col = worksheet.getColumn(c + 1)
-      const widthPx = col.width ? Math.round(col.width * 7) : 80
 
-      const text = (cellValueToString(cell.value) || '&nbsp;')
+      const colspan = merge?.colspan || 1
+      const rowspan = merge?.rowspan || 1
+      let widthPx = 0
+      for (let cc = c; cc < c + colspan && cc <= endCol; cc++) {
+        widthPx += colWidths[cc - startCol]
+      }
+      let heightPx = 0
+      for (let rr = r; rr < r + rowspan && rr <= endRow; rr++) {
+        heightPx += rowHeights[rr - startRow]
+      }
+
+      const text = (cellValueToString(cell.value) || '\u00A0')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/&nbsp;/g, '&nbsp;')
 
       let styleStr = `width:${widthPx}px;min-width:${widthPx}px;max-width:${widthPx}px;height:${heightPx}px;`
 
@@ -885,7 +915,7 @@ export async function excelToEditableHtml(
       tds.push(`<td${attrs}>${text}</td>`)
     }
 
-    rows.push(`<tr style="height:${heightPx}px;">${tds.join('')}</tr>`)
+    rows.push(`<tr style="height:${rowHeights[r - startRow]}px;">${tds.join('')}</tr>`)
   }
 
   const html = `<table id="excel-editable-table" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;">${rows.join('')}</table>`

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 import {
   Eraser,
@@ -218,6 +219,39 @@ function formatoImagen(dataUrl: string): 'PNG' | 'JPEG' {
   return dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG'
 }
 
+/**
+ * Procesa una imagen dataURL: si `quitarFondo` es true, convierte los píxeles
+ * cercanos al blanco (umbral) en transparentes y devuelve un PNG dataURL.
+ */
+async function procesarLogo(dataUrl: string, quitarFondo: boolean, umbral = 235): Promise<string> {
+  if (!dataUrl || !quitarFondo) return dataUrl
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = reject
+      image.src = dataUrl
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return dataUrl
+    ctx.drawImage(img, 0, 0)
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const data = imageData.data
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] >= umbral && data[i + 1] >= umbral && data[i + 2] >= umbral) {
+        data[i + 3] = 0
+      }
+    }
+    ctx.putImageData(imageData, 0, 0)
+    return canvas.toDataURL('image/png')
+  } catch {
+    return dataUrl
+  }
+}
+
 // =====================================================
 // EXPORTACIÓN PDF (jsPDF) — réplica exacta del HTML
 // =====================================================
@@ -233,13 +267,15 @@ interface TxtOpts {
   h?: number
 }
 
-export function exportarPdfFicha(
+export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
+  opciones: { quitarFondoLogos?: boolean } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
+  const quitarFondo = opciones.quitarFondoLogos ?? false
 
   const ML = 8
   const MT = 8
@@ -317,8 +353,26 @@ export function exportarPdfFicha(
     }
   }
 
-  // 1. Título (fondo negro, texto blanco centrado)
+  // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
+
+  // Logos: izquierdo (esquina sup. izq.) y derecho (esquina sup. der.)
+  const logoH = Htitle - 2
+  const logoW = logoH
+  const logoY = Ytitle + 1
+  if (imagenes['logo-izq']) {
+    try {
+      const logoIzq = await procesarLogo(imagenes['logo-izq'], quitarFondo)
+      doc.addImage(logoIzq, formatoImagen(logoIzq), ML + 1, logoY, logoW, logoH)
+    } catch { /* ignorar */ }
+  }
+  if (imagenes['logo-der']) {
+    try {
+      const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
+      doc.addImage(logoDer, formatoImagen(logoDer), ML + PW - logoW - 1, logoY, logoW, logoH)
+    } catch { /* ignorar */ }
+  }
+
   txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML, Ytitle, PW, {
     fs: 11, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
@@ -438,6 +492,18 @@ export function exportarPdfFicha(
     }
   }
 
+  // Logo / imagen adicional como marca de agua tenue (opcional)
+  if (imagenes['logo-extra']) {
+    try {
+      const extraProc = await procesarLogo(imagenes['logo-extra'], quitarFondo)
+      const exW = 60
+      const exH = 60
+      const exX = ML + PW / 2 - exW / 2
+      const exY = YevVal + HevVal - exH - 4
+      doc.addImage(extraProc, formatoImagen(extraProc), exX, exY, exW, exH)
+    } catch { /* ignorar */ }
+  }
+
   doc.save(`${nombreArchivo}.pdf`)
 }
 
@@ -445,69 +511,209 @@ export function exportarPdfFicha(
 // EXPORTACIÓN EXCEL (XLSX/SheetJS) — réplica del HTML
 // =====================================================
 
-export function exportarExcelFicha(
+export async function exportarExcelFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
+  opciones: { quitarFondoLogos?: boolean } = {},
 ) {
   const d = valores
-  const ws: Record<string, unknown> = {}
-  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 11, c: 5 } })
+  const quitarFondo = opciones.quitarFondoLogos ?? false
+  void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
 
-  const sc = (r: number, c: number, v: string, b?: boolean) => {
-    const ref = XLSX.utils.encode_cell({ r, c })
-    ws[ref] = { v: v || '', t: 's', s: b ? { font: { bold: true } } : {} }
-  }
+  const workbook = new ExcelJS.Workbook()
+  const ws = workbook.addWorksheet('LMT-T11-02')
+  ws.properties.showGridLines = false
+  ws.views = [{ showGridLines: false }]
 
-  sc(0, 0, 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', true)
-  sc(1, 0, 'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17')
-  sc(1, 4, 'Clave:', true)
-  sc(1, 5, d['0-F'] || '')
-
-  const rows = [
-    [['Fecha:', true], ['1-B', false], ['Segmento:', true], ['1-D', false], ['Tramo:', true], ['1-F', false]],
-    [['Servicio:', true], ['2-B', false], ['Infraestructura:', true], ['2-D', false], ['Altura:', true], ['2-F', false]],
-    [['Tensión:', true], ['3-B', false], ['Tipo de instalación:', true], ['3-D', false], ['Ubicación respecto al eje de proyecto:', true], ['3-F', false]],
-    [['Elementos afectos:', true], ['4-B', false], ['Número de Fases:', true], ['4-D', false], ['Número de hilos:', true], ['4-F', false]],
-    [['Cadenamiento inicio:', true], ['5-B', false], ['Cadenamiento fin:', true], ['5-D', false], ['Estado físico:', true], ['5-F', false]],
-    [['Coordenada "X":', true], ['6-B', false], ['Coordenada "Y":', true], ['6-D', false], ['Operador:', true], ['6-F', false]],
-  ]
-  rows.forEach((row, ri) => {
-    row.forEach((cellData, ci) => {
-      const [refOrLabel, isLabel] = cellData as [string, boolean]
-      const val = isLabel ? refOrLabel : (d[refOrLabel] || '')
-      sc(ri + 2, ci, val, isLabel)
-    })
+  // Anchos de columna
+  const colWidths = [34, 22, 28, 22, 36, 30]
+  colWidths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w
   })
 
-  sc(8, 0, 'Estado actual y descripción del estado del elemento. Lado Izquierdo', true)
-  sc(8, 3, 'Lado derecho', true)
-  sc(9, 0, d['7-D'] || '')
-  sc(9, 3, d['7-F'] || '')
-  sc(10, 0, 'CROQUIS DE LOCALIZACIÓN:', true)
-  sc(10, 3, 'Observaciones:', true)
-  sc(11, 0, imagenes.croquis ? '[Ver croquis adjunto]' : '')
-  sc(11, 3, d['8-F'] || '')
+  // Estilos reutilizables
+  const fillLabel = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF0F1F3' } }
+  const fillDark = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1A1A1A' } }
+  const fillSub = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2D2D2D' } }
+  const fontWhiteBold = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 }
+  const fontWhite = { color: { argb: 'FFFFFFFF' }, size: 8 }
+  const fontLabelBold = { bold: true, size: 9 }
+  const thinBorder = {
+    top: { style: 'thin' as const, color: { argb: 'FF000000' } },
+    left: { style: 'thin' as const, color: { argb: 'FF000000' } },
+    bottom: { style: 'thin' as const, color: { argb: 'FF000000' } },
+    right: { style: 'thin' as const, color: { argb: 'FF000000' } },
+  }
 
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-    { s: { r: 8, c: 0 }, e: { r: 8, c: 2 } },
-    { s: { r: 8, c: 3 }, e: { r: 8, c: 5 } },
-    { s: { r: 9, c: 0 }, e: { r: 9, c: 2 } },
-    { s: { r: 9, c: 3 }, e: { r: 9, c: 5 } },
-    { s: { r: 10, c: 0 }, e: { r: 10, c: 2 } },
-    { s: { r: 10, c: 3 }, e: { r: 10, c: 5 } },
-    { s: { r: 11, c: 0 }, e: { r: 11, c: 2 } },
-    { s: { r: 11, c: 3 }, e: { r: 11, c: 5 } },
+  // Fila 1: Título (combinada A1:F1) con fondo negro
+  ws.mergeCells('A1:F1')
+  const cellTitulo = ws.getCell('A1')
+  cellTitulo.value = 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE'
+  cellTitulo.fill = fillDark
+  cellTitulo.font = fontWhiteBold
+  cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
+  cellTitulo.border = thinBorder
+  ws.getRow(1).height = 24
+
+  // Fila 2: Proyecto (A2:D2) + Clave (E2) + valor clave (F2)
+  ws.mergeCells('A2:D2')
+  const cellProy = ws.getCell('A2')
+  cellProy.value = 'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17'
+  cellProy.fill = fillSub
+  cellProy.font = fontWhite
+  cellProy.alignment = { vertical: 'middle' }
+  cellProy.border = thinBorder
+
+  const cellClaveLbl = ws.getCell('E2')
+  cellClaveLbl.value = 'Clave:'
+  cellClaveLbl.fill = fillLabel
+  cellClaveLbl.font = fontLabelBold
+  cellClaveLbl.alignment = { horizontal: 'right', vertical: 'middle' }
+  cellClaveLbl.border = thinBorder
+
+  const cellClaveVal = ws.getCell('F2')
+  cellClaveVal.value = d['0-F'] || ''
+  cellClaveVal.border = thinBorder
+  cellClaveVal.alignment = { vertical: 'middle' }
+  ws.getRow(2).height = 18
+
+  // Filas 3-8: datos (6 filas × 6 columnas)
+  const dataRows = [
+    { l: ['Fecha:', 'Segmento:', 'Tramo:'], v: ['1-B', '1-D', '1-F'] },
+    { l: ['Servicio:', 'Infraestructura:', 'Altura:'], v: ['2-B', '2-D', '2-F'] },
+    { l: ['Tensión:', 'Tipo de instalación:', 'Ubicación respecto al eje de proyecto:'], v: ['3-B', '3-D', '3-F'] },
+    { l: ['Elementos afectos:', 'Número de Fases:', 'Número de hilos:'], v: ['4-B', '4-D', '4-F'] },
+    { l: ['Cadenamiento inicio:', 'Cadenamiento fin:', 'Estado físico:'], v: ['5-B', '5-D', '5-F'] },
+    { l: ['Coordenada "X":', 'Coordenada "Y":', 'Operador:'], v: ['6-B', '6-D', '6-F'] },
   ]
-  ws['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 28 }, { wch: 22 }, { wch: 36 }, { wch: 30 }]
+  dataRows.forEach((row, ri) => {
+    const rowNumber = ri + 3
+    ws.getRow(rowNumber).height = 18
+    for (let p = 0; p < 3; p++) {
+      const lblCol = p * 2 + 1
+      const valCol = p * 2 + 2
+      const cellLbl = ws.getCell(rowNumber, lblCol)
+      cellLbl.value = row.l[p]
+      cellLbl.fill = fillLabel
+      cellLbl.font = fontLabelBold
+      cellLbl.alignment = { vertical: 'middle', wrapText: true }
+      cellLbl.border = thinBorder
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'LMT-T11-02')
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      const cellVal = ws.getCell(rowNumber, valCol)
+      cellVal.value = d[row.v[p]] || ''
+      cellVal.border = thinBorder
+      cellVal.alignment = { vertical: 'middle', wrapText: true }
+    }
+  })
+
+  // Fila 9: etiquetas estado actual
+  ws.mergeCells('A9:C9')
+  const cellEstIzqLbl = ws.getCell('A9')
+  cellEstIzqLbl.value = 'Estado actual y descripción del estado del elemento. Lado Izquierdo'
+  cellEstIzqLbl.fill = fillLabel
+  cellEstIzqLbl.font = fontLabelBold
+  cellEstIzqLbl.alignment = { vertical: 'middle', wrapText: true }
+  cellEstIzqLbl.border = thinBorder
+
+  ws.mergeCells('D9:F9')
+  const cellEstDerLbl = ws.getCell('D9')
+  cellEstDerLbl.value = 'Lado derecho'
+  cellEstDerLbl.fill = fillLabel
+  cellEstDerLbl.font = fontLabelBold
+  cellEstDerLbl.alignment = { horizontal: 'center', vertical: 'middle' }
+  cellEstDerLbl.border = thinBorder
+
+  // Fila 10: valores estado actual
+  ws.mergeCells('A10:C10')
+  const cellEstIzqVal = ws.getCell('A10')
+  cellEstIzqVal.value = d['7-D'] || ''
+  cellEstIzqVal.alignment = { vertical: 'top', wrapText: true }
+  cellEstIzqVal.border = thinBorder
+
+  ws.mergeCells('D10:F10')
+  const cellEstDerVal = ws.getCell('D10')
+  cellEstDerVal.value = d['7-F'] || ''
+  cellEstDerVal.alignment = { vertical: 'top', wrapText: true }
+  cellEstDerVal.border = thinBorder
+  ws.getRow(10).height = 80
+
+  // Fila 11: etiquetas croquis / observaciones
+  ws.mergeCells('A11:C11')
+  const cellCrLbl = ws.getCell('A11')
+  cellCrLbl.value = 'CROQUIS DE LOCALIZACIÓN:'
+  cellCrLbl.fill = fillLabel
+  cellCrLbl.font = fontLabelBold
+  cellCrLbl.alignment = { horizontal: 'center', vertical: 'middle' }
+  cellCrLbl.border = thinBorder
+
+  ws.mergeCells('D11:F11')
+  const cellObsLbl = ws.getCell('D11')
+  cellObsLbl.value = 'Observaciones:'
+  cellObsLbl.fill = fillLabel
+  cellObsLbl.font = fontLabelBold
+  cellObsLbl.alignment = { horizontal: 'center', vertical: 'middle' }
+  cellObsLbl.border = thinBorder
+
+  // Fila 12: valores croquis / observaciones
+  ws.mergeCells('A12:C12')
+  const cellCrVal = ws.getCell('A12')
+  cellCrVal.value = imagenes.croquis ? '[Ver croquis adjunto]' : ''
+  cellCrVal.alignment = { vertical: 'top', wrapText: true }
+  cellCrVal.border = thinBorder
+
+  ws.mergeCells('D12:F12')
+  const cellObsVal = ws.getCell('D12')
+  cellObsVal.value = d['8-F'] || ''
+  cellObsVal.alignment = { vertical: 'top', wrapText: true }
+  cellObsVal.border = thinBorder
+  ws.getRow(12).height = 120
+
+  // === Imágenes ===
+  // Logos en la cabecera (fila 1)
+  if (imagenes['logo-izq']) {
+    try {
+      const logoIzq = await procesarLogo(imagenes['logo-izq'], quitarFondo)
+      const base64 = logoIzq.split(',')[1] || logoIzq
+      const ext = logoIzq.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const id = workbook.addImage({ base64, extension: ext })
+      ws.addImage(id, { tl: { col: 0, row: 0 }, br: { col: 0.8, row: 0.9 }, editAs: 'absolute' } as never)
+    } catch { /* ignorar */ }
+  }
+  if (imagenes['logo-der']) {
+    try {
+      const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
+      const base64 = logoDer.split(',')[1] || logoDer
+      const ext = logoDer.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const id = workbook.addImage({ base64, extension: ext })
+      ws.addImage(id, { tl: { col: 5.2, row: 0 }, br: { col: 6, row: 0.9 }, editAs: 'absolute' } as never)
+    } catch { /* ignorar */ }
+  }
+
+  // Croquis en A12:C12
+  if (imagenes.croquis) {
+    try {
+      const base64 = imagenes.croquis.split(',')[1] || imagenes.croquis
+      const ext = imagenes.croquis.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const id = workbook.addImage({ base64, extension: ext })
+      ws.addImage(id, { tl: { col: 0, row: 11 }, br: { col: 3, row: 12 }, editAs: 'absolute' } as never)
+    } catch { /* ignorar */ }
+  }
+
+  // Logo / imagen adicional (marca de agua en celdas libres inferiores)
+  if (imagenes['logo-extra']) {
+    try {
+      const extraProc = await procesarLogo(imagenes['logo-extra'], quitarFondo)
+      const base64 = extraProc.split(',')[1] || extraProc
+      const ext = extraProc.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const id = workbook.addImage({ base64, extension: ext })
+      ws.addImage(id, { tl: { col: 2.5, row: 12.5 }, br: { col: 3.5, row: 13.5 }, editAs: 'absolute' } as never)
+    } catch { /* ignorar */ }
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer()
   descargarArchivo(
-    new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
     `${nombreArchivo}.xlsx`,
   )
 }
@@ -525,6 +731,8 @@ export function ModuloMateriales() {
   const [coordActiva, setCoordActiva] = useState<string | null>(null)
   const [exportandoPdf, setExportandoPdf] = useState(false)
   const [exportandoExcel, setExportandoExcel] = useState(false)
+  const [mapaAbierto, setMapaAbierto] = useState(false)
+  const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
 
   useEffect(() => {
     const data = punto?.moduloData?.materiales as FichaFormatoData | undefined
@@ -586,7 +794,9 @@ export function ModuloMateriales() {
   const handleExportarPdf = async () => {
     setExportandoPdf(true)
     try {
-      exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`)
+      await exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
+        quitarFondoLogos: quitarFondoLogos,
+      })
       toast.success('PDF exportado')
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -600,7 +810,9 @@ export function ModuloMateriales() {
   const handleExportarExcel = async () => {
     setExportandoExcel(true)
     try {
-      exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`)
+      await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
+        quitarFondoLogos: quitarFondoLogos,
+      })
       toast.success('Excel exportado')
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -693,14 +905,28 @@ export function ModuloMateriales() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Título + clave */}
+            {/* Título + clave con logos */}
             <div className="rounded-lg border">
               <div className="border-b bg-neutral-900 p-3">
-                <Input
-                  value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
-                  readOnly
-                  className="border-0 bg-transparent px-0 text-center font-semibold text-white"
-                />
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                  <LogoSlot
+                    label="Logo izquierdo"
+                    image={imagenes['logo-izq'] || ''}
+                    onFile={file => cargarImagen('logo-izq', file)}
+                    onClear={() => limpiarImagen('logo-izq')}
+                  />
+                  <Input
+                    value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
+                    readOnly
+                    className="border-0 bg-transparent px-0 text-center font-semibold text-white"
+                  />
+                  <LogoSlot
+                    label="Logo derecho"
+                    image={imagenes['logo-der'] || ''}
+                    onFile={file => cargarImagen('logo-der', file)}
+                    onClear={() => limpiarImagen('logo-der')}
+                  />
+                </div>
               </div>
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
                 <Input
@@ -715,6 +941,39 @@ export function ModuloMateriales() {
                   onFocus={setCoordActiva}
                   placeholder="Clave"
                 />
+              </div>
+            </div>
+
+            {/* Logo / imagen adicional configurable */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                  <span>Imagen / logo adicional</span>
+                  <span className="font-mono text-[10px] text-emerald-600">img-extra</span>
+                </label>
+                <ImagePreview
+                  image={imagenes['logo-extra'] || ''}
+                  placeholder="Imagen o logo adicional"
+                  onFile={file => cargarImagen('logo-extra', file)}
+                  onClear={() => limpiarImagen('logo-extra')}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                  <span>Opciones de logo</span>
+                </label>
+                <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={quitarFondoLogos}
+                    onChange={e => setQuitarFondoLogos(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span>Quitar fondo blanco de los logos (al exportar)</span>
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Cuando se activa, los píxeles cercanos al blanco se vuelven transparentes en el PDF y Excel.
+                </p>
               </div>
             </div>
 
@@ -820,45 +1079,64 @@ export function ModuloMateriales() {
               </CardContent>
             </Card>
 
-            {/* Mapa de coordenadas (referencia) */}
+            {/* Mapa de coordenadas (referencia, colapsable) */}
             <Card>
               <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-emerald-500" />
-                  <CardTitle className="text-sm">Mapa de coordenadas</CardTitle>
-                </div>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2"
+                  onClick={() => setMapaAbierto(v => !v)}
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-emerald-500" />
+                    <CardTitle className="text-sm">Mapa de coordenadas</CardTitle>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {mapaAbierto ? 'Ocultar' : 'Mostrar'}
+                  </span>
+                </button>
               </CardHeader>
-              <CardContent>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Cada campo tiene una coordenada <strong>fila-columna</strong>. Al enfocar un campo aparece el badge con su coordenada arriba.
-                </p>
-                <div className="overflow-hidden rounded-lg border">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-emerald-500/10 text-emerald-600">
-                        <th className="p-2 text-left font-semibold">Coord</th>
-                        <th className="p-2 text-left font-semibold">Campo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(COORD_A_CAMPO).map(([coord, campo]) => (
-                        <tr key={coord} className="border-t hover:bg-muted/40">
-                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{coord}</code></td>
-                          <td className="p-2 capitalize">{campo.replace(/_/g, ' ')}</td>
+              {mapaAbierto && (
+                <CardContent>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Cada campo tiene una coordenada <strong>fila-columna</strong>. Al enfocar un campo aparece el badge con su coordenada arriba.
+                  </p>
+                  <div className="overflow-hidden rounded-lg border">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-emerald-500/10 text-emerald-600">
+                          <th className="p-2 text-left font-semibold">Coord</th>
+                          <th className="p-2 text-left font-semibold">Campo</th>
                         </tr>
-                      ))}
-                      <tr className="border-t hover:bg-muted/40">
-                        <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-croquis</code></td>
-                        <td className="p-2">Croquis de localización</td>
-                      </tr>
-                      <tr className="border-t hover:bg-muted/40">
-                        <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-evid-0/1/2</code></td>
-                        <td className="p-2">Evidencia fotográfica</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
+                      </thead>
+                      <tbody>
+                        {Object.entries(COORD_A_CAMPO).map(([coord, campo]) => (
+                          <tr key={coord} className="border-t hover:bg-muted/40">
+                            <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{coord}</code></td>
+                            <td className="p-2 capitalize">{campo.replace(/_/g, ' ')}</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t hover:bg-muted/40">
+                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-croquis</code></td>
+                          <td className="p-2">Croquis de localización</td>
+                        </tr>
+                        <tr className="border-t hover:bg-muted/40">
+                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-evid-0/1/2</code></td>
+                          <td className="p-2">Evidencia fotográfica</td>
+                        </tr>
+                        <tr className="border-t hover:bg-muted/40">
+                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-logo-izq/der</code></td>
+                          <td className="p-2">Logos izquierdo / derecho</td>
+                        </tr>
+                        <tr className="border-t hover:bg-muted/40">
+                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-extra</code></td>
+                          <td className="p-2">Imagen / logo adicional</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </CardContent>
         </Card>
@@ -996,6 +1274,50 @@ function EvidenciaSlot({
           <span>{label}</span>
         </button>
       )}
+    </div>
+  )
+}
+
+function LogoSlot({
+  label,
+  image,
+  onFile,
+  onClear,
+}: {
+  label: string
+  image: string
+  onFile: (file?: File) => void
+  onClear: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
+        onClick={() => !image && inputRef.current?.click()}
+      >
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => onFile(e.target.files?.[0])} />
+        {image ? (
+          <>
+            <img src={image} alt={label} className="h-full w-full object-contain" />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute right-0.5 top-0.5 h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={e => { e.stopPropagation(); onClear() }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </>
+        ) : (
+          <div className="flex flex-col items-center text-white/50">
+            <ImagePlus className="h-4 w-4" />
+            <span className="text-[8px]">Logo</span>
+          </div>
+        )}
+      </div>
+      <span className="text-[8px] text-white/60">{label}</span>
     </div>
   )
 }

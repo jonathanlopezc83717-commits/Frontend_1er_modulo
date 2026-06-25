@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha LMT-T11-02</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg:#0d1117;--bg-card:#161b22;--fg:#e6edf3;--muted:#7d8590;
+            --accent:#10b981;--border:#30363d;
+            --form-border:#000;--form-label-bg:#f0f1f3;--form-dark:#1a1a1a;--form-dark2:#2d2d2d;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 10%,rgba(16,185,129,.05) 0%,transparent 60%);pointer-events:none;z-index:0}
+        .app{position:relative;z-index:1}
+
+        /* === TABLA FICHA (replica exacta del PDF) === */
+        .ficha{border-collapse:collapse;width:100%;font-family:'DM Sans',sans-serif;color:#1a1a1a}
+        .ficha td{border:1px solid #000;padding:0;vertical-align:middle}
+        .ficha .lbl{background:var(--form-label-bg);font-weight:600;padding:4px 6px;white-space:nowrap;font-size:9.5px;letter-spacing:.01em}
+        .ficha .lbl-wrap{background:var(--form-label-bg);font-weight:600;padding:4px 6px;font-size:9px;line-height:1.35;letter-spacing:.01em}
+        .ficha .val{background:#fff;padding:0;position:relative}
+        .ficha .val input,.ficha .val textarea{border:none;width:100%;height:100%;padding:4px 6px;font-size:9.5px;font-family:'DM Sans',sans-serif;background:transparent;color:#1a1a1a;resize:none;outline:none}
+        .ficha .val input:focus,.ficha .val textarea:focus{outline:2px solid var(--accent);outline-offset:-2px;background:rgba(16,185,129,.03)}
+        .ficha .hdr{background:var(--form-dark);color:#fff;font-weight:700;font-size:11px;text-align:center;padding:7px 10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid #000}
+        .ficha .sub{background:var(--form-dark2);color:#fff;font-weight:500;font-size:9px;padding:5px 8px;letter-spacing:.02em;border:1px solid #000}
+        .ficha .sub-lbl{background:var(--form-label-bg);font-weight:600;font-size:9px;padding:5px 6px;text-align:right;border:1px solid #000}
+
+        /* Badge coordenada */
+        .cb{position:absolute;top:-18px;right:2px;background:var(--accent);color:#fff;font-size:8px;font-family:'Source Code Pro',monospace;font-weight:600;padding:1px 5px;border-radius:3px 3px 0 0;opacity:0;transform:translateY(3px);transition:all .15s;pointer-events:none;z-index:10;white-space:nowrap}
+        .val:focus-within .cb{opacity:1;transform:translateY(0)}
+
+        /* Zona imagen */
+        .izone{min-height:60px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;background:#fafafa}
+        .izone:hover{background:#f0f0f0}
+        .izone img{max-width:100%;max-height:100%;object-fit:contain}
+        .izone .ph{color:#bbb;font-size:9px;text-align:center;padding:8px}
+        .izone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+        .izone .cl{position:absolute;top:3px;right:3px;background:rgba(248,81,73,.9);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:5}
+        .izone:hover .cl.on{display:flex}
+
+        /* Evidencia grid */
+        .ev-grid{display:grid;grid-template-columns:repeat(3,1fr);height:100%}
+        .ev-slot{position:relative}
+        .ev-slot+.ev-slot{border-left:1px solid #000}
+
+        /* Botones */
+        .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;transition:all .2s}
+        .btn-p{background:var(--accent);color:#fff}
+        .btn-p:hover{background:#059669;transform:translateY(-1px);box-shadow:0 4px 12px rgba(16,185,129,.3)}
+        .btn-s{background:var(--bg-card);color:var(--fg);border:1px solid var(--border)}
+        .btn-s:hover{background:#1f2937;border-color:var(--muted)}
+        .btn-d{background:transparent;color:#f85149;border:1px solid #f85149}
+        .btn-d:hover{background:rgba(248,81,73,.1)}
+
+        /* Toast */
+        #tc{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+        .toast{padding:10px 16px;border-radius:7px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px;transform:translateX(120%);transition:transform .25s;box-shadow:0 6px 20px rgba(0,0,0,.35);min-width:250px}
+        .toast.show{transform:translateX(0)}
+        .t-ok{background:#065f46;color:#d1fae5;border-left:4px solid var(--accent)}
+        .t-err{background:#7f1d1d;color:#fecaca;border-left:4px solid #f85149}
+        .t-info{background:#1e3a5f;color:#bfdbfe;border-left:4px solid #58a6ff}
+
+        /* Panel */
+        .ch{cursor:pointer;user-select:none;transition:background .2s}
+        .ch:hover{background:rgba(255,255,255,.03)}
+        .cc{max-height:0;overflow:hidden;transition:max-height .35s ease}
+        .cc.open{max-height:2000px}
+
+        /* Ref tabla */
+        .rt{width:100%;border-collapse:collapse;font-size:11px}
+        .rt th{background:rgba(16,185,129,.1);color:var(--accent);padding:6px 10px;text-align:left;font-weight:600;border-bottom:1px solid var(--border)}
+        .rt td{padding:5px 10px;border-bottom:1px solid var(--border)}
+        .rt tr:hover td{background:rgba(255,255,255,.02)}
+        .rt code{font-family:'Source Code Pro',monospace;background:rgba(16,185,129,.15);color:var(--accent);padding:1px 5px;border-radius:3px;font-size:10px}
+
+        .code-block{background:#0d1117;border:1px solid var(--border);border-radius:7px;padding:14px;font-family:'Source Code Pro',monospace;font-size:11px;line-height:1.55;color:#c9d1d9;overflow-x:auto;position:relative}
+        .code-block .cpb{position:absolute;top:6px;right:6px;background:var(--border);color:var(--muted);border:none;border-radius:3px;padding:3px 7px;font-size:10px;cursor:pointer;transition:all .2s}
+        .code-block .cpb:hover{background:var(--muted);color:#fff}
+        .ck{color:#ff7b72}.cs{color:#a5d6ff}.cc2{color:#8b949e}.cf{color:#d2a8ff}.cp2{color:#79c0ff}
+
+        /* Coordenada activa */
+        .acd{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:7px;padding:6px 14px;font-family:'Source Code Pro',monospace;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:7px;opacity:0;transition:opacity .15s;z-index:100;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+        .acd.vis{opacity:1}
+
+        @keyframes fu{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        .ai{animation:fu .4s ease forwards}
+        .ad1{animation-delay:.1s;opacity:0}.ad2{animation-delay:.2s;opacity:0}
+
+        @media print{body{background:#fff}body::before{display:none}.no-print{display:none!important}.ficha-card{box-shadow:none;border:none}.cb{display:none}.val input:focus,.val textarea:focus{outline:none;background:transparent}}
+        @media(max-width:768px){.ficha{font-size:8px}.ficha .lbl,.ficha .lbl-wrap{font-size:7.5px;padding:3px 4px}.ficha .val input,.ficha .val textarea{font-size:8px;padding:3px 4px}.btn{padding:7px 12px;font-size:11px}}
+    </style>
+</head>
+<body>
+<div class="app">
+
+<!-- Header -->
+<header class="no-print border-b border-[#30363d] bg-[#161b22]/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-[860px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><i class="fas fa-clipboard-list text-emerald-400 text-sm"></i></div>
+            <div>
+                <h1 class="text-sm font-bold text-white leading-tight">Ficha LMT-T11-02</h1>
+                <p class="text-[10px] text-[#7d8590]">Infraestructura Existente</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button class="btn btn-s" onclick="Ficha.fillData(demoData);toast('Datos de ejemplo cargados','ok')"><i class="fas fa-flask"></i> Demo</button>
+            <button class="btn btn-d" onclick="Ficha.clear();toast('Formulario limpiado','info')"><i class="fas fa-eraser"></i> Limpiar</button>
+            <button class="btn btn-s" onclick="Ficha.exportExcel()"><i class="fas fa-file-excel text-green-400"></i> Excel</button>
+            <button class="btn btn-p" onclick="Ficha.exportPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-[860px] mx-auto px-4 py-6">
+
+<!-- FICHA -->
+<div class="ficha-card bg-white rounded-lg shadow-2xl shadow-black/25 overflow-hidden ai mb-6">
+<table class="ficha" id="ft">
+
+    <!-- Título -->
+    <tr><td colspan="6" class="hdr">FICHA DE IDENTIFICACI&Oacute;N DE INFRAESTRUCTURA EXISTENTE</td></tr>
+
+    <!-- Subtítulo + Clave -->
+    <tr>
+        <td colspan="4" class="sub">Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17</td>
+        <td class="sub-lbl">Clave:</td>
+        <td class="val" style="min-width:80px"><span class="cb">0-F</span><input type="text" id="cell-0-F" data-row="0" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 1: Fecha, Segmento, Tramo -->
+    <tr>
+        <td class="lbl">Fecha:</td><td class="val"><span class="cb">1-B</span><input type="text" id="cell-1-B" data-row="1" data-col="B"></td>
+        <td class="lbl">Segmento:</td><td class="val"><span class="cb">1-D</span><input type="text" id="cell-1-D" data-row="1" data-col="D"></td>
+        <td class="lbl">Tramo:</td><td class="val"><span class="cb">1-F</span><input type="text" id="cell-1-F" data-row="1" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 2: Servicio, Infraestructura, Altura -->
+    <tr>
+        <td class="lbl">Servicio:</td><td class="val"><span class="cb">2-B</span><input type="text" id="cell-2-B" data-row="2" data-col="B"></td>
+        <td class="lbl">Infraestructura:</td><td class="val"><span class="cb">2-D</span><input type="text" id="cell-2-D" data-row="2" data-col="D"></td>
+        <td class="lbl">Altura:</td><td class="val"><span class="cb">2-F</span><input type="text" id="cell-2-F" data-row="2" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 3: Tensión, Tipo instalación, Ubicación -->
+    <tr>
+        <td class="lbl">Tensi&oacute;n:</td><td class="val"><span class="cb">3-B</span><input type="text" id="cell-3-B" data-row="3" data-col="B"></td>
+        <td class="lbl-wrap">Tipo de instalaci&oacute;n:</td><td class="val"><span class="cb">3-D</span><input type="text" id="cell-3-D" data-row="3" data-col="D"></td>
+        <td class="lbl-wrap" style="white-space:normal;font-size:8px;line-height:1.3">Ubicaci&oacute;n respecto al eje de proyecto:</td><td class="val"><span class="cb">3-F</span><input type="text" id="cell-3-F" data-row="3" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 4: Elementos afectos, Núm. Fases, Núm. Hilos -->
+    <tr>
+        <td class="lbl-wrap">Elementos afectos:</td><td class="val"><span class="cb">4-B</span><input type="text" id="cell-4-B" data-row="4" data-col="B"></td>
+        <td class="lbl-wrap">N&uacute;mero de Fases:</td><td class="val"><span class="cb">4-D</span><input type="text" id="cell-4-D" data-row="4" data-col="D"></td>
+        <td class="lbl">N&uacute;mero de hilos:</td><td class="val"><span class="cb">4-F</span><input type="text" id="cell-4-F" data-row="4" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 5: Cadenamiento inicio/fin, Estado físico -->
+    <tr>
+        <td class="lbl-wrap">Cadenamiento inicio:</td><td class="val"><span class="cb">5-B</span><input type="text" id="cell-5-B" data-row="5" data-col="B"></td>
+        <td class="lbl-wrap">Cadenamiento fin:</td><td class="val"><span class="cb">5-D</span><input type="text" id="cell-5-D" data-row="5" data-col="D"></td>
+        <td class="lbl">Estado f&iacute;sico:</td><td class="val"><span class="cb">5-F</span><input type="text" id="cell-5-F" data-row="5" data-col="F"></td>
+    </tr>
+
+    <!-- Fila 6: Coordenada X, Y, Operador -->
+    <tr>
+        <td class="lbl">Coordenada "X":</td><td class="val"><span class="cb">6-B</span><input type="text" id="cell-6-B" data-row="6" data-col="B"></td>
+        <td class="lbl">Coordenada "Y":</td><td class="val"><span class="cb">6-D</span><input type="text" id="cell-6-D" data-row="6" data-col="D"></td>
+        <td class="lbl">Operador:</td><td class="val"><span class="cb">6-F</span><input type="text" id="cell-6-F" data-row="6" data-col="F"></td>
+    </tr>
+
+    <!-- Estado actual: etiquetas en una fila, valores en la siguiente -->
+    <tr>
+        <td colspan="3" class="lbl-wrap" style="white-space:normal;line-height:1.35;font-size:8.5px">Estado actual y descripci&oacute;n del estado del elemento. Lado Izquierdo</td>
+        <td colspan="3" class="lbl" style="text-align:center">Lado derecho</td>
+    </tr>
+    <tr>
+        <td colspan="3" class="val" style="height:75px"><span class="cb">7-D</span><textarea id="cell-7-D" data-row="7" data-col="D" style="height:100%"></textarea></td>
+        <td colspan="3" class="val" style="height:75px"><span class="cb">7-F</span><textarea id="cell-7-F" data-row="7" data-col="F" style="height:100%"></textarea></td>
+    </tr>
+
+    <!-- Croquis + Observaciones: etiquetas -->
+    <tr>
+        <td colspan="3" class="lbl" style="text-align:center;font-size:8.5px;letter-spacing:.03em">CROQUIS DE LOCALIZACI&Oacute;N:</td>
+        <td colspan="3" class="lbl" style="text-align:center;font-size:8.5px">Observaciones:</td>
+    </tr>
+    <!-- Croquis + Observaciones: valores -->
+    <tr>
+        <td colspan="3" style="padding:0;border:1px solid #000;height:120px">
+            <div class="izone" id="iz-croquis" style="height:100%">
+                <input type="file" accept="image/*" onchange="imgUp(this,'croquis')">
+                <button class="cl" id="cl-croquis" onclick="imgCl('croquis',event)"><i class="fas fa-times"></i></button>
+                <div class="ph" id="ph-croquis"><i class="fas fa-image" style="font-size:18px;display:block;margin-bottom:3px"></i>Clic para subir</div>
+                <img id="pv-croquis" style="display:none">
+            </div>
+        </td>
+        <td colspan="3" class="val" style="height:120px"><span class="cb">8-F</span><textarea id="cell-8-F" data-row="8" data-col="F" style="height:100%"></textarea></td>
+    </tr>
+
+    <!-- Evidencia fotográfica: etiqueta -->
+    <tr><td colspan="6" class="lbl" style="text-align:center;font-size:8.5px;letter-spacing:.04em">EVIDENCIA FOTOGR&Aacute;FICA</td></tr>
+    <!-- Evidencia: 3 slots -->
+    <tr>
+        <td colspan="6" style="padding:0;border:1px solid #000;height:110px">
+            <div class="ev-grid" style="height:100%">
+                <div class="ev-slot"><div class="izone" id="iz-evid-0" style="height:100%;border:none"><input type="file" accept="image/*" onchange="imgUp(this,'evid-0')"><button class="cl" id="cl-evid-0" onclick="imgCl('evid-0',event)"><i class="fas fa-times"></i></button><div class="ph" id="ph-evid-0"><i class="fas fa-camera" style="font-size:14px;display:block;margin-bottom:2px"></i>Foto 1</div><img id="pv-evid-0" style="display:none"></div></div>
+                <div class="ev-slot"><div class="izone" id="iz-evid-1" style="height:100%;border:none"><input type="file" accept="image/*" onchange="imgUp(this,'evid-1')"><button class="cl" id="cl-evid-1" onclick="imgCl('evid-1',event)"><i class="fas fa-times"></i></button><div class="ph" id="ph-evid-1"><i class="fas fa-camera" style="font-size:14px;display:block;margin-bottom:2px"></i>Foto 2</div><img id="pv-evid-1" style="display:none"></div></div>
+                <div class="ev-slot"><div class="izone" id="iz-evid-2" style="height:100%;border:none"><input type="file" accept="image/*" onchange="imgUp(this,'evid-2')"><button class="cl" id="cl-evid-2" onclick="imgCl('evid-2',event)"><i class="fas fa-times"></i></button><div class="ph" id="ph-evid-2"><i class="fas fa-camera" style="font-size:14px;display:block;margin-bottom:2px"></i>Foto 3</div><img id="pv-evid-2" style="display:none"></div></div>
+            </div>
+        </td>
+    </tr>
+</table>
+</div>
+
+<!-- Paneles de referencia -->
+<div class="no-print space-y-3 ai ad1">
+
+    <!-- Referencia de coordenadas -->
+    <div class="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
+        <div class="ch flex items-center justify-between px-5 py-3" onclick="tp('rp')">
+            <div class="flex items-center gap-3"><i class="fas fa-map-pin text-emerald-400 text-sm"></i><span class="font-semibold text-sm">Mapa de Coordenadas</span><span class="text-[10px] text-[#7d8590] bg-[#30363d] px-2 py-0.5 rounded-full">24 campos</span></div>
+            <i class="fas fa-chevron-down text-[#7d8590] text-xs transition-transform" id="rp-i"></i>
+        </div>
+        <div class="cc" id="rp">
+            <div class="px-5 pb-4">
+                <p class="text-[#7d8590] text-[11px] mb-3">Cada campo tiene coordenada <strong class="text-[#e6edf3]">fila-columna</strong>. Al enfocar un campo aparece el badge verde con su coordenada.</p>
+                <div class="overflow-x-auto rounded-lg border border-[#30363d]">
+                    <table class="rt">
+                        <thead><tr><th>Coord</th><th>Campo</th><th>Tipo</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>0-F</code></td><td>Clave</td><td>texto</td></tr>
+                            <tr><td><code>1-B</code></td><td>Fecha</td><td>texto</td></tr>
+                            <tr><td><code>1-D</code></td><td>Segmento</td><td>texto</td></tr>
+                            <tr><td><code>1-F</code></td><td>Tramo</td><td>texto</td></tr>
+                            <tr><td><code>2-B</code></td><td>Servicio</td><td>texto</td></tr>
+                            <tr><td><code>2-D</code></td><td>Infraestructura</td><td>texto</td></tr>
+                            <tr><td><code>2-F</code></td><td>Altura</td><td>texto</td></tr>
+                            <tr><td><code>3-B</code></td><td>Tensi&oacute;n</td><td>texto</td></tr>
+                            <tr><td><code>3-D</code></td><td>Tipo de instalaci&oacute;n</td><td>texto</td></tr>
+                            <tr><td><code>3-F</code></td><td>Ubicaci&oacute;n respecto al eje</td><td>texto</td></tr>
+                            <tr><td><code>4-B</code></td><td>Elementos afectos</td><td>texto</td></tr>
+                            <tr><td><code>4-D</code></td><td>N&uacute;mero de Fases</td><td>texto</td></tr>
+                            <tr><td><code>4-F</code></td><td>N&uacute;mero de hilos</td><td>texto</td></tr>
+                            <tr><td><code>5-B</code></td><td>Cadenamiento inicio</td><td>texto</td></tr>
+                            <tr><td><code>5-D</code></td><td>Cadenamiento fin</td><td>texto</td></tr>
+                            <tr><td><code>5-F</code></td><td>Estado f&iacute;sico</td><td>texto</td></tr>
+                            <tr><td><code>6-B</code></td><td>Coordenada X</td><td>texto</td></tr>
+                            <tr><td><code>6-D</code></td><td>Coordenada Y</td><td>texto</td></tr>
+                            <tr><td><code>6-F</code></td><td>Operador</td><td>texto</td></tr>
+                            <tr><td><code>7-D</code></td><td>Estado - Lado Izquierdo</td><td>textarea</td></tr>
+                            <tr><td><code>7-F</code></td><td>Estado - Lado Derecho</td><td>textarea</td></tr>
+                            <tr><td><code>8-F</code></td><td>Observaciones</td><td>textarea</td></tr>
+                            <tr><td><code>img-croquis</code></td><td>Croquis de localizaci&oacute;n</td><td>imagen</td></tr>
+                            <tr><td><code>img-evid-0/1/2</code></td><td>Evidencia fotogr&aacute;fica</td><td>imagen</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ejemplo de código -->
+    <div class="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
+        <div class="ch flex items-center justify-between px-5 py-3" onclick="tp('cp')">
+            <div class="flex items-center gap-3"><i class="fas fa-code text-emerald-400 text-sm"></i><span class="font-semibold text-sm">API de Integraci&oacute;n</span></div>
+            <i class="fas fa-chevron-down text-[#7d8590] text-xs transition-transform" id="cp-i"></i>
+        </div>
+        <div class="cc" id="cp">
+            <div class="px-5 pb-4">
+                <div class="code-block">
+                    <button class="cpb" onclick="ccpy(this)"><i class="fas fa-copy"></i> Copiar</button>
+<pre><span class="cc2">// Llenar campo individual</span>
+<span class="cf">Ficha</span>.<span class="cf">setCell</span>(<span class="cs">'1-B'</span>, <span class="cs">'15/01/2025'</span>);
+
+<span class="cc2">// Llenar todo de una vez</span>
+<span class="cf">Ficha</span>.<span class="cf">fillData</span>({
+  <span class="cs">'0-F'</span>: <span class="cp2">miForm</span>.clave,
+  <span class="cs">'1-B'</span>: <span class="cp2">miForm</span>.fecha,
+  <span class="cs">'1-D'</span>: <span class="cp2">miForm</span>.segmento,
+  <span class="cs">'1-F'</span>: <span class="cp2">miForm</span>.tramo,
+  <span class="cc2">// ... resto de campos</span>
+});
+
+<span class="cc2">// Exportar</span>
+<span class="cf">Ficha</span>.<span class="cf">exportPDF</span>();
+<span class="cf">Ficha</span>.<span class="cf">exportExcel</span>();</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+
+<!-- Coordenada activa -->
+<div class="acd no-print" id="acd"><i class="fas fa-crosshairs text-emerald-400"></i><span id="act">—</span></div>
+<!-- Toast -->
+<div id="tc"></div>
+</div>
+
+<script>
+/* ==============================
+   ALMACENAMIENTO DE IMÁGENES
+   ============================== */
+const imgs = { croquis:null, 'evid-0':null, 'evid-1':null, 'evid-2':null };
+
+function imgUp(inp, k) {
+    const f = inp.files[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { toast('Solo imágenes','err'); return; }
+    if (f.size > 5*1024*1024) { toast('Máximo 5MB','err'); return; }
+    const r = new FileReader();
+    r.onload = function(e) {
+        imgs[k] = e.target.result;
+        const pv = document.getElementById('pv-'+k);
+        const ph = document.getElementById('ph-'+k);
+        const cl = document.getElementById('cl-'+k);
+        if (pv) { pv.src = e.target.result; pv.style.display = 'block'; }
+        if (ph) ph.style.display = 'none';
+        if (cl) cl.classList.add('on');
+        toast('Imagen cargada','ok');
+    };
+    r.readAsDataURL(f);
+}
+
+function imgCl(k, ev) {
+    ev.stopPropagation(); ev.preventDefault();
+    imgs[k] = null;
+    const pv = document.getElementById('pv-'+k);
+    const ph = document.getElementById('ph-'+k);
+    const cl = document.getElementById('cl-'+k);
+    const z = document.getElementById('iz-'+k);
+    if (pv) { pv.src=''; pv.style.display='none'; }
+    if (ph) ph.style.display='';
+    if (cl) cl.classList.remove('on');
+    if (z) { const fi = z.querySelector('input[type="file"]'); if(fi) fi.value=''; }
+    toast('Imagen eliminada','info');
+}
+
+/* ==============================
+   TOAST
+   ============================== */
+function toast(m, t) {
+    t = t || 'ok';
+    const c = document.getElementById('tc');
+    const d = document.createElement('div');
+    const ic = { ok:'check-circle', err:'exclamation-circle', info:'info-circle' };
+    const cl = { ok:'t-ok', err:'t-err', info:'t-info' };
+    d.className = 'toast ' + (cl[t]||'t-ok');
+    d.innerHTML = '<i class="fas fa-'+(ic[t]||'info-circle')+'"></i> '+m;
+    c.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('show'));
+    setTimeout(() => { d.classList.remove('show'); setTimeout(() => d.remove(), 250); }, 2500);
+}
+
+/* ==============================
+   PANEL COLAPSABLE
+   ============================== */
+function tp(id) {
+    const p = document.getElementById(id);
+    const i = document.getElementById(id+'-i');
+    if (p) { p.classList.toggle('open'); if(i) i.style.transform = p.classList.contains('open') ? 'rotate(180deg)' : ''; }
+}
+
+/* ==============================
+   COPIAR CÓDIGO
+   ============================== */
+function ccpy(btn) {
+    const pre = btn.parentElement.querySelector('pre');
+    if (pre) navigator.clipboard.writeText(pre.textContent).then(() => {
+        btn.innerHTML = '<i class="fas fa-check"></i> Listo';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copiar', 1500);
+    });
+}
+
+/* ==============================
+   DATOS DEMO
+   ============================== */
+const demoData = {
+    '0-F':'LMT-T11-02-001','1-B':'15/01/2025','1-D':'16','1-F':'Tramo A - Nuevo Laredo',
+    '2-B':'Transporte Ferroviario','2-D':'Línea de Transmisión Eléctrica','2-F':'8.5 m',
+    '3-B':'115 kV','3-D':'Aérea','3-F':'Lado derecho a 12.5 m',
+    '4-B':'Poste de concreto, cruceta metálica','4-D':'3','4-F':'6',
+    '5-B':'K0+250','5-D':'K0+480','5-F':'Regular - requiere inspección',
+    '6-B':'456789.123','6-D':'3245678.456','6-F':'CFE',
+    '7-D':'Poste con fisuras verticales en la base, aisladores con acumulación de polvo. Se observa oxidación en conectores y cables de guarda en mal estado.',
+    '7-F':'Poste en mejor estado, sin fisuras visibles. Aisladores limpios. Vegetación a distancia segura del tendido eléctrico.',
+    '8-F':'Se recomienda inspección detallada del poste del lado izquierdo. Considerar reposición de aisladores y limpieza de conectores. Coordinar con CFE para mantenimiento preventivo.'
+};
+
+/* ==============================
+   API FICHA
+   ============================== */
+const Ficha = {
+    setCell(c, v) {
+        const el = document.getElementById('cell-'+c);
+        if (el) { el.value = v||''; return true; }
+        console.warn('Ficha.setCell: campo "'+c+'" no encontrado'); return false;
+    },
+    getCell(c) {
+        const el = document.getElementById('cell-'+c);
+        return el ? el.value : null;
+    },
+    fillData(d) {
+        let n = 0;
+        for (const c in d) if (d.hasOwnProperty(c) && this.setCell(c, d[c])) n++;
+        return n;
+    },
+    getAllData() {
+        const d = {};
+        document.querySelectorAll('[id^="cell-"]').forEach(el => {
+            if (el.tagName==='INPUT'||el.tagName==='TEXTAREA') d[el.id.replace('cell-','')] = el.value;
+        });
+        return d;
+    },
+    clear() {
+        document.querySelectorAll('[id^="cell-"]').forEach(el => {
+            if (el.tagName==='INPUT'||el.tagName==='TEXTAREA') el.value='';
+        });
+        for (const k in imgs) if (imgs.hasOwnProperty(k)) imgCl(k, new Event('click'));
+    },
+
+    /* ============================================
+       EXPORTAR EXCEL
+       ============================================ */
+    exportExcel() {
+        try {
+            const ws = {};
+            const d = this.getAllData();
+            ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:11,c:5}});
+
+            function sc(r, c, v, b) {
+                const ref = XLSX.utils.encode_cell({r:r,c:c});
+                ws[ref] = {v:v||'', t:'s', s:b?{font:{bold:true}}:{}};
+            }
+
+            sc(0,0,'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE',1);
+            sc(1,0,'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17');
+            sc(1,4,'Clave:',1); sc(1,5,d['0-F']||'');
+
+            const rows = [
+                [['Fecha:',1],['1-B',0],['Segmento:',1],['1-D',0],['Tramo:',1],['1-F',0]],
+                [['Servicio:',1],['2-B',0],['Infraestructura:',1],['2-D',0],['Altura:',1],['2-F',0]],
+                [['Tensión:',1],['3-B',0],['Tipo de instalación:',1],['3-D',0],['Ubicación respecto al eje de proyecto:',1],['3-F',0]],
+                [['Elementos afectos:',1],['4-B',0],['Número de Fases:',1],['4-D',0],['Número de hilos:',1],['4-F',0]],
+                [['Cadenamiento inicio:',1],['5-B',0],['Cadenamiento fin:',1],['5-D',0],['Estado físico:',1],['5-F',0]],
+                [['Coordenada "X":',1],['6-B',0],['Coordenada "Y":',1],['6-D',0],['Operador:',1],['6-F',0]],
+            ];
+            rows.forEach((row, ri) => {
+                row.forEach((cell, ci) => {
+                    const val = cell[1] ? (d[cell[0]]||'') : cell[0];
+                    sc(ri+2, ci, val, cell[1]);
+                });
+            });
+
+            sc(8,0,'Estado actual y descripción del estado del elemento. Lado Izquierdo',1);
+            sc(8,3,'Lado derecho',1);
+            sc(9,0,d['7-D']||''); sc(9,3,d['7-F']||'');
+            sc(10,0,'CROQUIS DE LOCALIZACIÓN:',1); sc(10,3,'Observaciones:',1);
+            sc(11,0,imgs.croquis?'[Ver croquis adjunto]':''); sc(11,3,d['8-F']||'');
+
+            ws['!merges'] = [
+                {s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:3}},
+                {s:{r:8,c:0},e:{r:8,c:2}},{s:{r:8,c:3},e:{r:8,c:5}},
+                {s:{r:9,c:0},e:{r:9,c:2}},{s:{r:9,c:3},e:{r:9,c:5}},
+                {s:{r:10,c:0},e:{r:10,c:2}},{s:{r:10,c:3},e:{r:10,c:5}},
+                {s:{r:11,c:0},e:{r:11,c:2}},{s:{r:11,c:3},e:{r:11,c:5}},
+            ];
+            ws['!cols'] = [{wch:34},{wch:22},{wch:28},{wch:22},{wch:36},{wch:30}];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'LMT-T11-02');
+            XLSX.writeFile(wb, 'Ficha_LMT-T11-02.xlsx');
+            toast('Excel exportado','ok');
+        } catch(e) { console.error(e); toast('Error Excel: '+e.message,'err'); }
+    },
+
+    /* ============================================
+       EXPORTAR PDF — RÉPLICA EXACTA DEL ORIGINAL
+       ============================================ */
+    exportPDF() {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+            const d = this.getAllData();
+
+            // === Dimensiones de página ===
+            const ML = 8, MT = 8;
+            const PW = 210 - ML*2;  // 194mm ancho útil
+            const PH = 297 - MT*2;  // 281mm alto útil
+
+            // === 6 Columnas (total 194mm) ===
+            const C = [30, 24, 28, 24, 40, 48];
+
+            // === Acumulados X de columnas ===
+            const CX = [ML];
+            for (let i=1; i<=6; i++) CX.push(CX[i-1]+C[i-1]);
+
+            // === Alturas de fila ===
+            const H = {
+                title: 11,    // Barra negra título
+                sub: 8,       // Barra gris subtítulo
+                data: 8,      // Cada fila de datos (6 filas)
+                estLbl: 7,    // Etiqueta estado actual
+                estVal: 35,   // Valor estado actual
+                crLbl: 7,     // Etiqueta croquis/obs
+                crVal: 55,    // Valor croquis/obs
+                evLbl: 7,     // Etiqueta evidencia
+                evVal: 65,    // Valor evidencia
+            };
+
+            // === Calcular Y de cada sección ===
+            let y = MT;
+            const Y = {};
+            Y.title = y; y += H.title;
+            Y.sub = y;   y += H.sub;
+            Y.data = []; for (let i=0;i<6;i++) { Y.data.push(y); y += H.data; }
+            Y.estLbl = y; y += H.estLbl;
+            Y.estVal = y; y += H.estVal;
+            Y.crLbl = y;  y += H.crLbl;
+            Y.crVal = y;  y += H.crVal;
+            Y.evLbl = y;  y += H.evLbl;
+            Y.evVal = y;  y += H.evVal;
+
+            // Verificar que cabe en una página
+            if (y > MT + PH + 2) {
+                console.warn('Contenido excede una página. Ajustando alturas...');
+            }
+
+            // === Configuración de dibujo ===
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.4);
+
+            // --- Función: dibujar celda ---
+            function cell(x, yy, w, h, bg) {
+                if (bg) {
+                    doc.setFillColor(bg[0], bg[1], bg[2]);
+                    doc.rect(x, yy, w, h, 'FD');
+                } else {
+                    doc.rect(x, yy, w, h);
+                }
+            }
+
+            // --- Función: texto en celda ---
+            function txt(text, x, yy, w, opts) {
+                opts = opts || {};
+                if (!text) return;
+                const fs = opts.fs || 7.5;
+                const style = opts.bold ? 'bold' : 'normal';
+                const align = opts.align || 'left';
+                const color = opts.color || [0,0,0];
+
+                doc.setFontSize(fs);
+                doc.setFont('helvetica', style);
+                doc.setTextColor(color[0], color[1], color[2]);
+
+                const px = opts.px || 2; // padding horizontal
+                const lines = doc.splitTextToSize(String(text), w - px*2);
+
+                if (opts.vcenter) {
+                    const lineH = fs * 0.3528;
+                    const totalH = lines.length * lineH;
+                    const startY = yy + h/2 - totalH/2 + lineH;
+                    doc.text(lines, x + px, startY, { align: align });
+                } else {
+                    doc.text(lines, x + px, yy + (opts.py || 2.5), { align: align });
+                }
+            }
+
+            // === 1. TÍTULO (fondo negro, texto blanco centrado) ===
+            cell(ML, Y.title, PW, H.title, [26,26,26]);
+            txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE',
+                ML, Y.title, PW,
+                { fs:11, bold:true, color:[255,255,255], align:'center', vcenter:true, py:0 });
+
+            // === 2. SUBTÍTULO (fondo gris oscuro + etiqueta Clave) ===
+            // Parte izquierda: nombre del proyecto (columnas A-D)
+            cell(ML, Y.sub, CX[4]-ML, H.sub, [45,45,45]);
+            txt('Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17',
+                ML, Y.sub, CX[4]-ML,
+                { fs:8, color:[255,255,255], vcenter:true, py:0 });
+
+            // "Clave:" (columna E, gris etiqueta)
+            cell(CX[4], Y.sub, C[4], H.sub, [240,241,243]);
+            txt('Clave:', CX[4], Y.sub, C[4],
+                { fs:7.5, bold:true, align:'right', vcenter:true, py:0 });
+
+            // Valor clave (columna F, blanco)
+            cell(CX[5], Y.sub, C[5], H.sub, null);
+            txt(d['0-F']||'', CX[5], Y.sub, C[5],
+                { fs:7.5, vcenter:true, py:0 });
+
+            // === 3. FILAS DE DATOS (6 filas × 6 columnas) ===
+            const dataRows = [
+                { l:['Fecha:','Segmento:','Tramo:'],           v:['1-B','1-D','1-F'] },
+                { l:['Servicio:','Infraestructura:','Altura:'], v:['2-B','2-D','2-F'] },
+                { l:['Tensión:','Tipo de instalación:','Ubicación respecto al eje de proyecto:'], v:['3-B','3-D','3-F'] },
+                { l:['Elementos afectos:','Número de Fases:','Número de hilos:'], v:['4-B','4-D','4-F'] },
+                { l:['Cadenamiento inicio:','Cadenamiento fin:','Estado físico:'], v:['5-B','5-D','5-F'] },
+                { l:['Coordenada "X":','Coordenada "Y":','Operador:'], v:['6-B','6-D','6-F'] },
+            ];
+
+            dataRows.forEach((row, ri) => {
+                const yy = Y.data[ri];
+                for (let p=0; p<3; p++) {
+                    const lx = CX[p*2];
+                    const vx = CX[p*2+1];
+                    // Etiqueta
+                    cell(lx, yy, C[p*2], H.data, [240,241,243]);
+                    const lblFS = row.l[p].length > 28 ? 6.5 : 7.5;
+                    txt(row.l[p], lx, yy, C[p*2],
+                        { fs:lblFS, bold:true, vcenter:true, py:0, align:'left' });
+                    // Valor
+                    cell(vx, yy, C[p*2+1], H.data, null);
+                    txt(d[row.v[p]]||'', vx, yy, C[p*2+1],
+                        { fs:7.5, vcenter:true, py:0 });
+                }
+            });
+
+            // === 4. ESTADO ACTUAL — Etiquetas ===
+            // "Lado Izquierdo" (columnas A-C)
+            cell(ML, Y.estLbl, CX[3]-ML, H.estLbl, [240,241,243]);
+            txt('Estado actual y descripción del estado del elemento. Lado Izquierdo',
+                ML, Y.estLbl, CX[3]-ML,
+                { fs:7, bold:true, vcenter:true, py:0 });
+            // "Lado derecho" (columnas D-F)
+            cell(CX[3], Y.estLbl, CX[6]-CX[3], H.estLbl, [240,241,243]);
+            txt('Lado derecho', CX[3], Y.estLbl, CX[6]-CX[3],
+                { fs:7.5, bold:true, align:'center', vcenter:true, py:0 });
+
+            // === 5. ESTADO ACTUAL — Valores ===
+            cell(ML, Y.estVal, CX[3]-ML, H.estVal, null);
+            txt(d['7-D']||'', ML, Y.estVal, CX[3]-ML, { fs:7, py:2.5 });
+            cell(CX[3], Y.estVal, CX[6]-CX[3], H.estVal, null);
+            txt(d['7-F']||'', CX[3], Y.estVal, CX[6]-CX[3], { fs:7, py:2.5 });
+
+            // === 6. CROQUIS / OBSERVACIONES — Etiquetas ===
+            cell(ML, Y.crLbl, CX[3]-ML, H.crLbl, [240,241,243]);
+            txt('CROQUIS DE LOCALIZACIÓN:', ML, Y.crLbl, CX[3]-ML,
+                { fs:7.5, bold:true, align:'center', vcenter:true, py:0 });
+            cell(CX[3], Y.crLbl, CX[6]-CX[3], H.crLbl, [240,241,243]);
+            txt('Observaciones:', CX[3], Y.crLbl, CX[6]-CX[3],
+                { fs:7.5, bold:true, align:'center', vcenter:true, py:0 });
+
+            // === 7. CROQUIS / OBSERVACIONES — Valores ===
+            const crW = CX[3] - ML;
+            const obsW = CX[6] - CX[3];
+
+            // Croquis (con imagen o placeholder)
+            cell(ML, Y.crVal, crW, H.crVal, null);
+            if (imgs.croquis) {
+                try {
+                    doc.addImage(imgs.croquis, 'JPEG', ML+1.5, Y.crVal+1.5, crW-3, H.crVal-3);
+                } catch(e) {
+                    doc.setFontSize(7); doc.setTextColor(180,180,180);
+                    doc.text('[Imagen de croquis]', ML+crW/2-12, Y.crVal+H.crVal/2);
+                    doc.setTextColor(0,0,0);
+                }
+            } else {
+                doc.setFontSize(7); doc.setTextColor(190,190,190);
+                doc.text('[Sin imagen]', ML+crW/2-10, Y.crVal+H.crVal/2);
+                doc.setTextColor(0,0,0);
+            }
+
+            // Observaciones
+            cell(CX[3], Y.crVal, obsW, H.crVal, null);
+            txt(d['8-F']||'', CX[3], Y.crVal, obsW, { fs:7, py:2.5 });
+
+            // === 8. EVIDENCIA FOTOGRÁFICA — Etiqueta ===
+            cell(ML, Y.evLbl, PW, H.evLbl, [240,241,243]);
+            txt('EVIDENCIA FOTOGRÁFICA', ML, Y.evLbl, PW,
+                { fs:7.5, bold:true, align:'center', vcenter:true, py:0 });
+
+            // === 9. EVIDENCIA FOTOGRÁFICA — 3 slots ===
+            const evSlotW = PW / 3;
+            for (let i=0; i<3; i++) {
+                const ex = ML + i * evSlotW;
+                cell(ex, Y.evVal, evSlotW, H.evVal, null);
+                const imgKey = 'evid-'+i;
+                if (imgs[imgKey]) {
+                    try {
+                        doc.addImage(imgs[imgKey], 'JPEG', ex+1.5, Y.evVal+1.5, evSlotW-3, H.evVal-3);
+                    } catch(e) {
+                        doc.setFontSize(7); doc.setTextColor(190,190,190);
+                        doc.text('[Foto '+(i+1)+']', ex+evSlotW/2-8, Y.evVal+H.evVal/2);
+                        doc.setTextColor(0,0,0);
+                    }
+                } else {
+                    doc.setFontSize(7); doc.setTextColor(190,190,190);
+                    doc.text('[Foto '+(i+1)+']', ex+evSlotW/2-8, Y.evVal+H.evVal/2);
+                    doc.setTextColor(0,0,0);
+                }
+                // Línea divisoria entre slots (excepto el último)
+                if (i < 2) {
+                    doc.setDrawColor(0,0,0);
+                    doc.setLineWidth(0.4);
+                    doc.line(ex+evSlotW, Y.evVal, ex+evSlotW, Y.evVal+H.evVal);
+                }
+            }
+
+            // === Guardar (sin número de página) ===
+            doc.save('Ficha_LMT-T11-02.pdf');
+            toast('PDF exportado (1 página)','ok');
+        } catch(e) {
+            console.error('Error PDF:', e);
+            toast('Error PDF: '+e.message,'err');
+        }
+    }
+};
+
+/* ==============================
+   MOSTRAR COORDENADA AL ENFOCAR
+   ============================== */
+const acd = document.getElementById('acd');
+const act = document.getElementById('act');
+document.querySelectorAll('[id^="cell-"]').forEach(el => {
+    el.addEventListener('focus', () => {
+        act.textContent = el.id.replace('cell-','');
+        acd.classList.add('vis');
+    });
+    el.addEventListener('blur', () => acd.classList.remove('vis'));
+});
+
+/* Abrir primer panel por defecto */
+tp('rp');
+</script>
+</body>
+</html>

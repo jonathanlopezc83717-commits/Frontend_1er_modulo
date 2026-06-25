@@ -335,7 +335,7 @@ export async function exportarPdfFicha(
   for (let i = 1; i <= 6; i++) CX.push(CX[i - 1] + C[i - 1])
 
   // Alturas de fila
-  const Htitle = 22
+  const Htitle = 20
   const Hsub = 8
   const Hdata = 8
   const HestLbl = 7
@@ -403,9 +403,9 @@ export async function exportarPdfFicha(
   // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
-  // Cada logo ocupa hasta 1/4 del ancho útil, manteniendo aspect ratio.
-  const logoMaxW = PW / 4          // ≈ 48.5mm
-  const logoMaxH = Htitle - 4       // alto disponible con margen
+  // Cada logo ocupa hasta 1/4 del ancho útil en un recuadro 1:3 (w:h), manteniendo aspect ratio.
+  const logoMaxH = Htitle - 4        // ≈ 16mm
+  const logoMaxW = logoMaxH * 3      // 48mm → proporción 3:1
   const logoPadding = 2
 
   if (imagenes['logo-izq']) {
@@ -625,7 +625,7 @@ export async function exportarExcelFicha(
   cellTitulo.font = fontWhiteBold
   cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
   cellTitulo.border = thinBorder
-  ws.getRow(1).height = 50
+  ws.getRow(1).height = 60
 
   // Fila 2: Proyecto (A2:D2) + Clave (E2) + valor clave (F2)
   ws.mergeCells('A2:D2')
@@ -741,40 +741,49 @@ export async function exportarExcelFicha(
   ws.getRow(12).height = 120
 
   // === Imágenes ===
-  // Logos en la cabecera (fila 1) — 1/4 del ancho por lado, aspect ratio conservado
-  // Aproximación de conversión: 1 unidad de col ≈ 7px, 1pt de fila ≈ 1.33px
-  const COL_PX = 7
-  const ROW_PX = 50 * 1.333
-  const logoMaxCols = 1.5
-  const logoMaxRows = 0.9
+  // Logos en la cabecera (fila 1) — recuadro 1:3 (w:h), aspect ratio conservado
+  const CHAR_PX = 7                              // 1 carácter de columna ≈ 7px
+  const ROW1_PX = 60 * 1.333                     // altura fila 1 en px
+  const colPxArr = colWidths.map(w => w * CHAR_PX) // ancho px de cada columna
+  const totalWpx = colPxArr.reduce((a, b) => a + b, 0)
+  const logoTargetWpx = (totalWpx / 4)           // 1/4 del ancho total
+  const logoTargetHpx = logoTargetWpx / 3        // proporción 3:1
 
-  const colocarLogoExcel = async (key: string, colInicio: number) => {
+  // Convierte posición X en píxeles a índice de columna fraccional
+  const pxToColIndex = (px: number, offsetPx: number) => {
+    let acc = offsetPx
+    for (let i = 0; i < colPxArr.length; i++) {
+      if (acc + colPxArr[i] >= px) return i + (px - acc) / colPxArr[i]
+      acc += colPxArr[i]
+    }
+    return colPxArr.length
+  }
+
+  const colocarLogoExcel = async (key: string, offsetPx: number) => {
     if (!imagenes[key]) return
     try {
       const logo = await procesarLogo(imagenes[key], quitarFondo)
       const base64 = logo.split(',')[1] || logo
       const ext = logo.startsWith('data:image/png') ? 'png' : 'jpeg'
       const dim = await obtenerDimensionesImagen(logo)
-      const fit = calcularAjusteContain(
-        dim.w, dim.h,
-        logoMaxCols * COL_PX,
-        logoMaxRows * ROW_PX,
-      )
-      const finalColSpan = fit.w / COL_PX
-      const finalRowSpan = fit.h / ROW_PX
-      const offsetXCol = fit.offsetX / COL_PX
-      const offsetYRow = fit.offsetY / ROW_PX
+      // Contain dentro del recuadro 1:3
+      const fit = calcularAjusteContain(dim.w, dim.h, logoTargetWpx, logoTargetHpx)
+      const x0 = offsetPx + fit.offsetX
+      const x1 = x0 + fit.w
+      const y0 = fit.offsetY / ROW1_PX
+      const y1 = y0 + fit.h / ROW1_PX
       const id = workbook.addImage({ base64, extension: ext })
       ws.addImage(id, {
-        tl: { col: colInicio + offsetXCol, row: offsetYRow },
-        br: { col: colInicio + offsetXCol + finalColSpan, row: offsetYRow + finalRowSpan },
+        tl: { col: pxToColIndex(x0, 0), row: y0 },
+        br: { col: pxToColIndex(x1, 0), row: y1 },
         editAs: 'absolute',
       } as never)
     } catch { /* ignorar */ }
   }
 
+  // Logo izquierdo: desde el inicio (px 0). Logo derecho: alineado al final.
   await colocarLogoExcel('logo-izq', 0)
-  await colocarLogoExcel('logo-der', 4.5)
+  await colocarLogoExcel('logo-der', totalWpx - logoTargetWpx)
 
   // Croquis en A12:C12
   if (imagenes.croquis) {
@@ -1414,7 +1423,7 @@ function LogoSlot({
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className="group relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
+        className="group relative flex h-16 w-48 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
         onClick={() => !image && inputRef.current?.click()}
       >
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => onFile(e.target.files?.[0])} />

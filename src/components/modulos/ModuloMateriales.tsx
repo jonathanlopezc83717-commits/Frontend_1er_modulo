@@ -83,11 +83,19 @@ const FILAS_DATOS: Array<Array<{ etiqueta: string; coord: string }>> = [
   [{ etiqueta: 'Coordenada "X"', coord: '6-B' }, { etiqueta: 'Coordenada "Y"', coord: '6-D' }, { etiqueta: 'Operador', coord: '6-F' }],
 ]
 
-const EVIDENCIAS = [
-  { key: 'evid-0', label: 'Foto 1' },
-  { key: 'evid-1', label: 'Foto 2' },
-  { key: 'evid-2', label: 'Foto 3' },
-]
+/** Número máximo de evidencias permitidas. */
+const MAX_EVIDENCIAS = 12
+/** Número por defecto de evidencias. */
+const EVIDENCIAS_DEFECTO = 3
+
+/** Genera la lista de evidencias según el número indicado. */
+function generarEvidencias(n: number) {
+  const total = Math.max(0, Math.min(n, MAX_EVIDENCIAS))
+  return Array.from({ length: total }, (_, i) => ({
+    key: `evid-${i}`,
+    label: `Foto ${i + 1}`,
+  }))
+}
 
 // =====================================================
 // UTILIDADES DE EXTRACCIÓN (autocompletado desde otros módulos)
@@ -220,6 +228,44 @@ function formatoImagen(dataUrl: string): 'PNG' | 'JPEG' {
 }
 
 /**
+ * Obtiene las dimensiones naturales (ancho, alto) de una imagen dataURL.
+ */
+function obtenerDimensionesImagen(dataUrl: string): Promise<{ w: number; h: number }> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 })
+    img.onerror = () => resolve({ w: 1, h: 1 })
+    img.src = dataUrl
+  })
+}
+
+/**
+ * Calcula el tamaño (w, h) que ocupa una imagen dentro de un recuadro máximo,
+ * MANTENIENDO la relación de aspecto (sin deformar).
+ * El resultado se centra dentro del recuadro.
+ */
+function calcularAjusteContain(
+  imgW: number,
+  imgH: number,
+  maxW: number,
+  maxH: number,
+): { w: number; h: number; offsetX: number; offsetY: number } {
+  const ratio = imgW / imgH
+  let w = maxW
+  let h = w / ratio
+  if (h > maxH) {
+    h = maxH
+    w = h * ratio
+  }
+  return {
+    w,
+    h,
+    offsetX: (maxW - w) / 2,
+    offsetY: (maxH - h) / 2,
+  }
+}
+
+/**
  * Procesa una imagen dataURL: si `quitarFondo` es true, convierte los píxeles
  * cercanos al blanco (umbral) en transparentes y devuelve un PNG dataURL.
  */
@@ -271,11 +317,12 @@ export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
+  const numEvidencias = opciones.numEvidencias ?? 3
 
   const ML = 8
   const MT = 8
@@ -288,7 +335,7 @@ export async function exportarPdfFicha(
   for (let i = 1; i <= 6; i++) CX.push(CX[i - 1] + C[i - 1])
 
   // Alturas de fila
-  const Htitle = 11
+  const Htitle = 22
   const Hsub = 8
   const Hdata = 8
   const HestLbl = 7
@@ -356,24 +403,44 @@ export async function exportarPdfFicha(
   // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
-  // Logos: izquierdo (esquina sup. izq.) y derecho (esquina sup. der.)
-  const logoH = Htitle - 2
-  const logoW = logoH
-  const logoY = Ytitle + 1
+  // Cada logo ocupa hasta 1/4 del ancho útil, manteniendo aspect ratio.
+  const logoMaxW = PW / 4          // ≈ 48.5mm
+  const logoMaxH = Htitle - 4       // alto disponible con margen
+  const logoPadding = 2
+
   if (imagenes['logo-izq']) {
     try {
       const logoIzq = await procesarLogo(imagenes['logo-izq'], quitarFondo)
-      doc.addImage(logoIzq, formatoImagen(logoIzq), ML + 1, logoY, logoW, logoH)
+      const dim = await obtenerDimensionesImagen(logoIzq)
+      const fit = calcularAjusteContain(dim.w, dim.h, logoMaxW, logoMaxH)
+      doc.addImage(
+        logoIzq,
+        formatoImagen(logoIzq),
+        ML + logoPadding + fit.offsetX,
+        Ytitle + 2 + fit.offsetY,
+        fit.w,
+        fit.h,
+      )
     } catch { /* ignorar */ }
   }
   if (imagenes['logo-der']) {
     try {
       const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
-      doc.addImage(logoDer, formatoImagen(logoDer), ML + PW - logoW - 1, logoY, logoW, logoH)
+      const dim = await obtenerDimensionesImagen(logoDer)
+      const fit = calcularAjusteContain(dim.w, dim.h, logoMaxW, logoMaxH)
+      // El recuadro derecho empieza en (ML + PW - logoMaxW)
+      doc.addImage(
+        logoDer,
+        formatoImagen(logoDer),
+        ML + PW - logoMaxW - logoPadding + fit.offsetX,
+        Ytitle + 2 + fit.offsetY,
+        fit.w,
+        fit.h,
+      )
     } catch { /* ignorar */ }
   }
 
-  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML, Ytitle, PW, {
+  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML + logoMaxW, Ytitle, PW - logoMaxW * 2, {
     fs: 11, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
 
@@ -464,44 +531,47 @@ export async function exportarPdfFicha(
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HevLbl,
   })
 
-  // 9. Evidencia — 3 slots
-  const evSlotW = PW / 3
-  for (let i = 0; i < 3; i++) {
-    const ex = ML + i * evSlotW
-    cell(ex, YevVal, evSlotW, HevVal)
+  // 9. Evidencia — N slots en grilla de 3 columnas
+  const evTotal = Math.max(0, Math.min(numEvidencias, 12))
+  const evCols = 3
+  const evRows = Math.ceil(evTotal / evCols)
+  const evSlotW = PW / evCols
+  const evSlotH = evRows > 0 ? HevVal / evRows : HevVal
+
+  for (let i = 0; i < evTotal; i++) {
+    const fila = Math.floor(i / evCols)
+    const col = i % evCols
+    const ex = ML + col * evSlotW
+    const ey = YevVal + fila * evSlotH
+    cell(ex, ey, evSlotW, evSlotH)
     const imgKey = `evid-${i}`
     if (imagenes[imgKey]) {
       try {
-        doc.addImage(imagenes[imgKey], formatoImagen(imagenes[imgKey]), ex + 1.5, YevVal + 1.5, evSlotW - 3, HevVal - 3)
+        doc.addImage(imagenes[imgKey], formatoImagen(imagenes[imgKey]), ex + 1.5, ey + 1.5, evSlotW - 3, evSlotH - 3)
       } catch {
         doc.setFontSize(7)
         doc.setTextColor(190, 190, 190)
-        doc.text(`[Foto ${i + 1}]`, ex + evSlotW / 2 - 8, YevVal + HevVal / 2)
+        doc.text(`[Foto ${i + 1}]`, ex + evSlotW / 2 - 8, ey + evSlotH / 2)
         doc.setTextColor(0, 0, 0)
       }
     } else {
       doc.setFontSize(7)
       doc.setTextColor(190, 190, 190)
-      doc.text(`[Foto ${i + 1}]`, ex + evSlotW / 2 - 8, YevVal + HevVal / 2)
+      doc.text(`[Foto ${i + 1}]`, ex + evSlotW / 2 - 8, ey + evSlotH / 2)
       doc.setTextColor(0, 0, 0)
     }
-    if (i < 2) {
+    // Línea divisoria vertical entre columnas
+    if (col < evCols - 1 && i < evTotal - 1) {
       doc.setDrawColor(0, 0, 0)
       doc.setLineWidth(0.4)
-      doc.line(ex + evSlotW, YevVal, ex + evSlotW, YevVal + HevVal)
+      doc.line(ex + evSlotW, ey, ex + evSlotW, ey + evSlotH)
     }
-  }
-
-  // Logo / imagen adicional como marca de agua tenue (opcional)
-  if (imagenes['logo-extra']) {
-    try {
-      const extraProc = await procesarLogo(imagenes['logo-extra'], quitarFondo)
-      const exW = 60
-      const exH = 60
-      const exX = ML + PW / 2 - exW / 2
-      const exY = YevVal + HevVal - exH - 4
-      doc.addImage(extraProc, formatoImagen(extraProc), exX, exY, exW, exH)
-    } catch { /* ignorar */ }
+    // Línea divisoria horizontal entre filas
+    if (fila < evRows - 1) {
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.4)
+      doc.line(ML, ey + evSlotH, ML + PW, ey + evSlotH)
+    }
   }
 
   doc.save(`${nombreArchivo}.pdf`)
@@ -515,10 +585,11 @@ export async function exportarExcelFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
+  const numEvidencias = Math.max(0, Math.min(opciones.numEvidencias ?? 3, 12))
   void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
 
   const workbook = new ExcelJS.Workbook()
@@ -554,7 +625,7 @@ export async function exportarExcelFicha(
   cellTitulo.font = fontWhiteBold
   cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
   cellTitulo.border = thinBorder
-  ws.getRow(1).height = 24
+  ws.getRow(1).height = 50
 
   // Fila 2: Proyecto (A2:D2) + Clave (E2) + valor clave (F2)
   ws.mergeCells('A2:D2')
@@ -670,25 +741,40 @@ export async function exportarExcelFicha(
   ws.getRow(12).height = 120
 
   // === Imágenes ===
-  // Logos en la cabecera (fila 1)
-  if (imagenes['logo-izq']) {
+  // Logos en la cabecera (fila 1) — 1/4 del ancho por lado, aspect ratio conservado
+  // Aproximación de conversión: 1 unidad de col ≈ 7px, 1pt de fila ≈ 1.33px
+  const COL_PX = 7
+  const ROW_PX = 50 * 1.333
+  const logoMaxCols = 1.5
+  const logoMaxRows = 0.9
+
+  const colocarLogoExcel = async (key: string, colInicio: number) => {
+    if (!imagenes[key]) return
     try {
-      const logoIzq = await procesarLogo(imagenes['logo-izq'], quitarFondo)
-      const base64 = logoIzq.split(',')[1] || logoIzq
-      const ext = logoIzq.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const logo = await procesarLogo(imagenes[key], quitarFondo)
+      const base64 = logo.split(',')[1] || logo
+      const ext = logo.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const dim = await obtenerDimensionesImagen(logo)
+      const fit = calcularAjusteContain(
+        dim.w, dim.h,
+        logoMaxCols * COL_PX,
+        logoMaxRows * ROW_PX,
+      )
+      const finalColSpan = fit.w / COL_PX
+      const finalRowSpan = fit.h / ROW_PX
+      const offsetXCol = fit.offsetX / COL_PX
+      const offsetYRow = fit.offsetY / ROW_PX
       const id = workbook.addImage({ base64, extension: ext })
-      ws.addImage(id, { tl: { col: 0, row: 0 }, br: { col: 0.8, row: 0.9 }, editAs: 'absolute' } as never)
+      ws.addImage(id, {
+        tl: { col: colInicio + offsetXCol, row: offsetYRow },
+        br: { col: colInicio + offsetXCol + finalColSpan, row: offsetYRow + finalRowSpan },
+        editAs: 'absolute',
+      } as never)
     } catch { /* ignorar */ }
   }
-  if (imagenes['logo-der']) {
-    try {
-      const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
-      const base64 = logoDer.split(',')[1] || logoDer
-      const ext = logoDer.startsWith('data:image/png') ? 'png' : 'jpeg'
-      const id = workbook.addImage({ base64, extension: ext })
-      ws.addImage(id, { tl: { col: 5.2, row: 0 }, br: { col: 6, row: 0.9 }, editAs: 'absolute' } as never)
-    } catch { /* ignorar */ }
-  }
+
+  await colocarLogoExcel('logo-izq', 0)
+  await colocarLogoExcel('logo-der', 4.5)
 
   // Croquis en A12:C12
   if (imagenes.croquis) {
@@ -700,15 +786,54 @@ export async function exportarExcelFicha(
     } catch { /* ignorar */ }
   }
 
-  // Logo / imagen adicional (marca de agua en celdas libres inferiores)
-  if (imagenes['logo-extra']) {
-    try {
-      const extraProc = await procesarLogo(imagenes['logo-extra'], quitarFondo)
-      const base64 = extraProc.split(',')[1] || extraProc
-      const ext = extraProc.startsWith('data:image/png') ? 'png' : 'jpeg'
-      const id = workbook.addImage({ base64, extension: ext })
-      ws.addImage(id, { tl: { col: 2.5, row: 12.5 }, br: { col: 3.5, row: 13.5 }, editAs: 'absolute' } as never)
-    } catch { /* ignorar */ }
+  // === Evidencias fotográficas (N imágenes en grilla de 3 columnas) ===
+  if (numEvidencias > 0) {
+    const evCols = 3
+    const evRows = Math.ceil(numEvidencias / evCols)
+    const evStartRow = 13
+
+    // Etiqueta de evidencia
+    ws.mergeCells(evStartRow, 1, evStartRow, 6)
+    const cellEvLbl = ws.getCell(evStartRow, 1)
+    cellEvLbl.value = 'EVIDENCIA FOTOGRÁFICA'
+    cellEvLbl.fill = fillLabel
+    cellEvLbl.font = fontLabelBold
+    cellEvLbl.alignment = { horizontal: 'center', vertical: 'middle' }
+    cellEvLbl.border = thinBorder
+    ws.getRow(evStartRow).height = 18
+
+    // Cada fila de evidencias
+    for (let fila = 0; fila < evRows; fila++) {
+      const rowNumber = evStartRow + 1 + fila
+      ws.getRow(rowNumber).height = 90
+      for (let col = 0; col < evCols; col++) {
+        const idx = fila * evCols + col
+        if (idx >= numEvidencias) break
+        const imgKey = `evid-${idx}`
+        const startCol = col * 2 + 1
+        const endCol = startCol + 1
+        // Borde de celda
+        const cellEv = ws.getCell(rowNumber, startCol)
+        cellEv.value = imagenes[imgKey] ? '' : `[Foto ${idx + 1}]`
+        cellEv.alignment = { horizontal: 'center', vertical: 'middle' }
+        cellEv.border = thinBorder
+        const cellEv2 = ws.getCell(rowNumber, endCol)
+        cellEv2.border = thinBorder
+
+        if (imagenes[imgKey]) {
+          try {
+            const base64 = imagenes[imgKey].split(',')[1] || imagenes[imgKey]
+            const ext = imagenes[imgKey].startsWith('data:image/png') ? 'png' : 'jpeg'
+            const id = workbook.addImage({ base64, extension: ext })
+            ws.addImage(id, {
+              tl: { col: startCol - 1, row: rowNumber - 1 },
+              br: { col: endCol, row: rowNumber },
+              editAs: 'absolute',
+            } as never)
+          } catch { /* ignorar */ }
+        }
+      }
+    }
   }
 
   const buffer = await workbook.xlsx.writeBuffer()
@@ -733,6 +858,7 @@ export function ModuloMateriales() {
   const [exportandoExcel, setExportandoExcel] = useState(false)
   const [mapaAbierto, setMapaAbierto] = useState(false)
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
+  const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
 
   useEffect(() => {
     const data = punto?.moduloData?.materiales as FichaFormatoData | undefined
@@ -796,6 +922,7 @@ export function ModuloMateriales() {
     try {
       await exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
+        numEvidencias: numEvidencias,
       })
       toast.success('PDF exportado')
     } catch (err) {
@@ -812,6 +939,7 @@ export function ModuloMateriales() {
     try {
       await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
+        numEvidencias: numEvidencias,
       })
       toast.success('Excel exportado')
     } catch (err) {
@@ -889,6 +1017,16 @@ export function ModuloMateriales() {
                   <Eraser className="mr-2 h-4 w-4" />
                   Limpiar
                 </Button>
+                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
+                  <input
+                    type="checkbox"
+                    checked={quitarFondoLogos}
+                    onChange={e => setQuitarFondoLogos(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <Eraser className="h-4 w-4" />
+                  <span>Quitar fondo</span>
+                </label>
                 <Button variant="outline" size="sm" onClick={handleExportarExcel} disabled={exportandoExcel}>
                   <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
                   {exportandoExcel ? 'Exportando...' : 'Excel'}
@@ -941,39 +1079,6 @@ export function ModuloMateriales() {
                   onFocus={setCoordActiva}
                   placeholder="Clave"
                 />
-              </div>
-            </div>
-
-            {/* Logo / imagen adicional configurable */}
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Imagen / logo adicional</span>
-                  <span className="font-mono text-[10px] text-emerald-600">img-extra</span>
-                </label>
-                <ImagePreview
-                  image={imagenes['logo-extra'] || ''}
-                  placeholder="Imagen o logo adicional"
-                  onFile={file => cargarImagen('logo-extra', file)}
-                  onClear={() => limpiarImagen('logo-extra')}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Opciones de logo</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={quitarFondoLogos}
-                    onChange={e => setQuitarFondoLogos(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <span>Quitar fondo blanco de los logos (al exportar)</span>
-                </label>
-                <p className="text-[11px] text-muted-foreground">
-                  Cuando se activa, los píxeles cercanos al blanco se vuelven transparentes en el PDF y Excel.
-                </p>
               </div>
             </div>
 
@@ -1061,11 +1166,30 @@ export function ModuloMateriales() {
             {/* Evidencia fotográfica */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Evidencia fotográfica</CardTitle>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="text-base">Evidencia fotográfica</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="num-evidencias" className="text-xs font-medium text-muted-foreground">
+                      Nº de fotos:
+                    </label>
+                    <input
+                      id="num-evidencias"
+                      type="number"
+                      min={0}
+                      max={MAX_EVIDENCIAS}
+                      value={numEvidencias}
+                      onChange={e => {
+                        const n = Number.parseInt(e.target.value, 10)
+                        setNumEvidencias(Number.isNaN(n) ? 0 : Math.max(0, Math.min(n, MAX_EVIDENCIAS)))
+                      }}
+                      className="h-8 w-16 rounded-md border border-input bg-background px-2 text-sm"
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-3">
-                  {EVIDENCIAS.map(({ key, label }) => (
+                  {generarEvidencias(numEvidencias).map(({ key, label }) => (
                     <EvidenciaSlot
                       key={key}
                       label={label}
@@ -1121,16 +1245,12 @@ export function ModuloMateriales() {
                           <td className="p-2">Croquis de localización</td>
                         </tr>
                         <tr className="border-t hover:bg-muted/40">
-                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-evid-0/1/2</code></td>
-                          <td className="p-2">Evidencia fotográfica</td>
+                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-evid-0...N</code></td>
+                          <td className="p-2">Evidencia fotográfica (configurable)</td>
                         </tr>
                         <tr className="border-t hover:bg-muted/40">
                           <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-logo-izq/der</code></td>
                           <td className="p-2">Logos izquierdo / derecho</td>
-                        </tr>
-                        <tr className="border-t hover:bg-muted/40">
-                          <td className="p-2"><code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">img-extra</code></td>
-                          <td className="p-2">Imagen / logo adicional</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1294,7 +1414,7 @@ function LogoSlot({
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
+        className="group relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
         onClick={() => !image && inputRef.current?.click()}
       >
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => onFile(e.target.files?.[0])} />

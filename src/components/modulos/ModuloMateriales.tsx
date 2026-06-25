@@ -31,6 +31,12 @@ export interface FichaFormatoData {
   valores: Record<string, string>
   /** Imágenes indexadas por clave: "croquis", "evid-0", "evid-1", "evid-2". */
   imagenes: Record<string, string>
+  /** Número de evidencias configurado. */
+  numEvidencias?: number
+  /** Ancho de logos (porcentaje 10-50). */
+  anchoLogos?: number
+  /** Indica si se debe quitar el fondo blanco de los logos. */
+  quitarFondoLogos?: boolean
   updatedAt?: string
 }
 
@@ -317,12 +323,13 @@ export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = opciones.numEvidencias ?? 3
+  const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
 
   const ML = 8
   const MT = 8
@@ -868,12 +875,41 @@ export function ModuloMateriales() {
   const [mapaAbierto, setMapaAbierto] = useState(false)
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
   const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
+  const [anchoLogos, setAnchoLogos] = useState(25)
+  const [cargado, setCargado] = useState(false)
 
+  // Cargar datos persistidos al montar o cambiar de punto
   useEffect(() => {
     const data = punto?.moduloData?.materiales as FichaFormatoData | undefined
     setValores(data?.valores || {})
     setImagenes(data?.imagenes || {})
+    setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
+    setAnchoLogos(data?.anchoLogos ?? 25)
+    setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
+    setCargado(true)
   }, [punto?.id])
+
+  // Autoguardado: persistir cambios en el punto (con debounce)
+  useEffect(() => {
+    if (!cargado || !punto) return
+    const timer = setTimeout(() => {
+      actualizarPunto(punto.id, {
+        moduloData: {
+          ...punto.moduloData,
+          materiales: {
+            valores,
+            imagenes,
+            numEvidencias,
+            anchoLogos,
+            quitarFondoLogos,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valores, imagenes, numEvidencias, anchoLogos, quitarFondoLogos, cargado, punto?.id])
 
   const camposLlenos = useMemo(
     () => Object.values(valores).filter(v => v && v.trim()).length,
@@ -1054,25 +1090,47 @@ export function ModuloMateriales() {
           <CardContent className="space-y-4">
             {/* Título + clave con logos */}
             <div className="rounded-lg border">
-              <div className="border-b bg-neutral-900 p-3">
-                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                  <LogoSlot
-                    label="Logo izquierdo"
-                    image={imagenes['logo-izq'] || ''}
-                    onFile={file => cargarImagen('logo-izq', file)}
-                    onClear={() => limpiarImagen('logo-izq')}
+              {/* Control de ancho de logos (parte superior, solo horizontal) */}
+              <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium">Ancho de logos</span>
+                  <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoLogos}%</code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={10}
+                    max={50}
+                    step={1}
+                    value={anchoLogos}
+                    onChange={e => setAnchoLogos(Number(e.target.value))}
+                    className="h-2 w-40 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-64"
                   />
+                </div>
+              </div>
+              <div className="bg-neutral-900 p-3">
+                <div className="flex items-center gap-3">
+                  <div style={{ width: `${anchoLogos}%` }} className="shrink-0">
+                    <LogoSlot
+                      label="Logo izquierdo"
+                      image={imagenes['logo-izq'] || ''}
+                      onFile={file => cargarImagen('logo-izq', file)}
+                      onClear={() => limpiarImagen('logo-izq')}
+                    />
+                  </div>
                   <Input
                     value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
                     readOnly
-                    className="border-0 bg-transparent px-0 text-center font-semibold text-white"
+                    className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-semibold text-white"
                   />
-                  <LogoSlot
-                    label="Logo derecho"
-                    image={imagenes['logo-der'] || ''}
-                    onFile={file => cargarImagen('logo-der', file)}
-                    onClear={() => limpiarImagen('logo-der')}
-                  />
+                  <div style={{ width: `${anchoLogos}%` }} className="shrink-0">
+                    <LogoSlot
+                      label="Logo derecho"
+                      image={imagenes['logo-der'] || ''}
+                      onFile={file => cargarImagen('logo-der', file)}
+                      onClear={() => limpiarImagen('logo-der')}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
@@ -1423,7 +1481,7 @@ function LogoSlot({
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className="group relative flex h-16 w-48 items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
+        className="group relative flex h-20 w-full items-center justify-center overflow-hidden rounded-md border border-white/20 bg-white/10"
         onClick={() => !image && inputRef.current?.click()}
       >
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => onFile(e.target.files?.[0])} />

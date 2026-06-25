@@ -19,7 +19,7 @@ import {
   Save,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // =====================================================
 // TIPOS
@@ -35,6 +35,8 @@ export interface FichaFormatoData {
   numEvidencias?: number
   /** Ancho de logos (porcentaje 10-50). */
   anchoLogos?: number
+  /** Ancho de la zona del título / fecha de identificación (porcentaje 30-90). */
+  anchoTitulo?: number
   /** Indica si se debe quitar el fondo blanco de los logos. */
   quitarFondoLogos?: boolean
   updatedAt?: string
@@ -209,6 +211,17 @@ function extraerImagen(punto: unknown, campo: string): string {
   return ''
 }
 
+/** Devuelve todas las URLs/previews de imágenes disponibles en el módulo de reconocimiento. */
+function obtenerImagenesDeReconocimiento(punto: unknown): string[] {
+  if (!punto || typeof punto !== 'object') return []
+  const p = punto as Record<string, unknown>
+  const moduloData = p.moduloData as Record<string, unknown> | undefined
+  const analisis = moduloData?.analisis as Record<string, unknown> | undefined
+  const urls = (analisis?.imageUrls || []) as string[]
+  const fotos = (analisis?.fotosIndexadas || []) as Array<{ preview?: string }>
+  return [...urls, ...fotos.map(f => f.preview || '')].filter(Boolean)
+}
+
 async function leerImagen(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -323,13 +336,14 @@ export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number; anchoTitulo?: number } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = opciones.numEvidencias ?? 3
   const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
+  const anchoTituloPct = Math.max(30, Math.min(opciones.anchoTitulo ?? 60, 90))
 
   const ML = 8
   const MT = 8
@@ -410,9 +424,11 @@ export async function exportarPdfFicha(
   // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
-  // Cada logo ocupa hasta 1/4 del ancho útil en un recuadro 1:3 (w:h), manteniendo aspect ratio.
+  // El ancho del título y de los logos se ajusta según los controles de la UI.
+  // Los logos ocupan el espacio restante a cada lado sin deformarse.
   const logoMaxH = Htitle - 4        // ≈ 16mm
-  const logoMaxW = logoMaxH * 3      // 48mm → proporción 3:1
+  const tituloW = (PW * anchoTituloPct) / 100
+  const logoMaxW = Math.min((PW * anchoLogosPct) / 100, (PW - tituloW) / 2, logoMaxH * 3)
   const logoPadding = 2
 
   if (imagenes['logo-izq']) {
@@ -435,11 +451,11 @@ export async function exportarPdfFicha(
       const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
       const dim = await obtenerDimensionesImagen(logoDer)
       const fit = calcularAjusteContain(dim.w, dim.h, logoMaxW, logoMaxH)
-      // El recuadro derecho empieza en (ML + PW - logoMaxW)
+      // El recuadro derecho empieza después del título
       doc.addImage(
         logoDer,
         formatoImagen(logoDer),
-        ML + PW - logoMaxW - logoPadding + fit.offsetX,
+        ML + logoMaxW + tituloW + logoPadding + fit.offsetX,
         Ytitle + 2 + fit.offsetY,
         fit.w,
         fit.h,
@@ -447,7 +463,7 @@ export async function exportarPdfFicha(
     } catch { /* ignorar */ }
   }
 
-  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML + logoMaxW, Ytitle, PW - logoMaxW * 2, {
+  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML + logoMaxW, Ytitle, tituloW, {
     fs: 11, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
 
@@ -876,7 +892,9 @@ export function ModuloMateriales() {
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
   const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
   const [anchoLogos, setAnchoLogos] = useState(25)
+  const [anchoTitulo, setAnchoTitulo] = useState(60)
   const [cargado, setCargado] = useState(false)
+  const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto
   useEffect(() => {
@@ -885,35 +903,97 @@ export function ModuloMateriales() {
     setImagenes(data?.imagenes || {})
     setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
     setAnchoLogos(data?.anchoLogos ?? 25)
+    setAnchoTitulo(data?.anchoTitulo ?? 60)
     setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
     setCargado(true)
   }, [punto?.id])
 
-  // Autoguardado: persistir cambios en el punto (con debounce)
+  // Ref para poder acceder a la función de guardado más reciente desde el cleanup de desmontaje.
+  const guardarRef = useRef<() => void>(() => {})
+
+  // Guarda inmediatamente en el punto; se usa para autoguardado y flush al desmontar.
+  const guardarEnPunto = useCallback(() => {
+    if (!punto) return
+    actualizarPunto(punto.id, {
+      moduloData: {
+        ...punto.moduloData,
+        materiales: {
+          valores,
+          imagenes,
+          numEvidencias,
+          anchoLogos,
+          anchoTitulo,
+          quitarFondoLogos,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    })
+  }, [actualizarPunto, punto, valores, imagenes, numEvidencias, anchoLogos, anchoTitulo, quitarFondoLogos])
+
+  // Autoguardado: persistir cambios en el punto (con debounce corto)
   useEffect(() => {
     if (!cargado || !punto) return
-    const timer = setTimeout(() => {
-      actualizarPunto(punto.id, {
-        moduloData: {
-          ...punto.moduloData,
-          materiales: {
-            valores,
-            imagenes,
-            numEvidencias,
-            anchoLogos,
-            quitarFondoLogos,
-            updatedAt: new Date().toISOString(),
-          },
-        },
-      })
-    }, 500)
-    return () => clearTimeout(timer)
+    if (guardarTimeoutRef.current) clearTimeout(guardarTimeoutRef.current)
+    guardarTimeoutRef.current = setTimeout(() => {
+      guardarEnPunto()
+      guardarTimeoutRef.current = null
+    }, 300)
+    return () => {
+      if (guardarTimeoutRef.current) {
+        clearTimeout(guardarTimeoutRef.current)
+        guardarTimeoutRef.current = null
+      }
+    }
+  }, [valores, imagenes, numEvidencias, anchoLogos, anchoTitulo, quitarFondoLogos, cargado, punto?.id, guardarEnPunto])
+
+  // Mantiene actualizada la referencia de guardado sin disparar re-suscripciones.
+  guardarRef.current = guardarEnPunto
+
+  // Al desmontar el módulo, fuerza el guardado pendiente para no perder datos al cambiar de tab.
+  useEffect(() => {
+    return () => {
+      if (guardarTimeoutRef.current) {
+        clearTimeout(guardarTimeoutRef.current)
+        guardarTimeoutRef.current = null
+      }
+      guardarRef.current()
+    }
+  }, [])
+
+  // Importa automáticamente las primeras N imágenes disponibles del reconocimiento
+  // en los slots de evidencia fotográfica cuando cambia el número de fotos.
+  const importarEvidenciasDesdeReconocimiento = useCallback((n: number) => {
+    if (!punto) return
+    const disponibles = obtenerImagenesDeReconocimiento(punto)
+    if (disponibles.length === 0) return
+    setImagenes(prev => {
+      const copia = { ...prev }
+      const total = Math.max(0, Math.min(n, MAX_EVIDENCIAS))
+      for (let i = 0; i < total; i++) {
+        const key = `evid-${i}`
+        // Solo llenar slots vacíos para no sobrescribir imágenes cargadas manualmente.
+        if (!copia[key] && disponibles[i]) {
+          copia[key] = disponibles[i]
+        }
+      }
+      return copia
+    })
+  }, [punto])
+
+  useEffect(() => {
+    if (!cargado || !punto) return
+    importarEvidenciasDesdeReconocimiento(numEvidencias)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valores, imagenes, numEvidencias, anchoLogos, quitarFondoLogos, cargado, punto?.id])
+  }, [numEvidencias, cargado, punto?.id, importarEvidenciasDesdeReconocimiento])
 
   const camposLlenos = useMemo(
     () => Object.values(valores).filter(v => v && v.trim()).length,
     [valores],
+  )
+
+  const imagenesReconocimientoDisponibles = useMemo(
+    () => obtenerImagenesDeReconocimiento(punto),
+    [punto],
   )
 
   const actualizarValor = (coord: string, valor: string) => {
@@ -955,6 +1035,10 @@ export function ModuloMateriales() {
         materiales: {
           valores,
           imagenes,
+          numEvidencias,
+          anchoLogos,
+          anchoTitulo,
+          quitarFondoLogos,
           updatedAt: new Date().toISOString(),
         },
       },
@@ -968,6 +1052,8 @@ export function ModuloMateriales() {
       await exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
+        anchoLogos: anchoLogos,
+        anchoTitulo: anchoTitulo,
       })
       toast.success('PDF exportado')
     } catch (err) {
@@ -1090,13 +1176,28 @@ export function ModuloMateriales() {
           <CardContent className="space-y-4">
             {/* Título + clave con logos */}
             <div className="rounded-lg border">
-              {/* Control de ancho de logos (parte superior, solo horizontal) */}
-              <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-medium">Ancho de logos</span>
-                  <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoLogos}%</code>
+              {/* Apartado superior para ajustar el ancho de la zona de identificación y los logos */}
+              <div className="grid gap-2 border-b bg-muted/30 px-3 py-2 md:grid-cols-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium">Ancho zona identificación</span>
+                    <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoTitulo}%</code>
+                  </div>
+                  <input
+                    type="range"
+                    min={30}
+                    max={90}
+                    step={1}
+                    value={anchoTitulo}
+                    onChange={e => setAnchoTitulo(Number(e.target.value))}
+                    className="h-2 w-32 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-48"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium">Ancho de logos</span>
+                    <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoLogos}%</code>
+                  </div>
                   <input
                     type="range"
                     min={10}
@@ -1104,13 +1205,13 @@ export function ModuloMateriales() {
                     step={1}
                     value={anchoLogos}
                     onChange={e => setAnchoLogos(Number(e.target.value))}
-                    className="h-2 w-40 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-64"
+                    className="h-2 w-32 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-48"
                   />
                 </div>
               </div>
               <div className="bg-neutral-900 p-3">
                 <div className="flex items-center gap-3">
-                  <div style={{ width: `${anchoLogos}%` }} className="shrink-0">
+                  <div className="min-w-0 flex-1">
                     <LogoSlot
                       label="Logo izquierdo"
                       image={imagenes['logo-izq'] || ''}
@@ -1121,9 +1222,10 @@ export function ModuloMateriales() {
                   <Input
                     value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
                     readOnly
-                    className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-semibold text-white"
+                    style={{ width: `${anchoTitulo}%` }}
+                    className="shrink-0 border-0 bg-transparent px-0 text-center font-semibold text-white"
                   />
-                  <div style={{ width: `${anchoLogos}%` }} className="shrink-0">
+                  <div className="min-w-0 flex-1">
                     <LogoSlot
                       label="Logo derecho"
                       image={imagenes['logo-der'] || ''}
@@ -1235,7 +1337,23 @@ export function ModuloMateriales() {
               <CardHeader className="pb-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle className="text-base">Evidencia fotográfica</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {imagenesReconocimientoDisponibles.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {imagenesReconocimientoDisponibles.length} en reconocimiento
+                      </Badge>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={imagenesReconocimientoDisponibles.length === 0}
+                      onClick={() => importarEvidenciasDesdeReconocimiento(numEvidencias)}
+                      title="Importa las imágenes disponibles del módulo de reconocimiento para este punto"
+                    >
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Importar del reconocimiento
+                    </Button>
                     <label htmlFor="num-evidencias" className="text-xs font-medium text-muted-foreground">
                       Nº de fotos:
                     </label>

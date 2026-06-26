@@ -105,6 +105,22 @@ function generarEvidencias(n: number) {
   }))
 }
 
+/**
+ * Calcula la distribución de evidencias fotográficas según el número de imágenes.
+ * - 1 imagen: 1 fila × 1 columna (centrada)
+ * - 2 imágenes: 1 fila × 2 columnas
+ * - 3 imágenes: 1 fila × 3 columnas
+ * - 4 imágenes: 2 filas × 2 columnas
+ * - 5+ imágenes: filas de hasta 3 columnas, centrando la última fila incompleta
+ */
+function calcularDistribucionEvidencias(n: number): { cols: number; rows: number } {
+  const total = Math.max(0, Math.min(n, MAX_EVIDENCIAS))
+  if (total === 0) return { cols: 0, rows: 0 }
+  if (total <= 3) return { cols: total, rows: 1 }
+  if (total === 4) return { cols: 2, rows: 2 }
+  return { cols: 3, rows: Math.ceil(total / 3) }
+}
+
 // =====================================================
 // UTILIDADES DE EXTRACCIÓN (autocompletado desde otros módulos)
 // =====================================================
@@ -555,17 +571,20 @@ export async function exportarPdfFicha(
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HevLbl,
   })
 
-  // 9. Evidencia — N slots en grilla de 3 columnas
+  // 9. Evidencia fotográfica — distribución simétrica según cantidad de imágenes
   const evTotal = Math.max(0, Math.min(numEvidencias, 12))
-  const evCols = 3
-  const evRows = Math.ceil(evTotal / evCols)
-  const evSlotW = PW / evCols
+  const { cols: evCols, rows: evRows } = calcularDistribucionEvidencias(evTotal)
+  const evSlotW = evCols > 0 ? PW / evCols : PW
   const evSlotH = evRows > 0 ? HevVal / evRows : HevVal
+  const itemsUltimaFila = evTotal - (evRows - 1) * evCols
+  const offsetUltimaFila = itemsUltimaFila < evCols ? Math.floor((evCols - itemsUltimaFila) / 2) : 0
 
   for (let i = 0; i < evTotal; i++) {
     const fila = Math.floor(i / evCols)
     const col = i % evCols
-    const ex = ML + col * evSlotW
+    const isUltimaFila = fila === evRows - 1
+    const offset = isUltimaFila ? offsetUltimaFila : 0
+    const ex = ML + (offset + col) * evSlotW
     const ey = YevVal + fila * evSlotH
     cell(ex, ey, evSlotW, evSlotH)
     const imgKey = `evid-${i}`
@@ -819,11 +838,13 @@ export async function exportarExcelFicha(
     } catch { /* ignorar */ }
   }
 
-  // === Evidencias fotográficas (N imágenes en grilla de 3 columnas) ===
+  // === Evidencias fotográficas (distribución simétrica según cantidad) ===
   if (numEvidencias > 0) {
-    const evCols = 3
-    const evRows = Math.ceil(numEvidencias / evCols)
+    const { cols: evCols, rows: evRows } = calcularDistribucionEvidencias(numEvidencias)
     const evStartRow = 13
+    const colsPorImagen = 6 / evCols
+    const itemsUltimaFila = numEvidencias - (evRows - 1) * evCols
+    const offsetUltimaFila = itemsUltimaFila < evCols ? Math.floor((evCols - itemsUltimaFila) / 2) : 0
 
     // Etiqueta de evidencia
     ws.mergeCells(evStartRow, 1, evStartRow, 6)
@@ -839,19 +860,22 @@ export async function exportarExcelFicha(
     for (let fila = 0; fila < evRows; fila++) {
       const rowNumber = evStartRow + 1 + fila
       ws.getRow(rowNumber).height = 90
+      const isUltimaFila = fila === evRows - 1
+      const offset = isUltimaFila ? offsetUltimaFila : 0
       for (let col = 0; col < evCols; col++) {
         const idx = fila * evCols + col
         if (idx >= numEvidencias) break
         const imgKey = `evid-${idx}`
-        const startCol = col * 2 + 1
-        const endCol = startCol + 1
+        const startCol = Math.round(offset * colsPorImagen + col * colsPorImagen) + 1
+        const endCol = Math.round(startCol + colsPorImagen)
         // Borde de celda
         const cellEv = ws.getCell(rowNumber, startCol)
         cellEv.value = imagenes[imgKey] ? '' : `[Foto ${idx + 1}]`
         cellEv.alignment = { horizontal: 'center', vertical: 'middle' }
         cellEv.border = thinBorder
-        const cellEv2 = ws.getCell(rowNumber, endCol)
-        cellEv2.border = thinBorder
+        for (let c = startCol + 1; c <= endCol; c++) {
+          ws.getCell(rowNumber, c).border = thinBorder
+        }
 
         if (imagenes[imgKey]) {
           try {
@@ -1379,18 +1403,43 @@ export function ModuloMateriales() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {generarEvidencias(numEvidencias).map(({ key, label }) => (
-                    <EvidenciaSlot
-                      key={key}
-                      label={label}
-                      coordBadge={`img-${key}`}
-                      image={imagenes[key] || ''}
-                      onUpload={file => cargarImagen(key, file)}
-                      onClear={() => limpiarImagen(key)}
-                    />
-                  ))}
-                </div>
+                {(() => {
+                  const evidencias = generarEvidencias(numEvidencias)
+                  const { cols, rows } = calcularDistribucionEvidencias(numEvidencias)
+                  const filas: Array<Array<{ key: string; label: string }>> = []
+                  for (let r = 0; r < rows; r++) {
+                    filas.push(evidencias.slice(r * cols, (r + 1) * cols))
+                  }
+                  const itemsUltimaFila = evidencias.length - (rows - 1) * cols
+                  const offsetUltimaFila = itemsUltimaFila < cols ? Math.floor((cols - itemsUltimaFila) / 2) : 0
+                  return (
+                    <div className="space-y-3">
+                      {filas.map((fila, r) => {
+                        const isUltima = r === rows - 1
+                        const offset = isUltima ? offsetUltimaFila : 0
+                        return (
+                          <div
+                            key={r}
+                            className="grid gap-3"
+                            style={{ gridTemplateColumns: cols > 0 ? `repeat(${cols}, minmax(0, 1fr))` : undefined }}
+                          >
+                            {fila.map(({ key, label }, idx) => (
+                              <div key={key} style={{ gridColumnStart: offset + idx + 1 }}>
+                                <EvidenciaSlot
+                                  label={label}
+                                  coordBadge={`img-${key}`}
+                                  image={imagenes[key] || ''}
+                                  onUpload={file => cargarImagen(key, file)}
+                                  onClear={() => limpiarImagen(key)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
 

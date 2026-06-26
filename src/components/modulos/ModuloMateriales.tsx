@@ -838,20 +838,38 @@ export async function exportarExcelFicha(
     return idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl
   }
 
+  /** Convierte una URL remota o dataURL a dataURL. */
+  async function normalizarSrcADataUrl(src: string): Promise<string> {
+    if (src.startsWith('data:')) return src
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      const response = await fetch(src)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const blob = await response.blob()
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(String(reader.result || ''))
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+    }
+    return src
+  }
+
   /**
    * Añade una imagen con aspect ratio conservado.
-   * @param dataUrl  Imagen en dataURL
+   * @param src      Imagen en dataURL o URL remota
    * @param col      Columna inicial (base 0)
    * @param row      Fila inicial (base 0)
    * @param colSpan  Número de columnas que ocupa el recuadro
    * @param rowSpan  Número de filas que ocupa el recuadro
    */
   const addImageContain = async (
-    dataUrl: string,
+    src: string,
     col: number, row: number,
     colSpan: number, rowSpan: number,
   ) => {
     try {
+      const dataUrl = await normalizarSrcADataUrl(src)
       const base64 = extraerBase64(dataUrl)
       const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg'
       const dim = await obtenerDimensionesImagen(dataUrl)

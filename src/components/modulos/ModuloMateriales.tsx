@@ -657,11 +657,12 @@ export async function exportarExcelFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = Math.max(0, Math.min(opciones.numEvidencias ?? 3, 12))
+  const imagenesReconocimiento = opciones.imagenesReconocimiento || []
   void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
 
   const workbook = new ExcelJS.Workbook()
@@ -669,8 +670,9 @@ export async function exportarExcelFicha(
   ws.properties.showGridLines = false
   ws.views = [{ showGridLines: false }]
 
-  // Anchos de columna
-  const colWidths = [34, 22, 28, 22, 36, 30]
+  // Anchos de columna ajustados al encabezado: 1/4 - 2/4 - 1/4
+  // (A+B para logo 1, C+D para título, E+F para logo 2)
+  const colWidths = [22, 21, 43, 43, 22, 21]
   colWidths.forEach((w, i) => {
     ws.getColumn(i + 1).width = w
   })
@@ -689,14 +691,26 @@ export async function exportarExcelFicha(
     right: { style: 'thin' as const, color: { argb: 'FF000000' } },
   }
 
-  // Fila 1: Título (combinada A1:F1) con fondo negro
-  ws.mergeCells('A1:F1')
-  const cellTitulo = ws.getCell('A1')
+  // Fila 1: Logo izquierdo (A1:B1) | Título (C1:D1) | Logo derecho (E1:F1)
+  // Proporciones: 1/4 - 2/4 - 1/4 del ancho total.
+  ws.mergeCells('A1:B1')
+  ws.mergeCells('C1:D1')
+  ws.mergeCells('E1:F1')
+
+  const cellLogoIzq = ws.getCell('A1')
+  cellLogoIzq.fill = fillDark
+  cellLogoIzq.border = thinBorder
+
+  const cellTitulo = ws.getCell('C1')
   cellTitulo.value = 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE'
   cellTitulo.fill = fillDark
   cellTitulo.font = fontWhiteBold
   cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
   cellTitulo.border = thinBorder
+
+  const cellLogoDer = ws.getCell('E1')
+  cellLogoDer.fill = fillDark
+  cellLogoDer.border = thinBorder
   ws.getRow(1).height = 60
 
   // Fila 2: Proyecto (A2:D2) + Clave (E2) + valor clave (F2)
@@ -883,13 +897,15 @@ export async function exportarExcelFicha(
   }
 
   // --- Logos en la cabecera (fila 1) ---
+  // Logo izquierdo en A1:B1 (1/4 del ancho), logo derecho en E1:F1 (1/4 del ancho).
+  // El título ocupa C1:D1 (2/4 del ancho).
   if (imagenes['logo-izq']) {
     const logo = await procesarLogo(imagenes['logo-izq'], quitarFondo)
-    await addImageContain(logo, 0, 0, 1.5, 0.9)
+    await addImageContain(logo, 0, 0, 2, 0.9)
   }
   if (imagenes['logo-der']) {
     const logo = await procesarLogo(imagenes['logo-der'], quitarFondo)
-    await addImageContain(logo, 4.5, 0, 1.5, 0.9)
+    await addImageContain(logo, 4, 0, 2, 0.9)
   }
 
   // --- Croquis (filas 12, columnas A-C) ---
@@ -924,11 +940,13 @@ export async function exportarExcelFicha(
         const idx = fila * evCols + col
         if (idx >= numEvidencias) break
         const imgKey = `evid-${idx}`
+        // Preferir imágenes del módulo de reconocimiento cuando se exporta a Excel.
+        const imgSrc = imagenesReconocimiento[idx] || imagenes[imgKey]
         const startCol = offset * colsPorImagen + col * colsPorImagen
 
         // Bordes de celda
         const cellEv = ws.getCell(rowNumber, Math.round(startCol) + 1)
-        cellEv.value = imagenes[imgKey] ? '' : `[Foto ${idx + 1}]`
+        cellEv.value = imgSrc ? '' : `[Foto ${idx + 1}]`
         cellEv.alignment = { horizontal: 'center', vertical: 'middle' }
         cellEv.border = thinBorder
         const endCol = Math.round(startCol + colsPorImagen)
@@ -936,8 +954,8 @@ export async function exportarExcelFicha(
           ws.getCell(rowNumber, c).border = thinBorder
         }
 
-        if (imagenes[imgKey]) {
-          await addImageContain(imagenes[imgKey], startCol, rowNumber - 1, colsPorImagen, 1)
+        if (imgSrc) {
+          await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)
         }
       }
     }
@@ -1136,6 +1154,7 @@ export function ModuloMateriales() {
       await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
+        imagenesReconocimiento: imagenesReconocimientoDisponibles,
       })
       toast.success('Excel exportado')
     } catch (err) {

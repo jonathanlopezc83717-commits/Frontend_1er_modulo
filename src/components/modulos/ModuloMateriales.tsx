@@ -297,6 +297,50 @@ function calcularAjusteContain(
 }
 
 /**
+ * Recorta una imagen (dataURL) al aspect ratio objetivo, centrada.
+ * Devuelve un nuevo dataURL PNG que llena exactamente el ratio objetivo.
+ * Esto garantiza que TODAS las imágenes ocupen el mismo espacio visual.
+ */
+async function recortarImagenCover(dataUrl: string, targetRatio: number): Promise<string> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = reject
+      image.src = dataUrl
+    })
+    const iw = img.naturalWidth
+    const ih = img.naturalHeight
+    const imgRatio = iw / ih
+
+    let cropW: number, cropH: number, sx: number, sy: number
+    if (imgRatio > targetRatio) {
+      // Imagen más ancha: recortar lados
+      cropH = ih
+      cropW = ih * targetRatio
+      sx = (iw - cropW) / 2
+      sy = 0
+    } else {
+      // Imagen más alta: recortar arriba/abajo
+      cropW = iw
+      cropH = iw / targetRatio
+      sx = 0
+      sy = (ih - cropH) / 2
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(cropW)
+    canvas.height = Math.round(cropH)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return dataUrl
+    ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/png')
+  } catch {
+    return dataUrl
+  }
+}
+
+/**
  * Procesa una imagen dataURL: si `quitarFondo` es true, convierte los píxeles
  * cercanos al blanco (umbral) en transparentes y devuelve un PNG dataURL.
  */
@@ -610,15 +654,17 @@ export async function exportarPdfFicha(
     const imgKey = `evid-${i}`
     if (imagenes[imgKey]) {
       try {
-        const dim = await obtenerDimensionesImagen(imagenes[imgKey])
-        const fit = calcularAjusteContain(dim.w, dim.h, evSlotW - 3, evSlotH - 3)
+        // Recortar la imagen al aspect ratio del recuadro para que
+        // TODAS las evidencias se vean exactamente del mismo tamaño.
+        const evRatio = (evSlotW - 3) / (evSlotH - 3)
+        const imgRecortada = await recortarImagenCover(imagenes[imgKey], evRatio)
         doc.addImage(
-          imagenes[imgKey],
-          formatoImagen(imagenes[imgKey]),
-          ex + 1.5 + fit.offsetX,
-          ey + 1.5 + fit.offsetY,
-          fit.w,
-          fit.h,
+          imgRecortada,
+          formatoImagen(imgRecortada),
+          ex + 1.5,
+          ey + 1.5,
+          evSlotW - 3,
+          evSlotH - 3,
         )
       } catch {
         doc.setFontSize(7)
@@ -870,19 +916,25 @@ export async function exportarExcelFicha(
 
   /**
    * Añade una imagen con aspect ratio conservado.
-   * @param src      Imagen en dataURL o URL remota
-   * @param col      Columna inicial (base 0)
-   * @param row      Fila inicial (base 0)
-   * @param colSpan  Número de columnas que ocupa el recuadro
-   * @param rowSpan  Número de filas que ocupa el recuadro
+   * @param src        Imagen en dataURL o URL remota
+   * @param col        Columna inicial (base 0)
+   * @param row        Fila inicial (base 0)
+   * @param colSpan    Número de columnas que ocupa el recuadro
+   * @param rowSpan    Número de filas que ocupa el recuadro
+   * @param coverRatio Si se indica, recorta la imagen a este aspect ratio antes de insertarla
    */
   const addImageContain = async (
     src: string,
     col: number, row: number,
     colSpan: number, rowSpan: number,
+    coverRatio?: number,
   ) => {
     try {
-      const dataUrl = await normalizarSrcADataUrl(src)
+      let dataUrl = await normalizarSrcADataUrl(src)
+      // Si se indica coverRatio, recortar la imagen para uniformar tamaño
+      if (coverRatio) {
+        dataUrl = await recortarImagenCover(dataUrl, coverRatio)
+      }
       const base64 = extraerBase64(dataUrl)
       const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg'
       const dim = await obtenerDimensionesImagen(dataUrl)
@@ -992,7 +1044,11 @@ export async function exportarExcelFicha(
         cellEv.border = thinBorder
 
         if (imgSrc) {
-          await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)
+          // Calcular aspect ratio del slot en Excel para uniformar todas las evidencias
+          const evSlotWpx = anchoSegmentoPx(startCol, colsPorImagen)
+          const evSlotHpx = (ws.getRow(rowNumber).height || 90) * PX_POR_PUNTO_FILA
+          const evCoverRatio = evSlotWpx / evSlotHpx
+          await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1, evCoverRatio)
         }
       }
     }

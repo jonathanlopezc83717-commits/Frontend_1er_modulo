@@ -92,6 +92,13 @@ const MAX_EVIDENCIAS = 12
 /** Número por defecto de evidencias. */
 const EVIDENCIAS_DEFECTO = 3
 
+/** Prefijo para persistir el logo derecho (logo 2) en localStorage por punto. */
+const LOGO_DER_STORAGE_PREFIX = 'ferroviario_formato_logo_der'
+
+function logoDerStorageKey(puntoId: string): string {
+  return `${LOGO_DER_STORAGE_PREFIX}_${puntoId}`
+}
+
 /** Genera la lista de evidencias según el número indicado. */
 function generarEvidencias(n: number) {
   const total = Math.max(0, Math.min(n, MAX_EVIDENCIAS))
@@ -1047,12 +1054,44 @@ export function ModuloMateriales() {
   // Cargar datos persistidos al montar o cambiar de punto
   useEffect(() => {
     const data = punto?.moduloData?.materiales as FichaFormatoData | undefined
+    const imagenesGuardadas = data?.imagenes || {}
+    let imagenesIniciales = { ...imagenesGuardadas }
+
+    // Fallback: el logo derecho (logo 2) se conserva en localStorage porque
+    // la copia ligera de localStorage puede descartar data URLs grandes.
+    if (punto && !imagenesIniciales['logo-der']) {
+      try {
+        const guardado = localStorage.getItem(logoDerStorageKey(punto.id))
+        if (guardado) {
+          imagenesIniciales['logo-der'] = guardado
+        }
+      } catch {
+        // Ignorar errores de localStorage
+      }
+    }
+
     setValores(data?.valores || {})
-    setImagenes(data?.imagenes || {})
+    setImagenes(imagenesIniciales)
     setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
     setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
     setCargado(true)
   }, [punto?.id])
+
+  // Persistir el logo derecho (logo 2) en localStorage como respaldo ante recargas.
+  useEffect(() => {
+    if (!cargado || !punto) return
+    const logoDer = imagenes['logo-der']
+    const key = logoDerStorageKey(punto.id)
+    try {
+      if (logoDer) {
+        localStorage.setItem(key, logoDer)
+      } else {
+        localStorage.removeItem(key)
+      }
+    } catch {
+      // Ignorar errores de cuota de localStorage
+    }
+  }, [imagenes['logo-der'], punto?.id, cargado])
 
   // Ref para poder acceder a la función de guardado más reciente desde el cleanup de desmontaje.
   const guardarRef = useRef<() => void>(() => {})
@@ -1168,6 +1207,13 @@ export function ModuloMateriales() {
   const limpiarFicha = () => {
     setValores({})
     setImagenes({})
+    if (punto) {
+      try {
+        localStorage.removeItem(logoDerStorageKey(punto.id))
+      } catch {
+        // Ignorar errores de localStorage
+      }
+    }
     toast.info('Formulario limpiado')
   }
 

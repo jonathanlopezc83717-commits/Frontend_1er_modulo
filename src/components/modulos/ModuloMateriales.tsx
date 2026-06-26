@@ -716,9 +716,9 @@ export async function exportarExcelFicha(
   ws.properties.showGridLines = false
   ws.views = [{ showGridLines: false }]
 
-  // Anchos de columna ajustados al encabezado: 1/4 - 2/4 - 1/4
-  // (A+B para logo 1, C+D para título, E+F para logo 2)
-  const colWidths = [22, 21, 43, 43, 22, 21]
+  // Anchos de columna IGUALES para que las evidencias fotográficas
+  // tengan todas el mismo tamaño al agruparse de a 2 (o más) columnas.
+  const colWidths = [30, 30, 30, 30, 30, 30]
   colWidths.forEach((w, i) => {
     ws.getColumn(i + 1).width = w
   })
@@ -737,24 +737,21 @@ export async function exportarExcelFicha(
     right: { style: 'thin' as const, color: { argb: 'FF000000' } },
   }
 
-  // Fila 1: Logo izquierdo (A1:B1) | Título (C1:D1) | Logo derecho (E1:F1)
-  // Proporciones: 1/4 - 2/4 - 1/4 del ancho total.
-  ws.mergeCells('A1:B1')
-  ws.mergeCells('C1:D1')
-  ws.mergeCells('E1:F1')
-
+  // Fila 1: Logo izquierdo (A1) | Título (B1:E1) | Logo derecho (F1)
+  // Con 6 columnas iguales: 1/6 logo, 4/6 título, 1/6 logo
   const cellLogoIzq = ws.getCell('A1')
   cellLogoIzq.fill = fillDark
   cellLogoIzq.border = thinBorder
 
-  const cellTitulo = ws.getCell('C1')
+  ws.mergeCells('B1:E1')
+  const cellTitulo = ws.getCell('B1')
   cellTitulo.value = 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE'
   cellTitulo.fill = fillDark
   cellTitulo.font = fontWhiteBold
   cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
   cellTitulo.border = thinBorder
 
-  const cellLogoDer = ws.getCell('E1')
+  const cellLogoDer = ws.getCell('F1')
   cellLogoDer.fill = fillDark
   cellLogoDer.border = thinBorder
   ws.getRow(1).height = 60
@@ -988,15 +985,15 @@ export async function exportarExcelFicha(
   }
 
   // --- Logos en la cabecera (fila 1) ---
-  // Logo izquierdo en A1:B1 (1/4 del ancho), logo derecho en E1:F1 (1/4 del ancho).
-  // El título ocupa C1:D1 (2/4 del ancho).
+  // Logo izquierdo en A1 (1 col), logo derecho en F1 (1 col).
+  // El título ocupa B1:E1 (4 cols).
   if (imagenes['logo-izq']) {
     const logo = await procesarLogo(imagenes['logo-izq'], quitarFondo)
-    await addImageContain(logo, 0, 0, 2, 0.9)
+    await addImageContain(logo, 0, 0, 1, 0.9)
   }
   if (imagenes['logo-der']) {
     const logo = await procesarLogo(imagenes['logo-der'], quitarFondo)
-    await addImageContain(logo, 4, 0, 2, 0.9)
+    await addImageContain(logo, 5, 0, 1, 0.9)
   }
 
   // --- Croquis (filas 12, columnas A-C) ---

@@ -33,10 +33,6 @@ export interface FichaFormatoData {
   imagenes: Record<string, string>
   /** Número de evidencias configurado. */
   numEvidencias?: number
-  /** Ancho de logos (porcentaje 10-50). */
-  anchoLogos?: number
-  /** Ancho de la zona del título / fecha de identificación (porcentaje 30-90). */
-  anchoTitulo?: number
   /** Indica si se debe quitar el fondo blanco de los logos. */
   quitarFondoLogos?: boolean
   updatedAt?: string
@@ -352,13 +348,12 @@ export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = opciones.numEvidencias ?? 3
-  const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
 
   const ML = 8
   const MT = 8
@@ -452,12 +447,13 @@ export async function exportarPdfFicha(
   // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
-  // Disposición horizontal en 3 zonas:
-  //  [logo izq (anchoLogosPct%)] [título (resto)] [logo der (anchoLogosPct%)]
-  const logoMaxH = Htitle - 4
-  const logoZoneW = (PW * anchoLogosPct) / 100
+  // Disposición simétrica en 3 zonas equilibradas:
+  //  [logo izq (25%)] [título (50%)] [logo der (25%)]
+  // El título siempre tiene ancho garantizado para que no desaparezca.
+  const logoZoneW = PW * 0.25
   const tituloZoneX = ML + logoZoneW
-  const tituloZoneW = PW - logoZoneW * 2
+  const tituloZoneW = PW * 0.5
+  const logoMaxH = Htitle - 4
 
   // Logo izquierdo: centrado en su zona [ML, ML + logoZoneW]
   if (imagenes['logo-izq']) {
@@ -494,7 +490,7 @@ export async function exportarPdfFicha(
     } catch { /* ignorar */ }
   }
 
-  // Título: centrado en la zona central [tituloZoneX, tituloZoneX + tituloZoneW]
+  // Título: centrado en la zona central (siempre visible)
   txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', tituloZoneX, Ytitle, tituloZoneW, {
     fs: 10, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
@@ -643,11 +639,10 @@ export async function exportarExcelFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
-  const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
   const numEvidencias = Math.max(0, Math.min(opciones.numEvidencias ?? 3, 12))
   void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
 
@@ -805,7 +800,7 @@ export async function exportarExcelFicha(
   const ROW1_PX = 60 * 1.333                     // altura fila 1 en px
   const colPxArr = colWidths.map(w => w * CHAR_PX) // ancho px de cada columna
   const totalWpx = colPxArr.reduce((a, b) => a + b, 0)
-  const logoTargetWpx = (totalWpx * anchoLogosPct) / 100  // ancho configurable
+  const logoTargetWpx = totalWpx * 0.25  // 25% del ancho por lado
   const logoTargetHpx = logoTargetWpx / 3                 // proporción 3:1
 
   // Convierte posición X en píxeles a índice de columna fraccional
@@ -932,8 +927,6 @@ export function ModuloMateriales() {
   const [mapaAbierto, setMapaAbierto] = useState(false)
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
   const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
-  const [anchoLogos, setAnchoLogos] = useState(25)
-  const [anchoTitulo, setAnchoTitulo] = useState(60)
   const [cargado, setCargado] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -943,8 +936,6 @@ export function ModuloMateriales() {
     setValores(data?.valores || {})
     setImagenes(data?.imagenes || {})
     setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
-    setAnchoLogos(data?.anchoLogos ?? 25)
-    setAnchoTitulo(data?.anchoTitulo ?? 60)
     setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
     setCargado(true)
   }, [punto?.id])
@@ -962,14 +953,12 @@ export function ModuloMateriales() {
           valores,
           imagenes,
           numEvidencias,
-          anchoLogos,
-          anchoTitulo,
           quitarFondoLogos,
           updatedAt: new Date().toISOString(),
         },
       },
     })
-  }, [actualizarPunto, punto, valores, imagenes, numEvidencias, anchoLogos, anchoTitulo, quitarFondoLogos])
+  }, [actualizarPunto, punto, valores, imagenes, numEvidencias, quitarFondoLogos])
 
   // Autoguardado: persistir cambios en el punto (con debounce corto)
   useEffect(() => {
@@ -985,7 +974,7 @@ export function ModuloMateriales() {
         guardarTimeoutRef.current = null
       }
     }
-  }, [valores, imagenes, numEvidencias, anchoLogos, anchoTitulo, quitarFondoLogos, cargado, punto?.id, guardarEnPunto])
+  }, [valores, imagenes, numEvidencias, quitarFondoLogos, cargado, punto?.id, guardarEnPunto])
 
   // Mantiene actualizada la referencia de guardado sin disparar re-suscripciones.
   guardarRef.current = guardarEnPunto
@@ -1077,8 +1066,6 @@ export function ModuloMateriales() {
           valores,
           imagenes,
           numEvidencias,
-          anchoLogos,
-          anchoTitulo,
           quitarFondoLogos,
           updatedAt: new Date().toISOString(),
         },
@@ -1093,7 +1080,6 @@ export function ModuloMateriales() {
       await exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
-        anchoLogos: anchoLogos,
       })
       toast.success('PDF exportado')
     } catch (err) {
@@ -1111,7 +1097,6 @@ export function ModuloMateriales() {
       await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
-        anchoLogos: anchoLogos,
       })
       toast.success('Excel exportado')
     } catch (err) {
@@ -1215,71 +1200,32 @@ export function ModuloMateriales() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Título + clave con logos */}
+            {/* Título + clave con logos — disposición simétrica 25/50/25 */}
             <div className="rounded-lg border">
-              {/* Apartado superior para ajustar el ancho de la zona de identificación y los logos */}
-              <div className="grid gap-2 border-b bg-muted/30 px-3 py-2 md:grid-cols-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">Ancho zona identificación</span>
-                    <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoTitulo}%</code>
-                  </div>
-                  <input
-                    type="range"
-                    min={30}
-                    max={90}
-                    step={1}
-                    value={anchoTitulo}
-                    onChange={e => setAnchoTitulo(Number(e.target.value))}
-                    className="h-2 w-32 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-48"
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">Ancho de logos</span>
-                    <code className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600">{anchoLogos}%</code>
-                  </div>
-                  <input
-                    type="range"
-                    min={10}
-                    max={50}
-                    step={1}
-                    value={anchoLogos}
-                    onChange={e => setAnchoLogos(Number(e.target.value))}
-                    className="h-2 w-32 cursor-pointer appearance-none rounded-full bg-muted accent-primary md:w-48"
-                  />
-                </div>
-              </div>
               <div className="bg-neutral-900 p-3">
-                {(() => {
-                  const anchoLogoUI = ((100 - anchoTitulo) * anchoLogos) / 100
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1" style={{ maxWidth: `${anchoLogoUI}%` }}>
-                        <LogoSlot
-                          label="Logo izquierdo"
-                          image={imagenes['logo-izq'] || ''}
-                          onFile={file => cargarImagen('logo-izq', file)}
-                          onClear={() => limpiarImagen('logo-izq')}
-                        />
-                      </div>
-                      <Input
-                        value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
-                        readOnly
-                        style={{ width: `${anchoTitulo}%` }}
-                        className="shrink-0 border-0 bg-transparent px-0 text-center font-semibold text-white"
-                      />
-                      <div className="min-w-0 flex-1" style={{ maxWidth: `${anchoLogoUI}%` }}>
-                        <LogoSlot
-                          label="Logo derecho"
-                          image={imagenes['logo-der'] || ''}
-                          onFile={file => cargarImagen('logo-der', file)}
-                          onClear={() => limpiarImagen('logo-der')}
-                        />
-                      </div>
-                    </div>
-                  )
-                })()}
+                <div className="flex items-center gap-2">
+                  <div className="w-1/4 shrink-0">
+                    <LogoSlot
+                      label="Logo izquierdo"
+                      image={imagenes['logo-izq'] || ''}
+                      onFile={file => cargarImagen('logo-izq', file)}
+                      onClear={() => limpiarImagen('logo-izq')}
+                    />
+                  </div>
+                  <Input
+                    value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
+                    readOnly
+                    className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-semibold text-white"
+                  />
+                  <div className="w-1/4 shrink-0">
+                    <LogoSlot
+                      label="Logo derecho"
+                      image={imagenes['logo-der'] || ''}
+                      onFile={file => cargarImagen('logo-der', file)}
+                      onClear={() => limpiarImagen('logo-der')}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
                 <Input

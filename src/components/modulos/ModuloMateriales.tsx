@@ -352,14 +352,13 @@ export async function exportarPdfFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number; anchoTitulo?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = opciones.numEvidencias ?? 3
   const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
-  const anchoTituloPct = Math.max(30, Math.min(opciones.anchoTitulo ?? 60, 90))
 
   const ML = 8
   const MT = 8
@@ -427,61 +426,77 @@ export async function exportarPdfFicha(
 
     const lines = doc.splitTextToSize(String(text), w - px * 2)
 
+    // Calcular posición X según alineación:
+    // - left:   esquina izquierda + padding
+    // - center: centro exacto del recuadro
+    // - right:  esquina derecha - padding
+    let textX: number
+    if (align === 'center') {
+      textX = x + w / 2
+    } else if (align === 'right') {
+      textX = x + w - px
+    } else {
+      textX = x + px
+    }
+
     if (opts.vcenter) {
       const lineH = fs * 0.3528
       const totalH = lines.length * lineH
       const startY = yy + h / 2 - totalH / 2 + lineH
-      doc.text(lines, x + px, startY, { align })
+      doc.text(lines, textX, startY, { align })
     } else {
-      doc.text(lines, x + px, yy + (opts.py || 2.5), { align })
+      doc.text(lines, textX, yy + (opts.py || 2.5), { align })
     }
   }
 
   // 1. Título (fondo negro, texto blanco centrado) + logos
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
-  // El ancho del título y de los logos se ajusta según los controles de la UI.
-  // El título ocupa 'anchoTitulo%' del ancho; cada logo ocupa hasta 'anchoLogos%'
-  // del espacio restante a su lado, manteniendo su relación de aspecto.
-  const logoMaxH = Htitle - 4        // ≈ 16mm
-  const tituloW = (PW * anchoTituloPct) / 100
-  const espacioLogos = PW - tituloW
-  const logoMaxW = Math.min((espacioLogos * anchoLogosPct) / 100, logoMaxH * 3)
+  // Disposición horizontal en 3 zonas:
+  //  [logo izq (anchoLogosPct%)] [título (resto)] [logo der (anchoLogosPct%)]
+  const logoMaxH = Htitle - 4
+  const logoZoneW = (PW * anchoLogosPct) / 100
+  const tituloZoneX = ML + logoZoneW
+  const tituloZoneW = PW - logoZoneW * 2
 
+  // Logo izquierdo: centrado en su zona [ML, ML + logoZoneW]
   if (imagenes['logo-izq']) {
     try {
       const logoIzq = await procesarLogo(imagenes['logo-izq'], quitarFondo)
       const dim = await obtenerDimensionesImagen(logoIzq)
-      const fit = calcularAjusteContain(dim.w, dim.h, logoMaxW, logoMaxH)
+      const fit = calcularAjusteContain(dim.w, dim.h, logoZoneW, logoMaxH)
       doc.addImage(
         logoIzq,
         formatoImagen(logoIzq),
-        ML + fit.offsetX,
-        Ytitle + 2 + fit.offsetY,
-        fit.w,
-        fit.h,
-      )
-    } catch { /* ignorar */ }
-  }
-  if (imagenes['logo-der']) {
-    try {
-      const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
-      const dim = await obtenerDimensionesImagen(logoDer)
-      const fit = calcularAjusteContain(dim.w, dim.h, logoMaxW, logoMaxH)
-      // El recuadro derecho empieza después del título
-      doc.addImage(
-        logoDer,
-        formatoImagen(logoDer),
-        ML + logoMaxW + tituloW + fit.offsetX,
-        Ytitle + 2 + fit.offsetY,
+        ML + (logoZoneW - fit.w) / 2,
+        Ytitle + (Htitle - fit.h) / 2,
         fit.w,
         fit.h,
       )
     } catch { /* ignorar */ }
   }
 
-  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', ML + logoMaxW, Ytitle, tituloW, {
-    fs: 11, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
+  // Logo derecho: centrado en su zona [ML + PW - logoZoneW, ML + PW]
+  if (imagenes['logo-der']) {
+    try {
+      const logoDer = await procesarLogo(imagenes['logo-der'], quitarFondo)
+      const dim = await obtenerDimensionesImagen(logoDer)
+      const fit = calcularAjusteContain(dim.w, dim.h, logoZoneW, logoMaxH)
+      const derZoneX = ML + PW - logoZoneW
+      doc.addImage(
+        logoDer,
+        formatoImagen(logoDer),
+        derZoneX + (logoZoneW - fit.w) / 2,
+        Ytitle + (Htitle - fit.h) / 2,
+        fit.w,
+        fit.h,
+      )
+    } catch { /* ignorar */ }
+  }
+
+  // Título: centrado en la zona central [tituloZoneX, tituloZoneX + tituloZoneW]
+  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', tituloZoneX, Ytitle, tituloZoneW, {
+    fs: 10, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
 
   // 2. Subtítulo (proyecto + clave)
@@ -628,10 +643,11 @@ export async function exportarExcelFicha(
   valores: Record<string, string>,
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
-  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
+  opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; anchoLogos?: number } = {},
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
+  const anchoLogosPct = Math.max(10, Math.min(opciones.anchoLogos ?? 25, 50))
   const numEvidencias = Math.max(0, Math.min(opciones.numEvidencias ?? 3, 12))
   void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
 
@@ -789,8 +805,8 @@ export async function exportarExcelFicha(
   const ROW1_PX = 60 * 1.333                     // altura fila 1 en px
   const colPxArr = colWidths.map(w => w * CHAR_PX) // ancho px de cada columna
   const totalWpx = colPxArr.reduce((a, b) => a + b, 0)
-  const logoTargetWpx = (totalWpx / 4)           // 1/4 del ancho total
-  const logoTargetHpx = logoTargetWpx / 3        // proporción 3:1
+  const logoTargetWpx = (totalWpx * anchoLogosPct) / 100  // ancho configurable
+  const logoTargetHpx = logoTargetWpx / 3                 // proporción 3:1
 
   // Convierte posición X en píxeles a índice de columna fraccional
   const pxToColIndex = (px: number, offsetPx: number) => {
@@ -1078,7 +1094,6 @@ export function ModuloMateriales() {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
         anchoLogos: anchoLogos,
-        anchoTitulo: anchoTitulo,
       })
       toast.success('PDF exportado')
     } catch (err) {
@@ -1096,6 +1111,7 @@ export function ModuloMateriales() {
       await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
         quitarFondoLogos: quitarFondoLogos,
         numEvidencias: numEvidencias,
+        anchoLogos: anchoLogos,
       })
       toast.success('Excel exportado')
     } catch (err) {

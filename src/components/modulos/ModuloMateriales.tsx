@@ -913,7 +913,8 @@ export async function exportarExcelFicha(
 
   /**
    * Añade una imagen con aspect ratio conservado.
-   * Usa proporciones directas (todas las columnas tienen el mismo ancho).
+   * Usa { tl, ext } para que Excel NO estire la imagen: tl ancla la posición
+   * y ext define el tamaño exacto en píxeles.
    */
   const addImageContain = async (
     src: string,
@@ -935,19 +936,17 @@ export async function exportarExcelFicha(
       const segHpx = rowHeightPx * rowSpan
       const fit = calcularAjusteContain(dim.w, dim.h, segWpx, segHpx)
 
-      // Como todas las columnas tienen el mismo ancho, convertimos directamente:
-      // 1 columna = colWidths[0] * PX_POR_CARACTER píxeles
+      // Posición del tl en fracciones de celda
       const colWidthPx = (ws.getColumn(col + 1).width || 30) * PX_POR_CARACTER
       const offsetCol = fit.offsetX / colWidthPx
-      const imgColSpan = fit.w / colWidthPx
       const offsetRow = fit.offsetY / rowHeightPx
-      const imgRowSpan = fit.h / rowHeightPx
 
       const id = workbook.addImage({ base64, extension: ext })
+      // ext: tamaño EXACTO en píxeles → Excel no estira ni contrae
       ws.addImage(id, {
         tl: { col: col + offsetCol, row: row + offsetRow },
-        br: { col: col + offsetCol + imgColSpan, row: row + offsetRow + imgRowSpan },
-        editAs: 'absolute',
+        ext: { width: Math.round(fit.w), height: Math.round(fit.h) },
+        editAs: 'oneCell',
       } as never)
     } catch (e) {
       console.error('Error al insertar imagen en Excel:', e)

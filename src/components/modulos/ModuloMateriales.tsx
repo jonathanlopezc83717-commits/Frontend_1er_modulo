@@ -960,17 +960,15 @@ export async function exportarExcelFicha(
         const imgKey = `evid-${idx}`
         // Preferir imágenes del módulo de reconocimiento cuando se exporta a Excel.
         const imgSrc = imagenesReconocimiento[idx] || imagenes[imgKey]
-        const startCol = offset * colsPorImagen + col * colsPorImagen
+        const startCol = Math.round(offset * colsPorImagen + col * colsPorImagen)
+        const endCol = Math.round(startCol + colsPorImagen)
 
-        // Bordes de celda
-        const cellEv = ws.getCell(rowNumber, Math.round(startCol) + 1)
+        // Combinar celdas para que la imagen ocupe todo el segmento, como la fila 12 del croquis.
+        ws.mergeCells(rowNumber, startCol + 1, rowNumber, endCol)
+        const cellEv = ws.getCell(rowNumber, startCol + 1)
         cellEv.value = imgSrc ? '' : `[Foto ${idx + 1}]`
         cellEv.alignment = { horizontal: 'center', vertical: 'middle' }
         cellEv.border = thinBorder
-        const endCol = Math.round(startCol + colsPorImagen)
-        for (let c = Math.round(startCol) + 2; c <= endCol; c++) {
-          ws.getCell(rowNumber, c).border = thinBorder
-        }
 
         if (imgSrc) {
           await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)

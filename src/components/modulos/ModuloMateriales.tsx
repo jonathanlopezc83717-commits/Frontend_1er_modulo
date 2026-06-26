@@ -855,6 +855,19 @@ export async function exportarExcelFicha(
     return src
   }
 
+  // Constantes de conversión aproximada para ExcelJS
+  const PX_POR_CARACTER = 7
+  const PX_POR_PUNTO_FILA = 4 / 3
+
+  /** Suma el ancho en píxeles de un rango de columnas (base 0). */
+  const anchoSegmentoPx = (col: number, colSpan: number): number => {
+    let total = 0
+    for (let c = col; c < col + colSpan; c++) {
+      total += (ws.getColumn(c + 1).width || 0) * PX_POR_CARACTER
+    }
+    return total
+  }
+
   /**
    * Añade una imagen con aspect ratio conservado.
    * @param src      Imagen en dataURL o URL remota
@@ -873,40 +886,48 @@ export async function exportarExcelFicha(
       const base64 = extraerBase64(dataUrl)
       const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg'
       const dim = await obtenerDimensionesImagen(dataUrl)
-      const imgRatio = dim.w / dim.h
 
-      // El br define el rango completo; la imagen se estira para llenarlo.
-      // Para NO deformar, ajustamos colSpan o rowSpan según el aspect ratio.
-      // El recuadro disponible tiene cierta relación de aspecto (boxRatio).
-      // Si la imagen es más ancha que el recuadro → reducimos rowSpan
-      // Si la imagen es más alta que el recuadro → reducimos colSpan
-      let finalColSpan = colSpan
-      let finalRowSpan = rowSpan
-      const offsetCol = 0
-      const offsetRow = 0
+      const segWpx = anchoSegmentoPx(col, colSpan)
+      const segHpx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA * rowSpan
+      const fit = calcularAjusteContain(dim.w, dim.h, segWpx, segHpx)
 
-      // Estimación del aspect ratio del recuadro:
-      // Cada columna ≈ ancho medio; cada fila ≈ alto medio
-      // Aproximación: boxRatio ≈ (colSpan * colWidthAvg) / (rowSpan * rowHeightAvg)
-      // Como no sabemos exactamente, usamos proporción directa y ajustamos
-      const boxRatioApprox = colSpan / rowSpan * 1.5 // factor de corrección empírico
+      // Convertir offset y tamaño del fit a fracciones de columna/fila
+      const rowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
+      const offsetRow = fit.offsetY / rowHeightPx
+      const rowSpanFraction = fit.h / rowHeightPx
 
-      if (imgRatio > boxRatioApprox) {
-        // Imagen más ancha: reducir altura (rowSpan)
-        finalRowSpan = (finalColSpan / imgRatio) * 1.5
-      } else {
-        // Imagen más alta: reducir ancho (colSpan)
-        finalColSpan = (finalRowSpan * imgRatio) / 1.5
+      // Para el offset horizontal necesitamos encontrar en qué columna cae el offset
+      let colOffsetUnits = 0
+      let remainingOffsetX = fit.offsetX
+      for (let c = col; c < col + colSpan && remainingOffsetX > 0; c++) {
+        const cw = (ws.getColumn(c + 1).width || 0) * PX_POR_CARACTER
+        if (remainingOffsetX <= cw) {
+          colOffsetUnits += remainingOffsetX / cw
+          remainingOffsetX = 0
+        } else {
+          colOffsetUnits += 1
+          remainingOffsetX -= cw
+        }
       }
 
-      // Centrar dentro del recuadro original
-      const colOffset = (colSpan - finalColSpan) / 2
-      const rowOffset = (rowSpan - finalRowSpan) / 2
+      // Calcular cuántas columnas enteras (+ fracción) ocupa fit.w
+      let colSpanUnits = 0
+      let remainingW = fit.w
+      for (let c = col; c < col + colSpan && remainingW > 0; c++) {
+        const cw = (ws.getColumn(c + 1).width || 0) * PX_POR_CARACTER
+        if (remainingW <= cw) {
+          colSpanUnits += remainingW / cw
+          remainingW = 0
+        } else {
+          colSpanUnits += 1
+          remainingW -= cw
+        }
+      }
 
       const id = workbook.addImage({ base64, extension: ext })
       ws.addImage(id, {
-        tl: { col: col + offsetCol + colOffset, row: row + offsetRow + rowOffset },
-        br: { col: col + offsetCol + colOffset + finalColSpan, row: row + offsetRow + rowOffset + finalRowSpan },
+        tl: { col: col + colOffsetUnits, row: row + offsetRow },
+        br: { col: col + colOffsetUnits + colSpanUnits, row: row + offsetRow + rowSpanFraction },
         editAs: 'absolute',
       } as never)
     } catch (e) {

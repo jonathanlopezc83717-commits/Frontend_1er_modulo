@@ -560,7 +560,16 @@ export async function exportarPdfFicha(
   cell(ML, YcrVal, crW, HcrVal)
   if (imagenes.croquis) {
     try {
-      doc.addImage(imagenes.croquis, formatoImagen(imagenes.croquis), ML + 1.5, YcrVal + 1.5, crW - 3, HcrVal - 3)
+      const dim = await obtenerDimensionesImagen(imagenes.croquis)
+      const fit = calcularAjusteContain(dim.w, dim.h, crW - 3, HcrVal - 3)
+      doc.addImage(
+        imagenes.croquis,
+        formatoImagen(imagenes.croquis),
+        ML + 1.5 + fit.offsetX,
+        YcrVal + 1.5 + fit.offsetY,
+        fit.w,
+        fit.h,
+      )
     } catch {
       doc.setFontSize(7)
       doc.setTextColor(180, 180, 180)
@@ -601,7 +610,16 @@ export async function exportarPdfFicha(
     const imgKey = `evid-${i}`
     if (imagenes[imgKey]) {
       try {
-        doc.addImage(imagenes[imgKey], formatoImagen(imagenes[imgKey]), ex + 1.5, ey + 1.5, evSlotW - 3, evSlotH - 3)
+        const dim = await obtenerDimensionesImagen(imagenes[imgKey])
+        const fit = calcularAjusteContain(dim.w, dim.h, evSlotW - 3, evSlotH - 3)
+        doc.addImage(
+          imagenes[imgKey],
+          formatoImagen(imagenes[imgKey]),
+          ex + 1.5 + fit.offsetX,
+          ey + 1.5 + fit.offsetY,
+          fit.w,
+          fit.h,
+        )
       } catch {
         doc.setFontSize(7)
         doc.setTextColor(190, 190, 190)
@@ -795,61 +813,52 @@ export async function exportarExcelFicha(
   ws.getRow(12).height = 120
 
   // === Imágenes ===
-  // Logos en la cabecera (fila 1) — recuadro 1:3 (w:h), aspect ratio conservado
-  const CHAR_PX = 7                              // 1 carácter de columna ≈ 7px
-  const ROW1_PX = 60 * 1.333                     // altura fila 1 en px
-  const colPxArr = colWidths.map(w => w * CHAR_PX) // ancho px de cada columna
-  const totalWpx = colPxArr.reduce((a, b) => a + b, 0)
-  const logoTargetWpx = totalWpx * 0.25  // 25% del ancho por lado
-  const logoTargetHpx = logoTargetWpx / 3                 // proporción 3:1
+  // Las imágenes en ExcelJS se posicionan con índices de celda fraccionales (col, row).
+  // Para que se vean correctamente y sin deformarse, usamos calcularAjusteContain
+  // y el modo editAs: 'oneCell' para que conserven su tamaño físico.
 
-  // Convierte posición X en píxeles a índice de columna fraccional
-  const pxToColIndex = (px: number, offsetPx: number) => {
-    let acc = offsetPx
-    for (let i = 0; i < colPxArr.length; i++) {
-      if (acc + colPxArr[i] >= px) return i + (px - acc) / colPxArr[i]
-      acc += colPxArr[i]
-    }
-    return colPxArr.length
+  // Helper: extrae el base64 puro (sin el prefijo data:image/...;base64,)
+  const extraerBase64 = (dataUrl: string): string => {
+    const idx = dataUrl.indexOf('base64,')
+    return idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl
   }
 
-  const colocarLogoExcel = async (key: string, offsetPx: number) => {
-    if (!imagenes[key]) return
+  // Helper: añade una imagen a Excel respetando aspect ratio dentro de un recuadro (col, row) → (col+colSpan, row+rowSpan)
+  const addImageContain = async (
+    dataUrl: string,
+    col: number, row: number, colSpan: number, rowSpan: number,
+  ) => {
     try {
-      const logo = await procesarLogo(imagenes[key], quitarFondo)
-      const base64 = logo.split(',')[1] || logo
-      const ext = logo.startsWith('data:image/png') ? 'png' : 'jpeg'
-      const dim = await obtenerDimensionesImagen(logo)
-      // Contain dentro del recuadro 1:3
-      const fit = calcularAjusteContain(dim.w, dim.h, logoTargetWpx, logoTargetHpx)
-      const x0 = offsetPx + fit.offsetX
-      const x1 = x0 + fit.w
-      const y0 = fit.offsetY / ROW1_PX
-      const y1 = y0 + fit.h / ROW1_PX
+      const base64 = extraerBase64(dataUrl)
+      const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const dim = await obtenerDimensionesImagen(dataUrl)
+      // El recuadro disponible en "unidades de celda"
+      const fit = calcularAjusteContain(dim.w, dim.h, colSpan, rowSpan)
       const id = workbook.addImage({ base64, extension: ext })
       ws.addImage(id, {
-        tl: { col: pxToColIndex(x0, 0), row: y0 },
-        br: { col: pxToColIndex(x1, 0), row: y1 },
-        editAs: 'absolute',
-      } as never)
+        tl: { col: col + fit.offsetX, row: row + fit.offsetY },
+        ext: { width: Math.round(fit.w * 48), height: Math.round(fit.h * 20) },
+        editAs: 'oneCell',
+      })
     } catch { /* ignorar */ }
   }
 
-  // Logo izquierdo: desde el inicio (px 0). Logo derecho: alineado al final.
-  await colocarLogoExcel('logo-izq', 0)
-  await colocarLogoExcel('logo-der', totalWpx - logoTargetWpx)
+  // Logos: cada uno ocupa 1.5 columnas de ancho en la fila 1
+  if (imagenes['logo-izq']) {
+    const logo = await procesarLogo(imagenes['logo-izq'], quitarFondo)
+    await addImageContain(logo, 0, 0, 1.5, 0.9)
+  }
+  if (imagenes['logo-der']) {
+    const logo = await procesarLogo(imagenes['logo-der'], quitarFondo)
+    await addImageContain(logo, 4.5, 0, 1.5, 0.9)
+  }
 
-  // Croquis en A12:C12
+  // Croquis en filas 11-12, columnas A-C (0-3)
   if (imagenes.croquis) {
-    try {
-      const base64 = imagenes.croquis.split(',')[1] || imagenes.croquis
-      const ext = imagenes.croquis.startsWith('data:image/png') ? 'png' : 'jpeg'
-      const id = workbook.addImage({ base64, extension: ext })
-      ws.addImage(id, { tl: { col: 0, row: 11 }, br: { col: 3, row: 12 }, editAs: 'absolute' } as never)
-    } catch { /* ignorar */ }
+    await addImageContain(imagenes.croquis, 0, 11, 3, 1)
   }
 
-  // === Evidencias fotográficas (distribución simétrica según cantidad) ===
+  // === Evidencias fotográficas ===
   if (numEvidencias > 0) {
     const { cols: evCols, rows: evRows } = calcularDistribucionEvidencias(numEvidencias)
     const evStartRow = 13
@@ -867,7 +876,6 @@ export async function exportarExcelFicha(
     cellEvLbl.border = thinBorder
     ws.getRow(evStartRow).height = 18
 
-    // Cada fila de evidencias
     for (let fila = 0; fila < evRows; fila++) {
       const rowNumber = evStartRow + 1 + fila
       ws.getRow(rowNumber).height = 90
@@ -877,28 +885,23 @@ export async function exportarExcelFicha(
         const idx = fila * evCols + col
         if (idx >= numEvidencias) break
         const imgKey = `evid-${idx}`
-        const startCol = Math.round(offset * colsPorImagen + col * colsPorImagen) + 1
-        const endCol = Math.round(startCol + colsPorImagen)
-        // Borde de celda
-        const cellEv = ws.getCell(rowNumber, startCol)
+        const startCol = offset * colsPorImagen + col * colsPorImagen
+        // Bordes de celda
+        const cellEv = ws.getCell(rowNumber, Math.round(startCol) + 1)
         cellEv.value = imagenes[imgKey] ? '' : `[Foto ${idx + 1}]`
         cellEv.alignment = { horizontal: 'center', vertical: 'middle' }
         cellEv.border = thinBorder
-        for (let c = startCol + 1; c <= endCol; c++) {
+        const endCol = Math.round(startCol + colsPorImagen)
+        for (let c = Math.round(startCol) + 2; c <= endCol; c++) {
           ws.getCell(rowNumber, c).border = thinBorder
         }
 
         if (imagenes[imgKey]) {
-          try {
-            const base64 = imagenes[imgKey].split(',')[1] || imagenes[imgKey]
-            const ext = imagenes[imgKey].startsWith('data:image/png') ? 'png' : 'jpeg'
-            const id = workbook.addImage({ base64, extension: ext })
-            ws.addImage(id, {
-              tl: { col: startCol - 1, row: rowNumber - 1 },
-              br: { col: endCol, row: rowNumber },
-              editAs: 'absolute',
-            } as never)
-          } catch { /* ignorar */ }
+          await addImageContain(
+            imagenes[imgKey],
+            startCol, rowNumber - 1,
+            colsPorImagen, 1,
+          )
         }
       }
     }

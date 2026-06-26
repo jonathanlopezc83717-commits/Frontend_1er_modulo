@@ -293,6 +293,7 @@ function getInitialState(): AppState {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, getInitialState())
   const [cargadoDesdeDB, setCargadoDesdeDB] = useState(false)
+  const [estadoRestaurado, setEstadoRestaurado] = useState(false)
 
   useEffect(() => {
     let cancelado = false
@@ -314,9 +315,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           },
         })
         dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: (stored.estadosGuardados || []) as EstadoGuardado[] })
+        setEstadoRestaurado(true)
       })
       .catch(error => {
         console.error('Error restaurando estado completo local:', error)
+        setEstadoRestaurado(true)
       })
 
     return () => {
@@ -387,8 +390,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
   }, [state.plantillasFicha])
 
-  // Persistir estado en localStorage cuando cambie
+  // Persistir estado en localStorage/IndexedDB cuando cambie.
+  // IMPORTANTE: no guardar hasta que el estado completo se haya restaurado
+  // desde IndexedDB, para evitar sobreescribir dataURLs con versiones vacías.
   useEffect(() => {
+    if (!estadoRestaurado) return
     guardarEstado(
       state.puntos,
       state.puntoActivo?.id || null,
@@ -399,7 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.plantillasFicha,
       state.estadosGuardados
     )
-  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados])
+  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados, estadoRestaurado])
 
   const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => {
     dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto } })

@@ -654,17 +654,16 @@ export async function exportarPdfFicha(
     const imgKey = `evid-${i}`
     if (imagenes[imgKey]) {
       try {
-        // Recortar la imagen al aspect ratio del recuadro para que
-        // TODAS las evidencias se vean exactamente del mismo tamaño.
-        const evRatio = (evSlotW - 3) / (evSlotH - 3)
-        const imgRecortada = await recortarImagenCover(imagenes[imgKey], evRatio)
+        // Mostrar la imagen COMPLETA sin recortar, ajustada con contain.
+        const dim = await obtenerDimensionesImagen(imagenes[imgKey])
+        const fit = calcularAjusteContain(dim.w, dim.h, evSlotW - 3, evSlotH - 3)
         doc.addImage(
-          imgRecortada,
-          formatoImagen(imgRecortada),
-          ex + 1.5,
-          ey + 1.5,
-          evSlotW - 3,
-          evSlotH - 3,
+          imagenes[imgKey],
+          formatoImagen(imagenes[imgKey]),
+          ex + 1.5 + fit.offsetX,
+          ey + 1.5 + fit.offsetY,
+          fit.w,
+          fit.h,
         )
       } catch {
         doc.setFontSize(7)
@@ -1010,11 +1009,10 @@ export async function exportarExcelFicha(
         cellEv.border = thinBorder
 
         if (imgSrc) {
-          // Calcular aspect ratio del slot en Excel para uniformar todas las evidencias
-          const evSlotWpx = anchoSegmentoPx(startCol, colsPorImagen)
-          const evSlotHpx = (ws.getRow(rowNumber).height || 90) * PX_POR_PUNTO_FILA
-          const evCoverRatio = evSlotWpx / evSlotHpx
-          await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1, evCoverRatio)
+          // Sin coverRatio: la imagen se muestra COMPLETA sin recortar.
+          // calcularAjusteContain dentro de addImageContain garantiza que
+          // se vea entera sin deformarse, ajustándose al recuadro disponible.
+          await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)
         }
       }
     }

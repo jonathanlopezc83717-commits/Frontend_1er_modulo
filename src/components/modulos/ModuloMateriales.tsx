@@ -425,11 +425,12 @@ export async function exportarPdfFicha(
   cell(ML, Ytitle, PW, Htitle, [26, 26, 26])
 
   // El ancho del título y de los logos se ajusta según los controles de la UI.
-  // Los logos ocupan el espacio restante a cada lado sin deformarse.
+  // El título ocupa 'anchoTitulo%' del ancho; cada logo ocupa hasta 'anchoLogos%'
+  // del espacio restante a su lado, manteniendo su relación de aspecto.
   const logoMaxH = Htitle - 4        // ≈ 16mm
   const tituloW = (PW * anchoTituloPct) / 100
-  const logoMaxW = Math.min((PW * anchoLogosPct) / 100, (PW - tituloW) / 2, logoMaxH * 3)
-  const logoPadding = 2
+  const espacioLogos = PW - tituloW
+  const logoMaxW = Math.min((espacioLogos * anchoLogosPct) / 100, logoMaxH * 3)
 
   if (imagenes['logo-izq']) {
     try {
@@ -439,7 +440,7 @@ export async function exportarPdfFicha(
       doc.addImage(
         logoIzq,
         formatoImagen(logoIzq),
-        ML + logoPadding + fit.offsetX,
+        ML + fit.offsetX,
         Ytitle + 2 + fit.offsetY,
         fit.w,
         fit.h,
@@ -455,7 +456,7 @@ export async function exportarPdfFicha(
       doc.addImage(
         logoDer,
         formatoImagen(logoDer),
-        ML + logoMaxW + tituloW + logoPadding + fit.offsetX,
+        ML + logoMaxW + tituloW + fit.offsetX,
         Ytitle + 2 + fit.offsetY,
         fit.w,
         fit.h,
@@ -1210,30 +1211,35 @@ export function ModuloMateriales() {
                 </div>
               </div>
               <div className="bg-neutral-900 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <LogoSlot
-                      label="Logo izquierdo"
-                      image={imagenes['logo-izq'] || ''}
-                      onFile={file => cargarImagen('logo-izq', file)}
-                      onClear={() => limpiarImagen('logo-izq')}
-                    />
-                  </div>
-                  <Input
-                    value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
-                    readOnly
-                    style={{ width: `${anchoTitulo}%` }}
-                    className="shrink-0 border-0 bg-transparent px-0 text-center font-semibold text-white"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <LogoSlot
-                      label="Logo derecho"
-                      image={imagenes['logo-der'] || ''}
-                      onFile={file => cargarImagen('logo-der', file)}
-                      onClear={() => limpiarImagen('logo-der')}
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  const anchoLogoUI = ((100 - anchoTitulo) * anchoLogos) / 100
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1" style={{ maxWidth: `${anchoLogoUI}%` }}>
+                        <LogoSlot
+                          label="Logo izquierdo"
+                          image={imagenes['logo-izq'] || ''}
+                          onFile={file => cargarImagen('logo-izq', file)}
+                          onClear={() => limpiarImagen('logo-izq')}
+                        />
+                      </div>
+                      <Input
+                        value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
+                        readOnly
+                        style={{ width: `${anchoTitulo}%` }}
+                        className="shrink-0 border-0 bg-transparent px-0 text-center font-semibold text-white"
+                      />
+                      <div className="min-w-0 flex-1" style={{ maxWidth: `${anchoLogoUI}%` }}>
+                        <LogoSlot
+                          label="Logo derecho"
+                          image={imagenes['logo-der'] || ''}
+                          onFile={file => cargarImagen('logo-der', file)}
+                          onClear={() => limpiarImagen('logo-der')}
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
                 <Input

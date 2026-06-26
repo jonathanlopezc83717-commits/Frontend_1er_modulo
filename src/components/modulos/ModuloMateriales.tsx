@@ -6,6 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
@@ -14,9 +29,11 @@ import {
   FileSpreadsheet,
   FileText,
   ImagePlus,
+  LayoutTemplate,
   MapPin,
   RefreshCw,
   Save,
+  Trash2,
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -97,6 +114,42 @@ const LOGO_DER_STORAGE_PREFIX = 'ferroviario_formato_logo_der'
 
 function logoDerStorageKey(puntoId: string): string {
   return `${LOGO_DER_STORAGE_PREFIX}_${puntoId}`
+}
+
+// =====================================================
+// PLANTILLAS DE LOGOS
+// =====================================================
+
+/** Plantilla que conserva solo los logos del formato. */
+interface PlantillaLogos {
+  id: string
+  nombre: string
+  logoIzq?: string
+  logoDer?: string
+  createdAt: string
+}
+
+const PLANTILLAS_LOGOS_KEY = 'ferroviario_formato_logo_templates'
+
+function cargarPlantillasLogos(): PlantillaLogos[] {
+  try {
+    const raw = localStorage.getItem(PLANTILLAS_LOGOS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? parsed.filter((p): p is PlantillaLogos =>
+      !!p && typeof p === 'object' && 'id' in p && 'nombre' in p
+    ) : []
+  } catch {
+    return []
+  }
+}
+
+function guardarPlantillasLogos(plantillas: PlantillaLogos[]): void {
+  try {
+    localStorage.setItem(PLANTILLAS_LOGOS_KEY, JSON.stringify(plantillas))
+  } catch {
+    // Ignorar errores de cuota
+  }
 }
 
 /** Genera la lista de evidencias según el número indicado. */
@@ -1049,6 +1102,10 @@ export function ModuloMateriales() {
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
   const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
   const [cargado, setCargado] = useState(false)
+  const [plantillasLogos, setPlantillasLogos] = useState<PlantillaLogos[]>([])
+  const [dialogoPlantillasOpen, setDialogoPlantillasOpen] = useState(false)
+  const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
+  const [plantillaSeleccionadaId, setPlantillaSeleccionadaId] = useState<string>('')
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto
@@ -1092,6 +1149,11 @@ export function ModuloMateriales() {
       // Ignorar errores de cuota de localStorage
     }
   }, [imagenes['logo-der'], punto?.id, cargado])
+
+  // Cargar plantillas de logos guardadas.
+  useEffect(() => {
+    setPlantillasLogos(cargarPlantillasLogos())
+  }, [])
 
   // Ref para poder acceder a la función de guardado más reciente desde el cleanup de desmontaje.
   const guardarRef = useRef<() => void>(() => {})
@@ -1234,6 +1296,55 @@ export function ModuloMateriales() {
     toast.success('Ficha guardada')
   }
 
+  const guardarPlantillaLogos = () => {
+    const nombre = nombreNuevaPlantilla.trim()
+    if (!nombre) {
+      toast.error('Escribe un nombre para la plantilla')
+      return
+    }
+    if (!imagenes['logo-izq'] && !imagenes['logo-der']) {
+      toast.error('No hay logos cargados para guardar')
+      return
+    }
+    const nuevasPlantillas = [
+      ...plantillasLogos,
+      {
+        id: crypto.randomUUID(),
+        nombre,
+        logoIzq: imagenes['logo-izq'] || undefined,
+        logoDer: imagenes['logo-der'] || undefined,
+        createdAt: new Date().toISOString(),
+      },
+    ]
+    setPlantillasLogos(nuevasPlantillas)
+    guardarPlantillasLogos(nuevasPlantillas)
+    setNombreNuevaPlantilla('')
+    toast.success(`Plantilla "${nombre}" guardada`)
+  }
+
+  const cargarPlantillaLogos = () => {
+    const plantilla = plantillasLogos.find(p => p.id === plantillaSeleccionadaId)
+    if (!plantilla) {
+      toast.error('Selecciona una plantilla para cargar')
+      return
+    }
+    setImagenes(prev => ({
+      ...prev,
+      ...(plantilla.logoIzq && { 'logo-izq': plantilla.logoIzq }),
+      ...(plantilla.logoDer && { 'logo-der': plantilla.logoDer }),
+    }))
+    toast.success(`Plantilla "${plantilla.nombre}" cargada`)
+    setDialogoPlantillasOpen(false)
+  }
+
+  const eliminarPlantillaLogos = (id: string) => {
+    const filtradas = plantillasLogos.filter(p => p.id !== id)
+    setPlantillasLogos(filtradas)
+    guardarPlantillasLogos(filtradas)
+    if (plantillaSeleccionadaId === id) setPlantillaSeleccionadaId('')
+    toast.info('Plantilla eliminada')
+  }
+
   const handleExportarPdf = async () => {
     setExportandoPdf(true)
     try {
@@ -1353,6 +1464,91 @@ export function ModuloMateriales() {
                   <FileText className="mr-2 h-4 w-4" />
                   {exportandoPdf ? 'Exportando...' : 'PDF'}
                 </Button>
+                <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <LayoutTemplate className="mr-2 h-4 w-4" />
+                      Plantillas
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Plantillas de logos</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nombre-plantilla">Nombre de la plantilla</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="nombre-plantilla"
+                            value={nombreNuevaPlantilla}
+                            onChange={e => setNombreNuevaPlantilla(e.target.value)}
+                            placeholder="Ej. Cliente A"
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={guardarPlantillaLogos}
+                            disabled={
+                              !nombreNuevaPlantilla.trim() ||
+                              (!imagenes['logo-izq'] && !imagenes['logo-der'])
+                            }
+                          >
+                            Guardar
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Cargar plantilla guardada</Label>
+                        <div className="flex gap-2">
+                          <Select value={plantillaSeleccionadaId} onValueChange={setPlantillaSeleccionadaId}>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {plantillasLogos.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="secondary"
+                            onClick={cargarPlantillaLogos}
+                            disabled={!plantillaSeleccionadaId}
+                          >
+                            Cargar
+                          </Button>
+                        </div>
+                      </div>
+
+                      {plantillasLogos.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Plantillas guardadas</Label>
+                          <div className="max-h-40 space-y-1 overflow-auto">
+                            {plantillasLogos.map((p) => (
+                              <div
+                                key={p.id}
+                                className="flex items-center justify-between rounded border px-2 py-1"
+                              >
+                                <span className="text-sm">{p.nombre}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => eliminarPlantillaLogos(p.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button size="sm" onClick={guardar}>
                   <Save className="mr-2 h-4 w-4" />
                   Guardar

@@ -913,12 +913,7 @@ export async function exportarExcelFicha(
 
   /**
    * Añade una imagen con aspect ratio conservado.
-   * @param src        Imagen en dataURL o URL remota
-   * @param col        Columna inicial (base 0)
-   * @param row        Fila inicial (base 0)
-   * @param colSpan    Número de columnas que ocupa el recuadro
-   * @param rowSpan    Número de filas que ocupa el recuadro
-   * @param coverRatio Si se indica, recorta la imagen a este aspect ratio antes de insertarla
+   * Usa proporciones directas (todas las columnas tienen el mismo ancho).
    */
   const addImageContain = async (
     src: string,
@@ -928,7 +923,6 @@ export async function exportarExcelFicha(
   ) => {
     try {
       let dataUrl = await normalizarSrcADataUrl(src)
-      // Si se indica coverRatio, recortar la imagen para uniformar tamaño
       if (coverRatio) {
         dataUrl = await recortarImagenCover(dataUrl, coverRatio)
       }
@@ -937,46 +931,22 @@ export async function exportarExcelFicha(
       const dim = await obtenerDimensionesImagen(dataUrl)
 
       const segWpx = anchoSegmentoPx(col, colSpan)
-      const segHpx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA * rowSpan
+      const rowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
+      const segHpx = rowHeightPx * rowSpan
       const fit = calcularAjusteContain(dim.w, dim.h, segWpx, segHpx)
 
-      // Convertir offset y tamaño del fit a fracciones de columna/fila
-      const rowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
+      // Como todas las columnas tienen el mismo ancho, convertimos directamente:
+      // 1 columna = colWidths[0] * PX_POR_CARACTER píxeles
+      const colWidthPx = (ws.getColumn(col + 1).width || 30) * PX_POR_CARACTER
+      const offsetCol = fit.offsetX / colWidthPx
+      const imgColSpan = fit.w / colWidthPx
       const offsetRow = fit.offsetY / rowHeightPx
-      const rowSpanFraction = fit.h / rowHeightPx
-
-      // Para el offset horizontal necesitamos encontrar en qué columna cae el offset
-      let colOffsetUnits = 0
-      let remainingOffsetX = fit.offsetX
-      for (let c = col; c < col + colSpan && remainingOffsetX > 0; c++) {
-        const cw = (ws.getColumn(c + 1).width || 0) * PX_POR_CARACTER
-        if (remainingOffsetX <= cw) {
-          colOffsetUnits += remainingOffsetX / cw
-          remainingOffsetX = 0
-        } else {
-          colOffsetUnits += 1
-          remainingOffsetX -= cw
-        }
-      }
-
-      // Calcular cuántas columnas enteras (+ fracción) ocupa fit.w
-      let colSpanUnits = 0
-      let remainingW = fit.w
-      for (let c = col; c < col + colSpan && remainingW > 0; c++) {
-        const cw = (ws.getColumn(c + 1).width || 0) * PX_POR_CARACTER
-        if (remainingW <= cw) {
-          colSpanUnits += remainingW / cw
-          remainingW = 0
-        } else {
-          colSpanUnits += 1
-          remainingW -= cw
-        }
-      }
+      const imgRowSpan = fit.h / rowHeightPx
 
       const id = workbook.addImage({ base64, extension: ext })
       ws.addImage(id, {
-        tl: { col: col + colOffsetUnits, row: row + offsetRow },
-        br: { col: col + colOffsetUnits + colSpanUnits, row: row + offsetRow + rowSpanFraction },
+        tl: { col: col + offsetCol, row: row + offsetRow },
+        br: { col: col + offsetCol + imgColSpan, row: row + offsetRow + imgRowSpan },
         editAs: 'absolute',
       } as never)
     } catch (e) {

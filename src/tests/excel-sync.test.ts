@@ -1,0 +1,136 @@
+/**
+ * Pruebas para la lógica de sincronización de Excel.
+ * Ejecutar con: npx vitest run src/tests/excel-sync.test.ts
+ */
+
+import { describe, it, expect } from 'vitest'
+import type { PuntoFerroviario } from '@/types'
+import type { NomenclaturaEntry } from '@/lib/nomenclaturas'
+import {
+  compararSincronizacion,
+  aplicarSincronizacion,
+  type FilaSincronizacion,
+} from '@/lib/excel-sync'
+
+function crearPunto(overrides: Partial<PuntoFerroviario> = {}): PuntoFerroviario {
+  return {
+    id: 'punto-1',
+    numeroSerie: 1,
+    nombre: 'PT-001',
+    moduloData: {},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
+describe('compararSincronizacion', () => {
+  const puntos: PuntoFerroviario[] = [
+    crearPunto({ id: 'p1', numeroSerie: 1, nombre: 'PT-001' }),
+    crearPunto({ id: 'p2', numeroSerie: 2, nombre: 'PT-002' }),
+  ]
+
+  const nomenclaturas: NomenclaturaEntry[] = [
+    { id: 'n1', codigo: 'ABC', definicion: 'Definicion ABC' },
+  ]
+
+  it('detecta coincidencia ok de punto y nomenclatura', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 1.1, y: 2.2, z: 3.3, codigo: 'ABC' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    expect(resultados).toHaveLength(1)
+    expect(resultados[0].estado).toBe('ok')
+    expect(resultados[0].puntoId).toBe('p1')
+    expect(resultados[0].nomenclatura?.codigo).toBe('ABC')
+  })
+
+  it('detecta punto no encontrado', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '99', x: 1.1, y: 2.2, z: 3.3, codigo: 'ABC' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    expect(resultados[0].estado).toBe('punto_no_encontrado')
+  })
+
+  it('detecta nomenclatura no encontrada', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 1.1, y: 2.2, z: 3.3, codigo: 'XYZ' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    expect(resultados[0].estado).toBe('nomenclatura_no_encontrada')
+  })
+
+  it('detecta coordenadas invalidas', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: NaN, y: 2.2, z: 3.3, codigo: 'ABC' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    expect(resultados[0].estado).toBe('coordenadas_invalidas')
+  })
+
+  it('coincide por nombre', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: 'PT-002', x: 1.1, y: 2.2, z: 3.3, codigo: 'ABC' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'nombre')
+    expect(resultados[0].estado).toBe('ok')
+    expect(resultados[0].puntoId).toBe('p2')
+  })
+})
+
+describe('aplicarSincronizacion', () => {
+  const puntos: PuntoFerroviario[] = [
+    crearPunto({ id: 'p1', numeroSerie: 1, nombre: 'PT-001' }),
+  ]
+
+  const nomenclaturas: NomenclaturaEntry[] = [
+    { id: 'n1', codigo: 'ABC', definicion: 'Definicion ABC' },
+  ]
+
+  it('actualiza coordenadas del punto coincidente', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 10.5, y: 20.5, z: 30.5, codigo: 'ABC' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    const { resumen, puntosModificados } = aplicarSincronizacion(resultados, puntos, nomenclaturas)
+
+    expect(resumen.puntosActualizados).toBe(1)
+    expect(puntosModificados).toHaveLength(1)
+    expect(puntosModificados[0].coordenadas?.lat).toBe(20.5)
+    expect(puntosModificados[0].coordenadas?.lng).toBe(10.5)
+    expect((puntosModificados[0].moduloData.georeferencia as { coordenadas: { x: number; y: number; z: number } }).coordenadas.z).toBe(30.5)
+  })
+
+  it('agrega nomenclaturas faltantes cuando se indica', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 10.5, y: 20.5, z: 30.5, codigo: 'NUEVO' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    const { resumen, nomenclaturasActualizadas } = aplicarSincronizacion(
+      resultados,
+      puntos,
+      nomenclaturas,
+      { agregarNomenclaturasFaltantes: true }
+    )
+
+    expect(resumen.nomenclaturasAgregadas).toBe(1)
+    expect(nomenclaturasActualizadas.some(item => item.codigo === 'NUEVO')).toBe(true)
+  })
+
+  it('no agrega nomenclaturas si no se indica', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 10.5, y: 20.5, z: 30.5, codigo: 'NUEVO' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, nomenclaturas, 'numeroSerie')
+    const { resumen, nomenclaturasActualizadas } = aplicarSincronizacion(
+      resultados,
+      puntos,
+      nomenclaturas,
+      { agregarNomenclaturasFaltantes: false }
+    )
+
+    expect(resumen.nomenclaturasAgregadas).toBe(0)
+    expect(nomenclaturasActualizadas).toHaveLength(1)
+  })
+})

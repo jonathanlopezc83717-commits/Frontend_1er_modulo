@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
-import { procesarCarpetaPunto, formatearNombreFoto, buscarExcelPorNombreCarpeta, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { procesarCarpetaPunto, formatearNombreFoto, buscarExcelEnRaiz, type DatosPuntoCarpeta } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { generarUUID } from '@/lib/utils'
 import {
@@ -198,10 +198,10 @@ export function GestorPuntos() {
     try {
       const datos = await procesarCarpetaPunto(files)
 
-      // Detectar Excel con mismo nombre que la carpeta y precargarlo para sincronización
-      const excelPorNombre = buscarExcelPorNombreCarpeta(files, datos.nombreCarpeta)
-      if (excelPorNombre) {
-        datos.excel = excelPorNombre
+      // Detectar el primer Excel en la raíz de la carpeta para sincronización
+      const excelEnRaiz = buscarExcelEnRaiz(files)
+      if (excelEnRaiz) {
+        datos.excel = excelEnRaiz
       }
 
       setDatosCarpetaPreview(datos)
@@ -291,15 +291,15 @@ export function GestorPuntos() {
         }
       }
 
-      const excelPorNombre = buscarExcelPorNombreCarpeta(files, datos.nombreCarpeta)
-      if (excelPorNombre && state.puntoActivo) {
+      const excelEnRaiz = buscarExcelEnRaiz(files)
+      if (excelEnRaiz && state.puntoActivo) {
         const archivoId = (nuevoModuloData.sincronizacion as { archivoId?: string } | undefined)?.archivoId || generarUUID()
-        await guardarArchivoSincronizacion(archivoId, excelPorNombre)
+        await guardarArchivoSincronizacion(archivoId, excelEnRaiz)
         nuevoModuloData.sincronizacion = {
           ...(nuevoModuloData.sincronizacion as Record<string, unknown> || {}),
-          archivoNombre: excelPorNombre.name,
+          archivoNombre: excelEnRaiz.name,
           archivoId,
-          ruta: excelPorNombre.webkitRelativePath || excelPorNombre.name,
+          ruta: excelEnRaiz.webkitRelativePath || excelEnRaiz.name,
           cargadoEn: new Date().toISOString(),
         }
       }

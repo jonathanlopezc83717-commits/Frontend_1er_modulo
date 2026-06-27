@@ -18,6 +18,7 @@ export interface StoredState {
   puntos: unknown[]
   puntoActivoId: string | null
   moduloActivo: string
+  modulosOrden?: string[] | null
   nomenclaturasGlobales?: unknown[]
   plantillasFormato?: unknown[]
   plantillasPdfFormato?: unknown[]
@@ -192,6 +193,7 @@ export function guardarEstado(
   puntos: unknown[],
   puntoActivoId: string | null,
   moduloActivo: string,
+  modulosOrden: string[] | null = null,
   nomenclaturasGlobales: unknown[] = [],
   plantillasFormato: unknown[] = [],
   plantillasPdfFormato: unknown[] = [],
@@ -202,6 +204,7 @@ export function guardarEstado(
     puntos,
     puntoActivoId,
     moduloActivo,
+    modulosOrden,
     nomenclaturasGlobales,
     plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
     plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),
@@ -237,6 +240,7 @@ export function guardarEstado(
         puntos: [],
         puntoActivoId,
         moduloActivo,
+        modulosOrden,
         nomenclaturasGlobales,
         plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
         plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),

@@ -220,6 +220,7 @@ export interface AppState {
   puntos: PuntoFerroviario[]
   puntoActivo: PuntoFerroviario | null
   moduloActivo: string
+  modulosOrden: string[] | null
   nomenclaturasGlobales: Array<{
     id: string
     codigo: string
@@ -283,6 +284,7 @@ export interface EstadoGuardado {
     puntos: PuntoFerroviario[]
     puntoActivoId: string | null
     moduloActivo: string
+    modulosOrden?: string[] | null
     nomenclaturasGlobales: AppState['nomenclaturasGlobales']
     plantillasFormato?: PlantillaFormato[]
     plantillasPdfFormato?: PlantillaPdfFormato[]
@@ -303,6 +305,7 @@ export type AppAction =
   | { type: 'ELIMINAR_PUNTO'; payload: string }
   | { type: 'SET_PUNTO_ACTIVO'; payload: PuntoFerroviario | null }
   | { type: 'SET_MODULO_ACTIVO'; payload: string }
+  | { type: 'REORDENAR_MODULOS'; payload: string[] }
   | { type: 'ACTUALIZAR_PUNTO'; payload: { id: string; data: Partial<PuntoFerroviario> } }
   | { type: 'REORDENAR_PUNTOS'; payload: PuntoFerroviario[] }
   | { type: 'BLOQUEAR_PUNTO'; payload: string }

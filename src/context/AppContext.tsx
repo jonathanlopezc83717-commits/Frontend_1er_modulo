@@ -20,6 +20,7 @@ const initialState: AppState = {
   puntos: [],
   puntoActivo: null,
   moduloActivo: 'analisis',
+  modulosOrden: null,
   nomenclaturasGlobales: [],
   plantillasFormato: [],
   plantillasPdfFormato: [],
@@ -105,6 +106,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
           ? puntosOrdenados.find(p => p.id === action.payload.puntoActivoId) || puntosOrdenados[0] || null
           : puntosOrdenados[0] || null,
         moduloActivo: action.payload.moduloActivo,
+        modulosOrden: action.payload.modulosOrden ?? state.modulosOrden,
         nomenclaturasGlobales: consolidarNomenclaturas([action.payload.nomenclaturasGlobales]),
         plantillasFormato: action.payload.plantillasFormato || state.plantillasFormato,
         plantillasPdfFormato: action.payload.plantillasPdfFormato || state.plantillasPdfFormato,
@@ -162,6 +164,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         moduloActivo: action.payload,
+      }
+
+    case 'REORDENAR_MODULOS':
+      return {
+        ...state,
+        modulosOrden: action.payload,
       }
 
     case 'ACTUALIZAR_PUNTO': {
@@ -240,6 +248,7 @@ interface AppContextType {
   eliminarPunto: (id: string) => Promise<void>
   setPuntoActivo: (punto: PuntoFerroviario | null) => void
   setModuloActivo: (modulo: string) => void
+  reordenarModulos: (idsOrdenados: string[]) => void
   actualizarPunto: (id: string, data: Partial<PuntoFerroviario>) => void
   setNomenclaturasGlobales: (nomenclaturas: NomenclaturaEntry[]) => void
   setPlantillasFormato: (plantillas: PlantillaFormato[]) => void
@@ -278,6 +287,7 @@ function getInitialState(): AppState {
         ? puntos.find(p => p.id === stored.puntoActivoId) || null
         : null,
       moduloActivo: stored.moduloActivo,
+      modulosOrden: stored.modulosOrden || null,
       nomenclaturasGlobales: tieneTablaGlobalGuardada
         ? consolidarNomenclaturas([nomenclaturasGuardadas])
         : consolidarNomenclaturas([nomenclaturasGuardadas, ...nomenclaturasMigradas]),
@@ -308,6 +318,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             puntos: stored.puntos as PuntoFerroviario[],
             puntoActivoId: stored.puntoActivoId,
             moduloActivo: stored.moduloActivo,
+            modulosOrden: stored.modulosOrden || null,
             nomenclaturasGlobales: (stored.nomenclaturasGlobales || []) as AppState['nomenclaturasGlobales'],
             plantillasFormato: (stored.plantillasFormato || []) as PlantillaFormato[],
             plantillasPdfFormato: (stored.plantillasPdfFormato || []) as PlantillaPdfFormato[],
@@ -399,13 +410,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.puntos,
       state.puntoActivo?.id || null,
       state.moduloActivo,
+      state.modulosOrden,
       state.nomenclaturasGlobales,
       state.plantillasFormato,
       state.plantillasPdfFormato,
       state.plantillasFicha,
       state.estadosGuardados
     )
-  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados, estadoRestaurado])
+  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados, estadoRestaurado])
 
   const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => {
     dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto } })
@@ -422,6 +434,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setModuloActivo = useCallback((modulo: string) => {
     dispatch({ type: 'SET_MODULO_ACTIVO', payload: modulo })
+  }, [])
+
+  const reordenarModulos = useCallback((idsOrdenados: string[]) => {
+    dispatch({ type: 'REORDENAR_MODULOS', payload: idsOrdenados })
   }, [])
 
   const actualizarPunto = useCallback((id: string, data: Partial<PuntoFerroviario>) => {
@@ -612,6 +628,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         eliminarPunto,
         setPuntoActivo,
         setModuloActivo,
+        reordenarModulos,
         actualizarPunto,
         setNomenclaturasGlobales,
         setPlantillasFormato,

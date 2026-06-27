@@ -35,6 +35,7 @@ import {
   MapPin,
   FolderInput,
   FileText,
+  FileSpreadsheet,
   Image,
   MapPinned,
   Folder,
@@ -74,6 +75,7 @@ interface DragState {
 interface FileRouting {
   kmz: boolean
   txt: boolean
+  excel: boolean
   fotos: number
 }
 
@@ -202,6 +204,7 @@ export function GestorPuntos() {
       setRoutingActual({
         kmz: !!datos.coordenadas,
         txt: !!datos.textoDocumento,
+        excel: !!datos.excel,
         fotos: datos.fotos.length,
       })
 
@@ -290,6 +293,7 @@ export function GestorPuntos() {
       setRoutingActual({
         kmz: !!datos.coordenadas,
         txt: !!datos.textoDocumento,
+        excel: !!datos.excel,
         fotos: datos.fotos.length,
       })
 
@@ -744,6 +748,13 @@ export function GestorPuntos() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-sm">
+                        {routingActual.excel ? (
+                          <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">Excel de sincronización</span></>
+                        ) : (
+                          <><AlertCircle className="w-4 h-4 text-gray-400" /><span className="text-gray-500">Sin Excel</span></>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
                         {routingActual.fotos > 0 ? (
                           <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">{routingActual.fotos} fotos</span></>
                         ) : (
@@ -774,6 +785,13 @@ export function GestorPuntos() {
                         <div className="flex items-center gap-2 text-sm">
                           <FileText className="w-4 h-4 text-blue-600" />
                           <span>Documento: {datosCarpetaPreview.textoDocumento.substring(0, 50)}...</span>
+                        </div>
+                      )}
+
+                      {datosCarpetaPreview.excel && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                          <span>Excel: {datosCarpetaPreview.excel.name}</span>
                         </div>
                       )}
 

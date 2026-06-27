@@ -18,6 +18,7 @@ export interface FotoIndexada {
 export interface ArchivosCarpeta {
   kmz?: File
   txt?: File
+  excel?: File
   fotos: FotoIndexada[]
   nombreCarpeta: string
   subcarpetas: string[]
@@ -35,6 +36,7 @@ export interface DatosPuntoCarpeta {
   nombreCarpeta: string
   coordenadas?: CoordenadasKMZ
   textoDocumento?: string
+  excel?: File
   fotos: FotoIndexada[]
   subcarpetas: string[]
 }
@@ -84,6 +86,8 @@ export async function leerCarpeta(files: FileList): Promise<ArchivosCarpeta> {
       archivos.kmz = file
     } else if (ext === 'txt') {
       archivos.txt = file
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      archivos.excel = file
     } else if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'].includes(ext || '')) {
       // Determinar subcarpeta (solo si hay path relativo)
       const subcarpeta = (pathParts.length > 2 && file.webkitRelativePath) 
@@ -321,6 +325,7 @@ export async function procesarCarpetaPunto(files: FileList): Promise<DatosPuntoC
     nombreCarpeta: archivos.nombreCarpeta,
     fotos: archivos.fotos,
     subcarpetas: archivos.subcarpetas,
+    excel: archivos.excel,
   }
   
   // Extraer coordenadas del KMZ

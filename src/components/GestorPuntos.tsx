@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
-import { procesarCarpetaPunto, formatearNombreFoto, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { procesarCarpetaPunto, formatearNombreFoto, buscarExcelPorNombreCarpeta, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
+import { generarUUID } from '@/lib/utils'
 import {
   consolidarNomenclaturas,
   fusionarNomenclaturas,
@@ -195,6 +197,13 @@ export function GestorPuntos() {
 
     try {
       const datos = await procesarCarpetaPunto(files)
+
+      // Detectar Excel con mismo nombre que la carpeta y precargarlo para sincronización
+      const excelPorNombre = buscarExcelPorNombreCarpeta(files, datos.nombreCarpeta)
+      if (excelPorNombre) {
+        datos.excel = excelPorNombre
+      }
+
       setDatosCarpetaPreview(datos)
 
       setNombrePunto(datos.nombreCarpeta)
@@ -282,6 +291,19 @@ export function GestorPuntos() {
         }
       }
 
+      const excelPorNombre = buscarExcelPorNombreCarpeta(files, datos.nombreCarpeta)
+      if (excelPorNombre && state.puntoActivo) {
+        const archivoId = (nuevoModuloData.sincronizacion as { archivoId?: string } | undefined)?.archivoId || generarUUID()
+        await guardarArchivoSincronizacion(archivoId, excelPorNombre)
+        nuevoModuloData.sincronizacion = {
+          ...(nuevoModuloData.sincronizacion as Record<string, unknown> || {}),
+          archivoNombre: excelPorNombre.name,
+          archivoId,
+          ruta: excelPorNombre.webkitRelativePath || excelPorNombre.name,
+          cargadoEn: new Date().toISOString(),
+        }
+      }
+
       actualizarPunto(state.puntoActivo.id, {
         moduloData: nuevoModuloData,
         coordenadas: datos.coordenadas ? {
@@ -346,6 +368,17 @@ export function GestorPuntos() {
           fotosCount: datosCarpetaPreview.fotos.length,
           subcarpetas: datosCarpetaPreview.subcarpetas,
           updatedAt: new Date().toISOString(),
+        }
+      }
+
+      if (datosCarpetaPreview.excel) {
+        const archivoId = generarUUID()
+        await guardarArchivoSincronizacion(archivoId, datosCarpetaPreview.excel)
+        moduloData.sincronizacion = {
+          archivoNombre: datosCarpetaPreview.excel.name,
+          archivoId,
+          ruta: datosCarpetaPreview.excel.webkitRelativePath || datosCarpetaPreview.excel.name,
+          cargadoEn: new Date().toISOString(),
         }
       }
     }

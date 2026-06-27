@@ -14,6 +14,8 @@ import {
   type FilaSincronizacion,
   type ResultadoSincronizacion,
 } from '@/lib/excel-sync'
+import { cargarArchivoSincronizacion, eliminarArchivoSincronizacion, guardarArchivoSincronizacion } from '@/lib/sync-file-store'
+import { generarUUID } from '@/lib/utils'
 import {
   CheckCircle2,
   FileSpreadsheet,
@@ -24,6 +26,7 @@ import {
   AlertCircle,
   AlertTriangle,
   MapPin,
+  Trash2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -35,6 +38,19 @@ const ESTADO_LABEL: Record<ResultadoSincronizacion['estado'], { texto: string; v
   codigo_vacio: { texto: 'Sin código', variante: 'outline' },
 }
 
+interface SincronizacionData {
+  archivoNombre?: string
+  archivoId?: string
+  ruta?: string
+  cargadoEn?: string
+  sincronizadoEn?: string
+  resumen?: {
+    puntosActualizados: number
+    puntosNoEncontrados: number
+    nomenclaturasAgregadas: number
+  }
+}
+
 export function ModuloSincronizacion() {
   const { state, actualizarPunto, setNomenclaturasGlobales } = useApp()
   const punto = state.puntoActivo
@@ -42,6 +58,7 @@ export function ModuloSincronizacion() {
   const [filas, setFilas] = useState<FilaSincronizacion[]>([])
   const [resultados, setResultados] = useState<ResultadoSincronizacion[]>([])
   const [nombreArchivo, setNombreArchivo] = useState('')
+  const [archivoId, setArchivoId] = useState<string | null>(null)
   const [criterio, setCriterio] = useState<CriterioCoincidencia>('numeroSerie')
   const [actualizarCoordenadas, setActualizarCoordenadas] = useState(true)
   const [agregarNomenclaturas, setAgregarNomenclaturas] = useState(false)
@@ -51,7 +68,9 @@ export function ModuloSincronizacion() {
 
   const carpetaInputRef = useRef<HTMLInputElement>(null)
   const excelInputRef = useRef<HTMLInputElement>(null)
-  const ultimoArchivoRef = useRef<File | null>(null)
+  const ultimoArchivoRef = useRef<File | ArrayBuffer | null>(null)
+
+  const dataGuardada: SincronizacionData | undefined = punto?.moduloData?.sincronizacion as SincronizacionData | undefined
 
   const conteoEstados = useMemo(() => {
     const conteo: Record<ResultadoSincronizacion['estado'], number> = {
@@ -76,15 +95,15 @@ export function ModuloSincronizacion() {
   }, [filas, state.puntos, state.nomenclaturasGlobales, criterio])
 
   useEffect(() => {
-    const file = ultimoArchivoRef.current
-    if (!file) return
+    const archivo = ultimoArchivoRef.current
+    if (!archivo) return
     const repeticion = async () => {
       setProcesando(true)
       try {
-        const buffer = await file.arrayBuffer()
+        const buffer = archivo instanceof File ? await archivo.arrayBuffer() : archivo
         const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
         setFilas(nuevasFilas)
-        setMensaje(`${nuevasFilas.length} filas leídas desde ${file.name}`)
+        setMensaje(`${nuevasFilas.length} filas leídas`)
       } catch (error) {
         setMensaje(`Error leyendo Excel: ${String(error)}`)
       } finally {
@@ -94,16 +113,92 @@ export function ModuloSincronizacion() {
     repeticion()
   }, [saltarEncabezado])
 
+  useEffect(() => {
+    if (!punto) {
+      setFilas([])
+      setResultados([])
+      setNombreArchivo('')
+      setArchivoId(null)
+      setMensaje(null)
+      ultimoArchivoRef.current = null
+      return
+    }
+
+    const sincronizacion = punto.moduloData?.sincronizacion as SincronizacionData | undefined
+    if (!sincronizacion?.archivoId) {
+      setFilas([])
+      setResultados([])
+      setNombreArchivo('')
+      setArchivoId(null)
+      setMensaje(null)
+      ultimoArchivoRef.current = null
+      return
+    }
+
+    const cargar = async () => {
+      setProcesando(true)
+      setNombreArchivo(sincronizacion.archivoNombre || '')
+      setArchivoId(sincronizacion.archivoId || null)
+      try {
+        const buffer = await cargarArchivoSincronizacion(sincronizacion.archivoId!)
+        if (!buffer) {
+          setMensaje('No se encontró el archivo Excel guardado. Vuelve a cargarlo.')
+          setProcesando(false)
+          return
+        }
+        ultimoArchivoRef.current = buffer
+        const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
+        setFilas(nuevasFilas)
+        setMensaje(`${nuevasFilas.length} filas cargadas desde ${sincronizacion.archivoNombre}`)
+      } catch (error) {
+        setMensaje(`Error cargando Excel guardado: ${String(error)}`)
+      } finally {
+        setProcesando(false)
+      }
+    }
+
+    cargar()
+    // Solo se recarga cuando cambia el punto activo o la opción de encabezado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [punto?.id, saltarEncabezado])
+
+  const parsearBuffer = async (buffer: ArrayBuffer, nombre: string) => {
+    const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
+    setFilas(nuevasFilas)
+    setNombreArchivo(nombre)
+    setMensaje(`${nuevasFilas.length} filas leídas desde ${nombre}`)
+  }
+
+  const persistirArchivo = async (buffer: ArrayBuffer, nombre: string, ruta: string) => {
+    if (!punto) return
+
+    const nuevoArchivoId = archivoId || generarUUID()
+    await guardarArchivoSincronizacion(nuevoArchivoId, buffer)
+    setArchivoId(nuevoArchivoId)
+
+    const nuevaData: SincronizacionData = {
+      archivoNombre: nombre,
+      archivoId: nuevoArchivoId,
+      ruta,
+      cargadoEn: new Date().toISOString(),
+    }
+
+    actualizarPunto(punto.id, {
+      moduloData: {
+        ...punto.moduloData,
+        sincronizacion: nuevaData,
+      },
+    })
+  }
+
   const procesarArchivo = async (file: File) => {
     setProcesando(true)
     setMensaje(null)
     try {
-      ultimoArchivoRef.current = file
       const buffer = await file.arrayBuffer()
-      const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
-      setFilas(nuevasFilas)
-      setNombreArchivo(file.name)
-      setMensaje(`${nuevasFilas.length} filas leídas desde ${file.name}`)
+      ultimoArchivoRef.current = file
+      await parsearBuffer(buffer, file.name)
+      await persistirArchivo(buffer, file.name, file.webkitRelativePath || file.name)
     } catch (error) {
       console.error('Error leyendo Excel:', error)
       setMensaje(`Error leyendo Excel: ${String(error)}`)
@@ -133,8 +228,29 @@ export function ModuloSincronizacion() {
     e.target.value = ''
   }
 
-  const handleSincronizar = () => {
-    if (resultados.length === 0) return
+  const handleLimpiarArchivo = async () => {
+    if (archivoId) {
+      await eliminarArchivoSincronizacion(archivoId)
+    }
+    if (dataGuardada?.archivoId) {
+      await eliminarArchivoSincronizacion(dataGuardada.archivoId)
+    }
+    ultimoArchivoRef.current = null
+    setFilas([])
+    setResultados([])
+    setNombreArchivo('')
+    setArchivoId(null)
+    setMensaje('Archivo de sincronización eliminado')
+
+    if (punto) {
+      const restoModuloData = { ...punto.moduloData }
+      delete restoModuloData.sincronizacion
+      actualizarPunto(punto.id, { moduloData: restoModuloData })
+    }
+  }
+
+  const handleSincronizar = async () => {
+    if (resultados.length === 0 || !punto) return
 
     const { resumen, puntosModificados, nomenclaturasActualizadas } = aplicarSincronizacion(
       resultados,
@@ -153,6 +269,19 @@ export function ModuloSincronizacion() {
     if (agregarNomenclaturas) {
       setNomenclaturasGlobales(nomenclaturasActualizadas)
     }
+
+    const nuevaData: SincronizacionData = {
+      ...dataGuardada,
+      sincronizadoEn: new Date().toISOString(),
+      resumen,
+    }
+
+    actualizarPunto(punto.id, {
+      moduloData: {
+        ...punto.moduloData,
+        sincronizacion: nuevaData,
+      },
+    })
 
     setMensaje(
       `Sincronización aplicada: ${resumen.puntosActualizados} puntos actualizados, ${resumen.puntosNoEncontrados} no encontrados, ${resumen.nomenclaturasAgregadas} nomenclaturas agregadas.`
@@ -194,6 +323,12 @@ export function ModuloSincronizacion() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {nombreArchivo && <Badge variant="outline">{nombreArchivo}</Badge>}
+                {dataGuardada?.sincronizadoEn && (
+                  <Badge variant="secondary" className="gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Sincronizado
+                  </Badge>
+                )}
                 <input
                   ref={carpetaInputRef}
                   type="file"
@@ -216,6 +351,11 @@ export function ModuloSincronizacion() {
                   <Upload className="mr-2 h-4 w-4" />
                   Cargar Excel
                 </Button>
+                {(nombreArchivo || dataGuardada?.archivoId) && (
+                  <Button variant="ghost" size="icon" onClick={handleLimpiarArchivo} disabled={procesando} title="Eliminar archivo de sincronización">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -274,6 +414,18 @@ export function ModuloSincronizacion() {
                 </Button>
               </div>
             </div>
+
+            {dataGuardada?.ruta && (
+              <div className="rounded-lg border p-3 text-sm bg-muted/50">
+                <p className="font-medium">Archivo vinculado desde la carpeta</p>
+                <p className="text-muted-foreground">{dataGuardada.ruta}</p>
+                {dataGuardada.cargadoEn && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cargado el {new Date(dataGuardada.cargadoEn).toLocaleString('es-CL')}
+                  </p>
+                )}
+              </div>
+            )}
 
             {mensaje && (
               <div className={`rounded-lg border p-3 text-sm ${mensaje.startsWith('Error') ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-muted/50'}`}>

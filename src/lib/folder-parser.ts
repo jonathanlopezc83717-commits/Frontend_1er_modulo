@@ -373,3 +373,94 @@ export function agruparFotosPorSubcarpeta(fotos: FotoIndexada[]): Map<string, Fo
   
   return grupos
 }
+
+/**
+ * Busca un archivo Excel dentro de un FileList obtenido de <input webkitdirectory>.
+ */
+export function buscarExcelEnCarpeta(files: FileList): File | null {
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index]
+    const ext = file.name.toLowerCase().split('.').pop()
+    if (ext === 'xlsx' || ext === 'xls') {
+      return file
+    }
+  }
+  return null
+}
+
+function quitarExtension(nombre: string): string {
+  return nombre.replace(/\.[^/.]+$/, '')
+}
+
+function normalizarNombreParaCoincidencia(nombre: string): string {
+  return quitarExtension(nombre)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+/**
+ * Calcula la similitud entre dos textos usando la subsecuencia común más larga (LCS).
+ * Devuelve un valor entre 0 y 1.
+ */
+function similitudTexto(a: string, b: string): number {
+  if (!a && !b) return 1
+  if (!a || !b) return 0
+
+  const matriz: number[][] = Array.from({ length: a.length + 1 }, () =>
+    Array.from({ length: b.length + 1 }, () => 0)
+  )
+
+  let maximo = 0
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        matriz[i][j] = matriz[i - 1][j - 1] + 1
+        maximo = Math.max(maximo, matriz[i][j])
+      }
+    }
+  }
+
+  return maximo / Math.max(a.length, b.length)
+}
+
+const SIMILITUD_MINIMA = 0.8
+
+/**
+ * Busca un archivo Excel en la raíz de la carpeta cuyo nombre coincida con el
+ * nombre de la carpeta seleccionada, permitiendo coincidencia parcial.
+ * Ej: carpeta "01_PT-001" → "PT-001.xlsx".
+ * Solo considera archivos que estén directamente en la raíz (sin subcarpeta).
+ */
+export function buscarExcelPorNombreCarpeta(files: FileList, nombreCarpeta: string): File | null {
+  const nombreNormalizado = normalizarNombreParaCoincidencia(nombreCarpeta)
+  let mejorArchivo: File | null = null
+  let mejorSimilitud = 0
+
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index]
+    const pathParts = file.webkitRelativePath
+      ? file.webkitRelativePath.split('/')
+      : [file.name]
+
+    // Solo archivos en la raíz de la carpeta seleccionada
+    if (pathParts.length > 2) continue
+
+    const ext = file.name.toLowerCase().split('.').pop()
+    if (ext !== 'xlsx' && ext !== 'xls') continue
+
+    const nombreSinExtension = normalizarNombreParaCoincidencia(file.name)
+
+    // Coincidencia exacta tiene prioridad máxima
+    if (nombreSinExtension === nombreNormalizado) {
+      return file
+    }
+
+    const similitud = similitudTexto(nombreNormalizado, nombreSinExtension)
+    if (similitud >= SIMILITUD_MINIMA && similitud > mejorSimilitud) {
+      mejorSimilitud = similitud
+      mejorArchivo = file
+    }
+  }
+
+  return mejorArchivo
+}

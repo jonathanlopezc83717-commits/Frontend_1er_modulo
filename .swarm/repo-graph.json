@@ -5922,6 +5922,36 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:57.091Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.120Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\bindings.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py",
+      "exports": [
+        "load_cdll",
+        "CFConst",
+        "SecurityConst"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.122Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\low_level.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py",
+      "exports": [
+        "TLS_PROTOCOL_VERSIONS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.123Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\appengine.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py",
@@ -6064,6 +6094,32 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:57.125Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.134Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\makefile.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.138Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\weakref_finalize.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py",
+      "exports": [
+        "weakref_finalize"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.140Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/six.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\six.py",
@@ -9659,10 +9715,14 @@
         "react",
         "@/components/ui/dialog",
         "@/components/ui/button",
-        "sonner"
+        "@/components/ui/input",
+        "@/components/ui/label",
+        "sonner",
+        "@/lib/supabase-service",
+        "@/components/ui/alert"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.377Z"
+      "mtime": "2026-06-23T02:32:38.159Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/AnalysisResult.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\AnalysisResult.tsx",
@@ -9709,7 +9769,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T00:15:37.003Z"
+      "mtime": "2026-06-22T16:05:34.455Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/GestorPuntos.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\GestorPuntos.tsx",
@@ -9721,6 +9781,8 @@
         "react",
         "@/context/AppContext",
         "@/lib/folder-parser",
+        "@/lib/sync-file-store",
+        "@/lib/utils",
         "@/lib/nomenclaturas",
         "@/components/ui/button",
         "@/components/ui/input",
@@ -9734,7 +9796,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T00:08:25.370Z"
+      "mtime": "2026-06-27T01:00:41.901Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -9754,7 +9816,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.383Z"
+      "mtime": "2026-06-23T20:11:29.370Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ImageUploader.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ImageUploader.tsx",
@@ -9797,6 +9859,9 @@
         "@/components/ui/card",
         "@/components/ui/badge",
         "react",
+        "@dnd-kit/core",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
         "lucide-react",
         "./modulos/ModuloAnalisis",
         "./modulos/ModuloGeoreferencia",
@@ -9804,10 +9869,11 @@
         "./modulos/ModuloNomenclaturas",
         "./modulos/ModuloMateriales",
         "./modulos/ModuloFicha",
-        "./modulos/ModuloReportes"
+        "./modulos/ModuloReportes",
+        "./modulos/ModuloSincronizacion"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T00:35:30.520Z"
+      "mtime": "2026-06-27T00:30:46.799Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
@@ -9947,21 +10013,29 @@
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloMateriales.tsx",
       "moduleName": "src/components/modulos/ModuloMateriales.tsx",
       "exports": [
+        "FichaFormatoData",
         "ModuloMateriales"
       ],
       "imports": [
         "@/context/AppContext",
+        "sonner",
         "@/components/ui/button",
         "@/components/ui/badge",
         "@/components/ui/card",
         "@/components/ui/input",
+        "@/components/ui/textarea",
         "@/components/ui/scroll-area",
+        "@/components/ui/label",
+        "@/components/ui/dialog",
+        "@/components/ui/select",
+        "xlsx",
+        "exceljs",
+        "jspdf",
         "lucide-react",
-        "react",
-        "pdf-lib"
+        "react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-19T16:26:57.234Z"
+      "mtime": "2026-06-26T23:22:44.038Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -10020,6 +10094,29 @@
       "language": "typescript",
       "mtime": "2026-06-09T17:35:01.498Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSincronizacion.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
+      "moduleName": "src/components/modulos/ModuloSincronizacion.tsx",
+      "exports": [
+        "ModuloSincronizacion"
+      ],
+      "imports": [
+        "@/context/AppContext",
+        "@/components/ui/button",
+        "@/components/ui/card",
+        "@/components/ui/scroll-area",
+        "@/components/ui/badge",
+        "@/components/ui/select",
+        "@/components/ui/checkbox",
+        "@/lib/excel-sync",
+        "@/lib/sync-file-store",
+        "@/lib/utils",
+        "lucide-react",
+        "react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-27T00:47:42.454Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ProgressBar.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ProgressBar.tsx",
       "moduleName": "src/components/ProgressBar.tsx",
@@ -10030,6 +10127,23 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-04T18:25:31.369Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/SelectorImagenWidget.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\SelectorImagenWidget.tsx",
+      "moduleName": "src/components/SelectorImagenWidget.tsx",
+      "exports": [
+        "SelectorImagenWidget"
+      ],
+      "imports": [
+        "react",
+        "@/components/ui/dialog",
+        "@/components/ui/button",
+        "@/components/ui/scroll-area",
+        "@/components/ui/tabs",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-23T16:35:55.690Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/alert.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\alert.tsx",
@@ -10172,6 +10286,19 @@
       "language": "typescript",
       "mtime": "2026-06-05T18:55:58.074Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/slider.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\slider.tsx",
+      "moduleName": "src/components/ui/slider.tsx",
+      "exports": [
+        "SliderProps"
+      ],
+      "imports": [
+        "react",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-22T21:55:38.609Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/tabs.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\tabs.tsx",
       "moduleName": "src/components/ui/tabs.tsx",
@@ -10213,7 +10340,44 @@
         "@/lib/supabase-service"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.394Z"
+      "mtime": "2026-06-26T23:52:51.019Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
+      "moduleName": "src/lib/excel-sync.ts",
+      "exports": [
+        "FilaSincronizacion",
+        "ResultadoSincronizacion",
+        "CriterioCoincidencia",
+        "OpcionesParseoSincronizacion",
+        "AplicacionSincronizacion",
+        "buscarExcelEnCarpeta"
+      ],
+      "imports": [
+        "xlsx"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-27T00:33:17.145Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-to-image.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-to-image.ts",
+      "moduleName": "src/lib/excel-to-image.ts",
+      "exports": [
+        "ExcelRenderOptions",
+        "ExcelRenderResult",
+        "ExcelToHtmlResult"
+      ],
+      "imports": [
+        "html2canvas",
+        "exceljs",
+        "xlsx",
+        "xlsx",
+        "xlsx",
+        "xlsx",
+        "xlsx"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-24T00:28:41.477Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/folder-parser.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\folder-parser.ts",
@@ -10228,13 +10392,15 @@
         "leerArchivoTXT",
         "procesarCarpetaPunto",
         "formatearNombreFoto",
-        "agruparFotosPorSubcarpeta"
+        "agruparFotosPorSubcarpeta",
+        "buscarExcelEnCarpeta",
+        "buscarExcelEnRaiz"
       ],
       "imports": [
         "jszip"
       ],
       "language": "typescript",
-      "mtime": "2026-06-08T18:17:12.175Z"
+      "mtime": "2026-06-27T01:01:11.013Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/nomenclaturas.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\nomenclaturas.ts",
@@ -10250,7 +10416,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-06-10T16:49:06.279Z"
+      "mtime": "2026-06-22T17:13:01.640Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/openrouter.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\openrouter.ts",
@@ -10263,6 +10429,17 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-11T16:36:13.469Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/simmetry.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\simmetry.ts",
+      "moduleName": "src/lib/simmetry.ts",
+      "exports": [
+        "SimetriaResultado",
+        "analizarSimetria"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-23T19:30:00.220Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/storage.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\storage.ts",
@@ -10278,7 +10455,7 @@
         "@/lib/template-file-store"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T01:05:29.434Z"
+      "mtime": "2026-06-26T23:52:07.853Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase-service.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase-service.ts",
@@ -10306,7 +10483,7 @@
         "./supabase"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.396Z"
+      "mtime": "2026-06-22T19:17:55.625Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
@@ -10319,6 +10496,18 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-18T20:52:14.397Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/sync-file-store.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\sync-file-store.ts",
+      "moduleName": "src/lib/sync-file-store.ts",
+      "exports": [
+        "guardarArchivoSincronizacion",
+        "cargarArchivoSincronizacion",
+        "eliminarArchivoSincronizacion"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-06-27T00:43:55.985Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/template-file-store.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\template-file-store.ts",
@@ -10359,7 +10548,18 @@
         "@/context/AppContext"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T15:39:23.541Z"
+      "mtime": "2026-06-23T20:54:09.616Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/excel-sync.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\excel-sync.test.ts",
+      "moduleName": "src/tests/excel-sync.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest",
+        "@/lib/excel-sync"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-27T00:35:15.531Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
@@ -10417,7 +10617,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.401Z"
+      "mtime": "2026-06-27T00:30:41.634Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
@@ -10546,6 +10746,12 @@
       "importType": "named"
     },
     {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
+      "importSpecifier": "./modulos/ModuloSincronizacion",
+      "importType": "named"
+    },
+    {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase-service.ts",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
       "importSpecifier": "./supabase",
@@ -10565,9 +10771,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-06-20T00:37:20.673Z",
+    "generatedAt": "2026-06-27T21:52:29.830Z",
     "generator": "repo-graph",
-    "nodeCount": 759,
-    "edgeCount": 10
+    "nodeCount": 773,
+    "edgeCount": 11
   }
 }

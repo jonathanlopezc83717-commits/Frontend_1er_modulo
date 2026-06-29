@@ -3,6 +3,7 @@ import { Sparkles, Box, Smile, Gauge, Brain, FileText, Images } from 'lucide-rea
 import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { ThinkingLoader } from '@/components/ThinkingLoader'
 
 export function AnalysisResult({ results, imageUrls, isLoading, onResultChange }: AnalysisResultProps) {
   const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null)
@@ -20,16 +21,37 @@ export function AnalysisResult({ results, imageUrls, isLoading, onResultChange }
 
   if (isLoading) {
     return (
-      <div className="bg-surface rounded-xl border border-border p-8 shadow-sm">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-4">
+        <ThinkingLoader
+          rotatingMessages={[
+            'Observando la estructura...',
+            'Identificando materiales...',
+            'Evaluando el terreno...',
+            'Detectando elementos ferroviarios...',
+            'Afinando descripción técnica...',
+          ]}
+        />
+        {/* Skeleton del resultado que se va a mostrar */}
+        <div className="bg-surface rounded-xl border border-border p-6 shadow-sm space-y-6">
+          <div className="flex items-center gap-3 pb-4 border-b border-border">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Sparkles className="w-5 h-5 text-primary/40" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-24 bg-muted/60 rounded animate-pulse" />
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-lg font-medium text-text">Analizando imágenes...</p>
-            <p className="text-sm text-text-muted mt-1">
-              Procesando con IA
-            </p>
+          <div className="space-y-2">
+            <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-full bg-muted/60 rounded animate-pulse" />
+            <div className="h-3 w-5/6 bg-muted/60 rounded animate-pulse" />
+            <div className="h-3 w-4/6 bg-muted/60 rounded animate-pulse" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-6 w-20 bg-muted rounded-full animate-pulse" />
+            <div className="h-6 w-24 bg-muted rounded-full animate-pulse" />
+            <div className="h-6 w-16 bg-muted rounded-full animate-pulse" />
           </div>
         </div>
       </div>

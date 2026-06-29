@@ -199,7 +199,7 @@ function puntoFromDB(db: PuntoDB & { coordenadas_gps?: CoordenadasDB[], document
  */
 export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Guardar punto principal
+    // 1. Verificar existencia + preparar payload del punto principal en paralelo
     const puntoData = puntoToDB(punto)
     const { data: puntoExistente, error: existeError } = await supabase
       .from('puntos_ferroviarios')
@@ -209,6 +209,7 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
 
     if (existeError) throw existeError
 
+    // 2. Guardar punto principal PRIMERO (las relaciones dependen de su existencia vía FK)
     const { error: puntoError } = await supabase
       .from('puntos_ferroviarios')
       .upsert({
@@ -218,70 +219,99 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
 
     if (puntoError) throw puntoError
 
-    // 2. Guardar coordenadas
+    // 3. Lanzar todas las relaciones independientes EN PARALELO
+    const tareasParalelas: Promise<unknown>[] = []
+
+    // 3a. Coordenadas
     const geoData = punto.moduloData?.georeferencia || punto.moduloData?.georeferenciacion
     if (geoData?.coordenadas) {
       const coords = geoData.coordenadas
-      await supabase.from('coordenadas_gps').upsert({
-        punto_id: punto.id,
-        coordenada_x: coords.x,
-        coordenada_y: coords.y,
-        coordenada_z: coords.z,
-        notas: geoData.notas || '',
-      }, { onConflict: 'punto_id' })
-    }
-
-    // 3. Guardar documentación
-    if (punto.moduloData?.documentacion?.notas) {
-      await supabase.from('documentos_punto').upsert({
-        punto_id: punto.id,
-        nombre_archivo: punto.moduloData.documentacion.nombreArchivo || 'documento.txt',
-        contenido: punto.moduloData.documentacion.notas,
-      }, { onConflict: 'punto_id' })
-    }
-
-    // 4. Guardar fotos
-    if (punto.moduloData?.analisis?.fotosIndexadas) {
-      // Eliminar fotos anteriores
-      await supabase.from('fotos_punto').delete().eq('punto_id', punto.id)
-      
-      // Insertar nuevas
-      const fotosDB = await Promise.all(
-        punto.moduloData.analisis.fotosIndexadas.map(async f => ({
-          punto_id: punto.id,
-          indice: f.index,
-          nombre_archivo: f.nombre,
-          nombre_formateado: f.nombreFormateado,
-          subcarpeta: f.subcarpeta,
-          preview_url: f.preview?.startsWith('data:image')
-            ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
-            : f.preview,
-        }))
+      tareasParalelas.push(
+        (async () => {
+          const { error } = await supabase.from('coordenadas_gps').upsert({
+            punto_id: punto.id,
+            coordenada_x: coords.x,
+            coordenada_y: coords.y,
+            coordenada_z: coords.z,
+            notas: geoData.notas || '',
+          }, { onConflict: 'punto_id' })
+          if (error) throw error
+        })()
       )
-      
-      await supabase.from('fotos_punto').insert(fotosDB)
     }
 
-    // 5. Guardar análisis
+    // 3b. Documentación
+    if (punto.moduloData?.documentacion?.notas) {
+      tareasParalelas.push(
+        (async () => {
+          const { error } = await supabase.from('documentos_punto').upsert({
+            punto_id: punto.id,
+            nombre_archivo: punto.moduloData!.documentacion!.nombreArchivo || 'documento.txt',
+            contenido: punto.moduloData!.documentacion!.notas,
+          }, { onConflict: 'punto_id' })
+          if (error) throw error
+        })()
+      )
+    }
+
+    // 3c. Análisis
     if (punto.moduloData?.analisis?.results && punto.moduloData.analisis.results.length > 0) {
       const result = punto.moduloData.analisis.results[0]
-      await supabase.from('analisis_imagenes').upsert({
-        punto_id: punto.id,
-        image_urls: punto.moduloData.analisis.imageUrls || [],
-        description: result.description,
-        objects: result.objects,
-        mood: result.mood,
-        quality: result.quality,
-        model_used: result.modelUsed,
-      }, { onConflict: 'punto_id' })
+      tareasParalelas.push(
+        (async () => {
+          const { error } = await supabase.from('analisis_imagenes').upsert({
+            punto_id: punto.id,
+            image_urls: punto.moduloData!.analisis!.imageUrls || [],
+            description: result.description,
+            objects: result.objects,
+            mood: result.mood,
+            quality: result.quality,
+            model_used: result.modelUsed,
+          }, { onConflict: 'punto_id' })
+          if (error) throw error
+        })()
+      )
     }
 
-    // 6. Registrar en historial
+    // 3d. Fotos (delete + prepare + insert, encadenado dentro de su propia tarea)
+    if (punto.moduloData?.analisis?.fotosIndexadas) {
+      tareasParalelas.push(
+        (async () => {
+          // Limpiar fotos anteriores y preparar nuevas simultáneamente
+          const [, fotosDB] = await Promise.all([
+            supabase.from('fotos_punto').delete().eq('punto_id', punto.id),
+            Promise.all(
+              punto.moduloData!.analisis!.fotosIndexadas!.map(async f => ({
+                punto_id: punto.id,
+                indice: f.index,
+                nombre_archivo: f.nombre,
+                nombre_formateado: f.nombreFormateado,
+                subcarpeta: f.subcarpeta,
+                preview_url: f.preview?.startsWith('data:image')
+                  ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
+                  : f.preview,
+              }))
+            ),
+          ])
+          if (fotosDB.length > 0) {
+            const { error: insertError } = await supabase.from('fotos_punto').insert(fotosDB)
+            if (insertError) throw insertError
+          }
+        })()
+      )
+    }
+
+    await Promise.all(tareasParalelas)
+
+    // 4. Registrar en historial (al final, no bloquea las relaciones)
     const tipoEvento = puntoExistente ? 'actualizacion' : 'creacion'
     const descripcion = puntoExistente
       ? `Punto ${punto.nombre} actualizado`
       : `Punto ${punto.nombre} creado`
-    await registrarHistorial(punto.id, tipoEvento, 'general', descripcion)
+    // Fire-and-forget: el historial no debe bloquear la respuesta al usuario
+    registrarHistorial(punto.id, tipoEvento, 'general', descripcion).catch(err => {
+      console.error('Error registrando historial (no bloqueante):', err)
+    })
 
     return { success: true }
   } catch (error) {
@@ -310,51 +340,41 @@ export async function cargarPuntosCompletos(): Promise<PuntoFerroviario[]> {
     if (puntosError) throw puntosError
     if (!puntosData || puntosData.length === 0) return []
 
-    // 2. Cargar coordenadas
-    const { data: coordsData } = await supabase
-      .from('coordenadas_gps')
-      .select('*')
+    // Filtrar por los puntos activos para reducir el payload de tablas relacionadas
+    const puntoIds = puntosData.map(p => p.id)
+
+    // 2. Lanzar todas las consultas de relaciones EN PARALELO
+    const [coordsResult, docsResult, analisisResult, fotosResult] = await Promise.all([
+      supabase.from('coordenadas_gps').select('*').in('punto_id', puntoIds),
+      supabase.from('documentos_punto').select('*').in('punto_id', puntoIds),
+      supabase.from('analisis_imagenes').select('*').in('punto_id', puntoIds),
+      supabase.from('fotos_punto').select('*').in('punto_id', puntoIds).order('indice', { ascending: true }),
+    ])
 
     const coordsMap = new Map<string, any>()
-    if (coordsData) {
-      for (const c of coordsData) {
+    if (coordsResult.data) {
+      for (const c of coordsResult.data) {
         coordsMap.set(c.punto_id, c)
       }
     }
 
-    // 3. Cargar documentos
-    const { data: docsData } = await supabase
-      .from('documentos_punto')
-      .select('*')
-
     const docsMap = new Map<string, any>()
-    if (docsData) {
-      for (const d of docsData) {
+    if (docsResult.data) {
+      for (const d of docsResult.data) {
         docsMap.set(d.punto_id, d)
       }
     }
 
-    // 4. Cargar análisis
-    const { data: analisisData } = await supabase
-      .from('analisis_imagenes')
-      .select('*')
-
     const analisisMap = new Map<string, any>()
-    if (analisisData) {
-      for (const a of analisisData) {
+    if (analisisResult.data) {
+      for (const a of analisisResult.data) {
         analisisMap.set(a.punto_id, a)
       }
     }
 
-    // 5. Cargar fotos
-    const { data: fotosData } = await supabase
-      .from('fotos_punto')
-      .select('*')
-      .order('indice', { ascending: true })
-
     const fotosMap = new Map<string, any[]>()
-    if (fotosData) {
-      for (const f of fotosData) {
+    if (fotosResult.data) {
+      for (const f of fotosResult.data) {
         if (!fotosMap.has(f.punto_id)) {
           fotosMap.set(f.punto_id, [])
         }
@@ -764,18 +784,52 @@ export async function guardarAnalisis(
 // =====================================================
 
 /**
- * Sincroniza todos los puntos del estado con Supabase
+ * Ejecuta una lista de tareas asíncronas con concurrencia limitada.
+ * Evita saturar Supabase/OpenRouter mientras aprovecha el paralelismo.
  */
-export async function sincronizarPuntos(puntos: PuntoFerroviario[]): Promise<{
+async function runWithConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number,
+  onProgress?: (completadas: number, total: number) => void
+): Promise<T[]> {
+  const resultados: T[] = new Array(tasks.length)
+  let cursor = 0
+  let completadas = 0
+  const total = tasks.length
+
+  const trabajadores = Array.from({ length: Math.min(concurrency, total) }, async () => {
+    while (true) {
+      const index = cursor++
+      if (index >= total) break
+      resultados[index] = await tasks[index]()
+      completadas++
+      onProgress?.(completadas, total)
+    }
+  })
+
+  await Promise.all(trabajadores)
+  return resultados
+}
+
+/**
+ * Sincroniza todos los puntos del estado con Supabase.
+ * Usa concurrencia controlada (lotes) en vez de secuencia pura para reducir
+ * drásticamente el tiempo total con N puntos.
+ */
+export async function sincronizarPuntos(
+  puntos: PuntoFerroviario[],
+  opciones?: { concurrency?: number; onLote?: (guardados: number, total: number) => void }
+): Promise<{
   success: boolean;
   guardados: number;
   errores: number;
   error?: string
 }> {
+  const concurrency = Math.max(1, Math.min(opciones?.concurrency ?? 5, 10))
   let guardados = 0
   let errores = 0
 
-  for (const punto of puntos) {
+  const tareas = puntos.map((punto) => async () => {
     try {
       const result = await guardarPuntoCompleto(punto)
       if (result.success) {
@@ -788,7 +842,11 @@ export async function sincronizarPuntos(puntos: PuntoFerroviario[]): Promise<{
       errores++
       console.error(`Error excepción punto ${punto.numeroSerie}:`, err)
     }
-  }
+  })
+
+  await runWithConcurrency(tareas, concurrency, (completadas) => {
+    opciones?.onLote?.(completadas, puntos.length)
+  })
 
   return {
     success: errores === 0,

@@ -358,7 +358,7 @@ export function ModuloAnalisis() {
         <AnalysisResult
           results={analysisResults}
           imageUrls={imageUrls}
-          isLoading={false}
+          isLoading={isAnalyzing}
           onResultChange={handleResultChange}
         />
         {error && (

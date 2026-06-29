@@ -5922,36 +5922,6 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:57.091Z"
     },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\__init__.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py",
-      "exports": [],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.120Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\bindings.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py",
-      "exports": [
-        "load_cdll",
-        "CFConst",
-        "SecurityConst"
-      ],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.122Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\low_level.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py",
-      "exports": [
-        "TLS_PROTOCOL_VERSIONS"
-      ],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.123Z"
-    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\appengine.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py",
@@ -6094,32 +6064,6 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:57.125Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\__init__.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py",
-      "exports": [],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.134Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\makefile.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py",
-      "exports": [],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.138Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\weakref_finalize.py",
-      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py",
-      "exports": [
-        "weakref_finalize"
-      ],
-      "imports": [],
-      "language": "python",
-      "mtime": "2026-06-19T23:57:57.140Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/six.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\six.py",
@@ -10771,9 +10715,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-06-27T21:52:29.830Z",
+    "generatedAt": "2026-06-29T15:31:28.801Z",
     "generator": "repo-graph",
-    "nodeCount": 773,
+    "nodeCount": 767,
     "edgeCount": 11
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Clock, Loader2, MessageSquare } from 'lucide-react'
+import { Clock, MessageSquare, Brain } from 'lucide-react'
 
 interface ProgressBarProps {
   progress: number
@@ -102,11 +102,13 @@ export function ProgressBar({
 
   return (
     <div className="bg-surface rounded-xl border border-border p-6 shadow-sm space-y-4">
-      {/* Header con spinner y porcentaje */}
+      {/* Header con cerebro animado y porcentaje */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <div className="relative w-10 h-10 flex items-center justify-center">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-primary/30 animate-ping" />
+            <span className="absolute inline-flex h-3/4 w-3/4 rounded-full bg-primary/15 animate-pulse" />
+            <Brain className="relative w-5 h-5 text-primary animate-pulse" />
           </div>
           <div>
             <p className="text-lg font-medium text-text">{getProgressText()}</p>
@@ -117,7 +119,7 @@ export function ProgressBar({
         </div>
 
         <div className="text-right">
-          <p className="text-3xl font-bold text-primary">{Math.round(displayProgress)}%</p>
+          <p className="text-3xl font-bold text-primary tabular-nums">{Math.round(displayProgress)}%</p>
         </div>
       </div>
 

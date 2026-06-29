@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube } from '@/lib/supabase-service'
 import type { EstadoGuardado } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { ThinkingLoader } from '@/components/ThinkingLoader'
 
 function App() {
   const { state, sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo } = useApp()
@@ -86,12 +87,8 @@ function App() {
     setMostrarDialogoGuardar(false)
     setSincronizando(true)
     try {
-      const result = await sincronizarConSupabase(titulo || undefined)
-      if (result.success) {
-        toast.success(result.message)
-      } else {
-        toast.error(result.message)
-      }
+      // El feedback de progreso y resultado lo gestiona el contexto vía toasts.
+      await sincronizarConSupabase(titulo || undefined)
     } catch {
       toast.error('Error al sincronizar')
     } finally {
@@ -307,8 +304,17 @@ function App() {
           </DialogHeader>
 
           {estadoNubeCargando ? (
-            <div className="py-4 text-center text-muted-foreground">
-              Cargando estados desde la nube...
+            <div className="py-6 flex flex-col items-center gap-3">
+              <ThinkingLoader
+                variant="compact"
+                size={48}
+                message="Cargando estados desde la nube"
+                rotatingMessages={[
+                  'Cargando estados desde la nube',
+                  'Consultando Supabase',
+                  'Preparando lista de estados',
+                ]}
+              />
             </div>
           ) : estadosNubeLista.length > 0 ? (
             <div className="space-y-3">

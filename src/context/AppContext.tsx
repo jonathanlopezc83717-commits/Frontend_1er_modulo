@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import type { PuntoFerroviario, AppState, AppAction, EstadoGuardado, ImageAnalysisResult, PlantillaFormato, PlantillaPdfFormato } from '@/types'
 import { guardarEstado, cargarEstado, cargarEstadoCompleto } from '@/lib/storage'
 import { cargarArchivosPlantilla } from '@/lib/template-file-store'
@@ -539,10 +540,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const sincronizarConSupabase = useCallback(async () => {
     try {
       const copiaManual = crearCopiaSeguridad('manual', 'Estado guardado manualmente')
-      const result = await sincronizarPuntos(state.puntos)
-      const snapshotResult = await guardarEstadoAppEnNube(copiaManual)
+      const total = state.puntos.length
+      const toastId = toast.loading('Sincronizando con la nube...', {
+        description: `0 / ${total} puntos`,
+      })
+
+      // Sincronizar puntos y snapshot en paralelo: son independientes entre sí
+      const [result, snapshotResult] = await Promise.all([
+        sincronizarPuntos(state.puntos, {
+          concurrency: 5,
+          onLote: (completadas, tot) => {
+            toast.loading('Sincronizando con la nube...', {
+              id: toastId,
+              description: `${completadas} / ${tot} puntos`,
+            })
+          },
+        }),
+        guardarEstadoAppEnNube(copiaManual),
+      ])
 
       if (!snapshotResult.success) {
+        toast.error('El estado completo no se guardó en la nube', {
+          id: toastId,
+          description: snapshotResult.error || 'error desconocido',
+        })
         return {
           success: false,
           message: `Puntos sincronizados, pero el estado completo no se guardo en nube: ${snapshotResult.error || 'error desconocido'}`,
@@ -550,8 +571,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (result.success) {
+        toast.success('Sincronización completada', {
+          id: toastId,
+          description: `${result.guardados} puntos guardados`,
+        })
         return { success: true, message: `${result.guardados} puntos sincronizados correctamente` }
       } else {
+        toast.warning('Sincronización con errores', {
+          id: toastId,
+          description: result.error || 'algunos puntos fallaron',
+        })
         return { success: false, message: result.error || 'Error en sincronización' }
       }
     } catch (error) {

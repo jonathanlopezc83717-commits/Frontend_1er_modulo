@@ -483,3 +483,193 @@ export function mapearColumnaAPuntos(
 
   return { filas, coincidencias, noEncontrados, vacios }
 }
+
+// =====================================================
+// PARSEO DE CSV
+// =====================================================
+
+export interface DatosCSV {
+  /** Encabezados (primera fila) */
+  encabezados: string[]
+  /** Filas de datos (sin contar encabezado) */
+  filas: string[][]
+  /** Número total de filas de datos */
+  totalFilas: number
+  /** Delimitador detectado */
+  delimitador: string
+}
+
+/**
+ * Detecta el delimitador más probable del CSV analizando la primera línea
+ * con datos. Soporta coma, punto y coma y tabulador.
+ */
+function detectarDelimitador(texto: string): string {
+  const primeraLinea = texto.split(/\r?\n/).find((l) => l.trim() !== '') || ''
+  const candidatos = [
+    { delim: ';', count: (primeraLinea.match(/;/g) || []).length },
+    { delim: ',', count: (primeraLinea.match(/,/g) || []).length },
+    { delim: '\t', count: (primeraLinea.match(/\t/g) || []).length },
+  ]
+  candidatos.sort((a, b) => b.count - a.count)
+  return candidatos[0].count > 0 ? candidatos[0].delim : ','
+}
+
+/**
+ * Divide una línea respetando comillas. El separador puede ser ',', ';' o '\t'.
+ */
+function dividirLineaCSV(linea: string, delimitador: string): string[] {
+  const celdas: string[] = []
+  let actual = ''
+  let dentroComillas = false
+
+  for (let i = 0; i < linea.length; i++) {
+    const char = linea[i]
+
+    if (char === '"') {
+      // Comilla escapada con doble comilla ("")
+      if (dentroComillas && linea[i + 1] === '"') {
+        actual += '"'
+        i++
+      } else {
+        dentroComillas = !dentroComillas
+      }
+    } else if (char === delimitador && !dentroComillas) {
+      celdas.push(actual)
+      actual = ''
+    } else {
+      actual += char
+    }
+  }
+  celdas.push(actual)
+  return celdas.map((c) => c.trim())
+}
+
+/**
+ * Parsea un archivo CSV completo.
+ * Detecta automáticamente el delimitador (coma, punto y coma o tabulador).
+ * Asume que la primera fila contiene los encabezados.
+ */
+export function parsearCSV(texto: string): DatosCSV {
+  // Normalizar saltos de línea y eliminar BOM si existe
+  const limpio = texto.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const delimitador = detectarDelimitador(limpio)
+
+  const lineas = limpio.split('\n').filter((l) => l.trim() !== '')
+  if (lineas.length === 0) {
+    return { encabezados: [], filas: [], totalFilas: 0, delimitador }
+  }
+
+  const encabezados = dividirLineaCSV(lineas[0], delimitador)
+  const filas: string[][] = []
+
+  for (let i = 1; i < lineas.length; i++) {
+    const fila = dividirLineaCSV(lineas[i], delimitador)
+    // Rellenar o recortar para que coincida con el número de encabezados
+    while (fila.length < encabezados.length) fila.push('')
+    fila.length = encabezados.length
+    filas.push(fila)
+  }
+
+  return { encabezados, filas, totalFilas: filas.length, delimitador }
+}
+
+/**
+ * Lee un File/ArrayBuffer CSV y devuelve los datos estructurados.
+ */
+export async function leerCSV(archivo: File | ArrayBuffer): Promise<DatosCSV> {
+  const texto = archivo instanceof File ? await archivo.text() : new TextDecoder().decode(archivo)
+  return parsearCSV(texto)
+}
+
+// =====================================================
+// GENERACIÓN DE HTML DESDE CSV
+// =====================================================
+
+function escaparHTML(valor: string): string {
+  return valor
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Genera un documento HTML completo y autónomo con una tabla que respeta
+ * exactamente las columnas del CSV. Pensado para descargar como .html.
+ */
+export function generarHTMLDesdeCSV(datos: DatosCSV, titulo = 'Datos importados'): string {
+  const { encabezados, filas } = datos
+
+  const ths = encabezados
+    .map((h) => `          <th>${escaparHTML(h)}</th>`)
+    .join('\n')
+
+  const trs = filas
+    .map(
+      (fila) =>
+        `          <tr>\n${fila
+          .map((c) => `            <td>${escaparHTML(c)}</td>`)
+          .join('\n')}\n          </tr>`
+    )
+    .join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escaparHTML(titulo)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 16px; }
+    .tabla-wrap { overflow-x: auto; background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+    thead { background: #f1f5f9; }
+    th { font-weight: 600; text-align: left; color: #475569; }
+    th, td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <h1>${escaparHTML(titulo)}</h1>
+  <p class="meta">${filas.length} filas · ${encabezados.length} columnas · Generado el ${new Date().toLocaleString('es-ES')}</p>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+${ths}
+        </tr>
+      </thead>
+      <tbody>
+${trs}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`
+}
+
+/**
+ * Dispara la descarga de un archivo HTML en el navegador.
+ */
+export function descargarHTML(contenido: string, nombreArchivo = 'datos-importados.html'): void {
+  const blob = new Blob([contenido], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombreArchivo
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}

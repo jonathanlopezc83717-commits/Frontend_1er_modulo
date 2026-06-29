@@ -7,15 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   aplicarSincronizacion,
-  buscarExcelEnCarpeta,
   compararSincronizacion,
   parsearExcelSincronizacion,
+  parsearCSV,
+  generarHTMLDesdeCSV,
+  descargarHTML,
   type CriterioCoincidencia,
   type FilaSincronizacion,
   type ResultadoSincronizacion,
+  type DatosCSV,
 } from '@/lib/excel-sync'
 import { cargarArchivoSincronizacion, eliminarArchivoSincronizacion, guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { generarUUID } from '@/lib/utils'
+import { ThinkingLoader } from '@/components/ThinkingLoader'
 import {
   CheckCircle2,
   FileSpreadsheet,
@@ -27,6 +31,8 @@ import {
   AlertTriangle,
   MapPin,
   Trash2,
+  Download,
+  FileCode,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -66,8 +72,12 @@ export function ModuloSincronizacion() {
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
 
+  // Datos crudos del CSV escaneado (para vista previa HTML)
+  const [datosCSV, setDatosCSV] = useState<DatosCSV | null>(null)
+  const [mostrarHTML, setMostrarHTML] = useState(false)
+
   const carpetaInputRef = useRef<HTMLInputElement>(null)
-  const excelInputRef = useRef<HTMLInputElement>(null)
+  const csvInputRef = useRef<HTMLInputElement>(null)
   const ultimoArchivoRef = useRef<File | ArrayBuffer | null>(null)
 
   const dataGuardada: SincronizacionData | undefined = punto?.moduloData?.sincronizacion as SincronizacionData | undefined
@@ -94,6 +104,7 @@ export function ModuloSincronizacion() {
     setResultados(compararSincronizacion(filas, state.puntos, state.nomenclaturasGlobales, criterio))
   }, [filas, state.puntos, state.nomenclaturasGlobales, criterio])
 
+  // Re-parseo cuando cambia la opción de encabezado
   useEffect(() => {
     const archivo = ultimoArchivoRef.current
     if (!archivo) return
@@ -101,11 +112,15 @@ export function ModuloSincronizacion() {
       setProcesando(true)
       try {
         const buffer = archivo instanceof File ? await archivo.arrayBuffer() : archivo
+        // Recuperar texto original para re-escanear el CSV
+        const texto = new TextDecoder().decode(buffer)
+        const datos = await parsearCSVInterno(texto, saltarEncabezado)
+        setDatosCSV(datos)
         const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
         setFilas(nuevasFilas)
         setMensaje(`${nuevasFilas.length} filas leídas`)
       } catch (error) {
-        setMensaje(`Error leyendo Excel: ${String(error)}`)
+        setMensaje(`Error leyendo CSV: ${String(error)}`)
       } finally {
         setProcesando(false)
       }
@@ -120,6 +135,7 @@ export function ModuloSincronizacion() {
       setNombreArchivo('')
       setArchivoId(null)
       setMensaje(null)
+      setDatosCSV(null)
       ultimoArchivoRef.current = null
       return
     }
@@ -131,6 +147,7 @@ export function ModuloSincronizacion() {
       setNombreArchivo('')
       setArchivoId(null)
       setMensaje(null)
+      setDatosCSV(null)
       ultimoArchivoRef.current = null
       return
     }
@@ -142,31 +159,42 @@ export function ModuloSincronizacion() {
       try {
         const buffer = await cargarArchivoSincronizacion(sincronizacion.archivoId!)
         if (!buffer) {
-          setMensaje('No se encontró el archivo Excel guardado. Vuelve a cargarlo.')
+          setMensaje('No se encontró el archivo guardado. Vuelve a cargarlo.')
           setProcesando(false)
           return
         }
         ultimoArchivoRef.current = buffer
+        const texto = new TextDecoder().decode(buffer)
+        const datos = await parsearCSVInterno(texto, saltarEncabezado)
+        setDatosCSV(datos)
         const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
         setFilas(nuevasFilas)
         setMensaje(`${nuevasFilas.length} filas cargadas desde ${sincronizacion.archivoNombre}`)
       } catch (error) {
-        setMensaje(`Error cargando Excel guardado: ${String(error)}`)
+        setMensaje(`Error cargando archivo guardado: ${String(error)}`)
       } finally {
         setProcesando(false)
       }
     }
 
     cargar()
-    // Solo se recarga cuando cambia el punto activo o la opción de encabezado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [punto?.id, saltarEncabezado])
+  }, [punto?.id])
+
+  // Helper local: parsea el texto crudo del CSV para la vista previa HTML
+  const parsearCSVInterno = async (texto: string, _saltar: boolean): Promise<DatosCSV> => {
+    // parsearCSV ya trata la primera fila como encabezado
+    return parsearCSV(texto)
+  }
 
   const parsearBuffer = async (buffer: ArrayBuffer, nombre: string) => {
+    const texto = new TextDecoder().decode(buffer)
+    const datos = parsearCSV(texto)
+    setDatosCSV(datos)
     const nuevasFilas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
     setFilas(nuevasFilas)
     setNombreArchivo(nombre)
-    setMensaje(`${nuevasFilas.length} filas leídas desde ${nombre}`)
+    setMensaje(`${nuevasFilas.length} filas · ${datos.encabezados.length} columnas leídas desde ${nombre}`)
   }
 
   const persistirArchivo = async (buffer: ArrayBuffer, nombre: string, ruta: string) => {
@@ -200,8 +228,8 @@ export function ModuloSincronizacion() {
       await parsearBuffer(buffer, file.name)
       await persistirArchivo(buffer, file.name, file.webkitRelativePath || file.name)
     } catch (error) {
-      console.error('Error leyendo Excel:', error)
-      setMensaje(`Error leyendo Excel: ${String(error)}`)
+      console.error('Error leyendo CSV:', error)
+      setMensaje(`Error leyendo CSV: ${String(error)}`)
     } finally {
       setProcesando(false)
     }
@@ -211,17 +239,17 @@ export function ModuloSincronizacion() {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    const excel = buscarExcelEnCarpeta(files)
-    if (!excel) {
-      setMensaje('No se encontró un archivo Excel (.xlsx o .xls) en la carpeta seleccionada')
+    const csv = buscarCSVEnCarpeta(files)
+    if (!csv) {
+      setMensaje('No se encontró un archivo CSV (.csv) en la carpeta seleccionada')
       return
     }
 
-    await procesarArchivo(excel)
+    await procesarArchivo(csv)
     e.target.value = ''
   }
 
-  const handleSeleccionarExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeleccionarCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     await procesarArchivo(file)
@@ -240,6 +268,7 @@ export function ModuloSincronizacion() {
     setResultados([])
     setNombreArchivo('')
     setArchivoId(null)
+    setDatosCSV(null)
     setMensaje('Archivo de sincronización eliminado')
 
     if (punto) {
@@ -247,6 +276,14 @@ export function ModuloSincronizacion() {
       delete restoModuloData.sincronizacion
       actualizarPunto(punto.id, { moduloData: restoModuloData })
     }
+  }
+
+  const handleDescargarHTML = () => {
+    if (!datosCSV) return
+    const titulo = nombreArchivo ? nombreArchivo.replace(/\.csv$/i, '') : 'Datos importados'
+    const html = generarHTMLDesdeCSV(datosCSV, titulo)
+    const nombreSalida = `${titulo}.html`
+    descargarHTML(html, nombreSalida)
   }
 
   const handleSincronizar = async () => {
@@ -293,11 +330,13 @@ export function ModuloSincronizacion() {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <FileSpreadsheet className="mb-3 h-12 w-12 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground">Selecciona un punto para sincronizar con Excel</p>
+          <p className="text-muted-foreground">Selecciona un punto para sincronizar con CSV</p>
         </CardContent>
       </Card>
     )
   }
+
+  // HTML generado para descarga (se construye al pulsar el botón)
 
   return (
     <ScrollArea className="h-[calc(100vh-220px)]">
@@ -319,10 +358,16 @@ export function ModuloSincronizacion() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-5 w-5 text-primary" />
-                <CardTitle>Sincronización Excel</CardTitle>
+                <CardTitle>Sincronización CSV → HTML</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {nombreArchivo && <Badge variant="outline">{nombreArchivo}</Badge>}
+                {datosCSV && (
+                  <Badge variant="secondary" className="gap-1">
+                    <FileCode className="h-3 w-3" />
+                    {datosCSV.encabezados.length} cols · {datosCSV.totalFilas} filas
+                  </Badge>
+                )}
                 {dataGuardada?.sincronizadoEn && (
                   <Badge variant="secondary" className="gap-1">
                     <CheckCircle2 className="h-3 w-3" />
@@ -337,22 +382,34 @@ export function ModuloSincronizacion() {
                   onChange={handleSeleccionarCarpeta}
                 />
                 <input
-                  ref={excelInputRef}
+                  ref={csvInputRef}
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".csv,text/csv"
                   className="hidden"
-                  onChange={handleSeleccionarExcel}
+                  onChange={handleSeleccionarCSV}
                 />
                 <Button variant="outline" size="sm" onClick={() => carpetaInputRef.current?.click()} disabled={procesando}>
                   <FolderInput className="mr-2 h-4 w-4" />
                   Seleccionar carpeta
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => excelInputRef.current?.click()} disabled={procesando}>
+                <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()} disabled={procesando}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Cargar Excel
+                  Cargar CSV
                 </Button>
+                {datosCSV && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setMostrarHTML(!mostrarHTML)}>
+                      <FileCode className="mr-2 h-4 w-4" />
+                      {mostrarHTML ? 'Ocultar HTML' : 'Ver HTML'}
+                    </Button>
+                    <Button variant="default" size="sm" onClick={handleDescargarHTML}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Descargar HTML
+                    </Button>
+                  </>
+                )}
                 {(nombreArchivo || dataGuardada?.archivoId) && (
-                  <Button variant="ghost" size="icon" onClick={handleLimpiarArchivo} disabled={procesando} title="Eliminar archivo de sincronización">
+                  <Button variant="ghost" size="icon" onClick={handleLimpiarArchivo} disabled={procesando} title="Eliminar archivo">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 )}
@@ -415,6 +472,14 @@ export function ModuloSincronizacion() {
               </div>
             </div>
 
+            {procesando && (
+              <ThinkingLoader
+                variant="compact"
+                message="Procesando CSV"
+                rotatingMessages={['Leyendo archivo CSV', 'Detectando columnas', 'Generando tabla HTML']}
+              />
+            )}
+
             {dataGuardada?.ruta && (
               <div className="rounded-lg border p-3 text-sm bg-muted/50">
                 <p className="font-medium">Archivo vinculado desde la carpeta</p>
@@ -430,6 +495,32 @@ export function ModuloSincronizacion() {
             {mensaje && (
               <div className={`rounded-lg border p-3 text-sm ${mensaje.startsWith('Error') ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-muted/50'}`}>
                 {mensaje}
+              </div>
+            )}
+
+            {/* Vista previa de la tabla HTML con las mismas columnas del CSV */}
+            {mostrarHTML && datosCSV && datosCSV.totalFilas > 0 && (
+              <div className="rounded-lg border overflow-auto max-h-[400px]">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/60 sticky top-0">
+                    <tr>
+                      {datosCSV.encabezados.map((h, i) => (
+                        <th key={i} className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                          {h || `Columna ${i + 1}`}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datosCSV.filas.map((fila, fi) => (
+                      <tr key={fi} className="border-t">
+                        {fila.map((c, ci) => (
+                          <td key={ci} className="px-3 py-2 whitespace-nowrap">{c}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
@@ -463,9 +554,9 @@ export function ModuloSincronizacion() {
                   )}
                 </div>
 
-                <div className="rounded-lg border overflow-auto">
+                <div className="rounded-lg border overflow-auto max-h-[400px]">
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/60">
+                    <thead className="bg-muted/60 sticky top-0">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium w-24">No. Punto</th>
                         <th className="px-3 py-2 text-left font-medium">X</th>
@@ -504,7 +595,7 @@ export function ModuloSincronizacion() {
             {filas.length === 0 && !procesando && (
               <div className="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 text-sm text-muted-foreground">
                 <FileSpreadsheet className="mb-2 h-8 w-8 opacity-40" />
-                Selecciona una carpeta o un archivo Excel para comenzar
+                Selecciona una carpeta o un archivo CSV (.csv) para comenzar
               </div>
             )}
           </CardContent>
@@ -512,4 +603,22 @@ export function ModuloSincronizacion() {
       </div>
     </ScrollArea>
   )
+}
+
+// =====================================================
+// HELPERS LOCALES
+// =====================================================
+
+/**
+ * Busca un archivo CSV dentro de un FileList obtenido de <input webkitdirectory>.
+ */
+function buscarCSVEnCarpeta(files: FileList): File | null {
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index]
+    const ext = file.name.toLowerCase().split('.').pop()
+    if (ext === 'csv') {
+      return file
+    }
+  }
+  return null
 }

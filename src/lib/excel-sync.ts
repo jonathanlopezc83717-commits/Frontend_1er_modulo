@@ -280,14 +280,206 @@ export function aplicarSincronizacion(
 
 /**
  * Busca un archivo Excel dentro de un FileList obtenido de <input webkitdirectory>.
+ * Soporta extensiones .xlsx, .xls, .xlsm, .xlsb, .csv y .ods.
  */
 export function buscarExcelEnCarpeta(files: FileList): File | null {
+  const extensionesValidas = new Set(['xlsx', 'xls', 'xlsm', 'xlsb', 'csv', 'ods'])
   for (let index = 0; index < files.length; index++) {
     const file = files[index]
     const ext = file.name.toLowerCase().split('.').pop()
-    if (ext === 'xlsx' || ext === 'xls') {
+    if (ext && extensionesValidas.has(ext)) {
       return file
     }
   }
   return null
+}
+
+// =====================================================
+// ESCANEO GENÉRICO DE EXCEL
+// =====================================================
+
+export interface ColumnaEscaneada {
+  /** Índice 0-based de la columna */
+  index: number
+  /** Encabezado leído de la primera fila (o "Columna N" si está vacío) */
+  encabezado: string
+  /** Número de filas con datos en esta columna */
+  celdasConDatos: number
+}
+
+export interface HojaEscaneada {
+  /** Nombre de la hoja */
+  nombre: string
+  /** Índice 0-based de la hoja */
+  index: number
+  /** Filas completas tal cual están en el Excel (cada celda convertida a string) */
+  filas: string[][]
+  /** Encabezados detectados (primera fila no vacía) */
+  encabezados: string[]
+  /** Metadatos de cada columna para ayudar al usuario a elegir */
+  columnas: ColumnaEscaneada[]
+  /** Número total de filas con datos */
+  totalFilas: number
+}
+
+export interface ExcelEscaneado {
+  hojas: HojaEscaneada[]
+  hojaActiva: number
+}
+
+function celdaATexto(valor: unknown): string {
+  if (valor === null || valor === undefined) return ''
+  if (typeof valor === 'number') {
+    // Evitar notación científica para números grandes y recortar decimales largos
+    if (Number.isInteger(valor)) return String(valor)
+    return String(parseFloat(valor.toFixed(10)))
+  }
+  if (valor instanceof Date) {
+    return valor.toISOString().split('T')[0]
+  }
+  return String(valor).replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Escanea un Excel completo y devuelve TODAS las hojas con todas sus celdas
+ * convertidas a texto, preservando el orden original.
+ * A diferencia de parsearExcelSincronizacion, no asume ningún formato de columnas.
+ */
+export async function escanearExcelCompleto(
+  buffer: ArrayBuffer,
+  opciones: { saltarEncabezado?: boolean } = {}
+): Promise<ExcelEscaneado> {
+  const XLSX = await import('xlsx')
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+
+  const hojas: HojaEscaneada[] = workbook.SheetNames.map((nombreHoja, hojaIndex) => {
+    const worksheet = workbook.Sheets[nombreHoja]
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, {
+      header: 1,
+      defval: '',
+      raw: false,
+    })
+
+    const filas: string[][] = rows.map((row) =>
+      Array.isArray(row) ? row.map(celdaATexto) : [celdaATexto(row)]
+    )
+
+    // Filtrar filas completamente vacías del final
+    while (filas.length > 0 && filas[filas.length - 1].every((c) => c === '')) {
+      filas.pop()
+    }
+
+    // Detectar encabezados en la primera fila con datos
+    const primeraFila = filas[0] || []
+    const maxCols = filas.reduce((max, r) => Math.max(max, r.length), 0)
+
+    const encabezados: string[] = []
+    const columnas: ColumnaEscaneada[] = []
+
+    for (let col = 0; col < maxCols; col++) {
+      const encabezado = primeraFila[col] || `Columna ${col + 1}`
+      encabezados.push(encabezado)
+
+      // Contar celdas con datos (saltando el encabezado si aplica)
+      const inicioDatos = opciones.saltarEncabezado ? 1 : 0
+      let celdasConDatos = 0
+      for (let f = inicioDatos; f < filas.length; f++) {
+        if (filas[f][col] !== '' && filas[f][col] !== undefined) {
+          celdasConDatos++
+        }
+      }
+      columnas.push({ index: col, encabezado, celdasConDatos })
+    }
+
+    return {
+      nombre: nombreHoja,
+      index: hojaIndex,
+      filas,
+      encabezados,
+      columnas,
+      totalFilas: filas.length,
+    }
+  })
+
+  return { hojas, hojaActiva: 0 }
+}
+
+// =====================================================
+// MAPEO POR COLUMNA DE REFERENCIA
+// =====================================================
+
+export interface FilaReferencia {
+  /** Valor de la columna elegida como referencia */
+  valorReferencia: string
+  /** Fila completa como array de strings */
+  fila: string[]
+  /** Índice original en la hoja */
+  filaIndex: number
+  /** Id del punto coincidente si se encontró */
+  puntoId?: string
+  /** Nombre del punto coincidente si se encontró */
+  puntoNombre?: string
+  /** Estado del mapeo */
+  estado: 'ok' | 'punto_no_encontrado' | 'valor_vacio'
+}
+
+export interface ResultadoMapeoColumna {
+  filas: FilaReferencia[]
+  coincidencias: number
+  noEncontrados: number
+  vacios: number
+}
+
+/**
+ * Toma una columna del Excel escaneado y la usa como referencia para
+ * mapear cada fila contra los puntos ferroviarios existentes.
+ */
+export function mapearColumnaAPuntos(
+  hoja: HojaEscaneada,
+  columnaIndex: number,
+  puntos: PuntoFerroviario[],
+  criterio: CriterioCoincidencia,
+  opciones: { saltarEncabezado?: boolean } = {}
+): ResultadoMapeoColumna {
+  const inicio = opciones.saltarEncabezado ? 1 : 0
+  let coincidencias = 0
+  let noEncontrados = 0
+  let vacios = 0
+
+  const filas: FilaReferencia[] = []
+
+  for (let f = inicio; f < hoja.filas.length; f++) {
+    const fila = hoja.filas[f]
+    const valorReferencia = (fila[columnaIndex] || '').trim()
+
+    if (!valorReferencia) {
+      vacios++
+      filas.push({ valorReferencia, fila, filaIndex: f, estado: 'valor_vacio' })
+      continue
+    }
+
+    const punto = puntos.find((p) => {
+      if (criterio === 'numeroSerie') {
+        return String(p.numeroSerie).trim() === valorReferencia
+      }
+      return p.nombre.trim().toLowerCase() === valorReferencia.toLowerCase()
+    })
+
+    if (punto) {
+      coincidencias++
+      filas.push({
+        valorReferencia,
+        fila,
+        filaIndex: f,
+        puntoId: punto.id,
+        puntoNombre: punto.nombre,
+        estado: 'ok',
+      })
+    } else {
+      noEncontrados++
+      filas.push({ valorReferencia, fila, filaIndex: f, estado: 'punto_no_encontrado' })
+    }
+  }
+
+  return { filas, coincidencias, noEncontrados, vacios }
 }

@@ -9663,10 +9663,11 @@
         "@/components/ui/label",
         "sonner",
         "@/lib/supabase-service",
-        "@/components/ui/alert"
+        "@/components/ui/alert",
+        "@/components/ThinkingLoader"
       ],
       "language": "typescript",
-      "mtime": "2026-06-23T02:32:38.159Z"
+      "mtime": "2026-06-29T17:51:49.742Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/AnalysisResult.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\AnalysisResult.tsx",
@@ -9678,10 +9679,11 @@
         "lucide-react",
         "react",
         "@/components/ui/dialog",
-        "@/components/ui/textarea"
+        "@/components/ui/textarea",
+        "@/components/ThinkingLoader"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.379Z"
+      "mtime": "2026-06-29T17:49:23.257Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/DiagnosticoHistorial.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\DiagnosticoHistorial.tsx",
@@ -9865,7 +9867,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-18T20:52:14.385Z"
+      "mtime": "2026-06-29T17:50:02.412Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloDocumentacion.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloDocumentacion.tsx",
@@ -10055,11 +10057,12 @@
         "@/lib/excel-sync",
         "@/lib/sync-file-store",
         "@/lib/utils",
+        "@/components/ThinkingLoader",
         "lucide-react",
         "react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T00:47:42.454Z"
+      "mtime": "2026-06-29T20:33:50.622Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ProgressBar.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ProgressBar.tsx",
@@ -10070,7 +10073,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-04T18:25:31.369Z"
+      "mtime": "2026-06-29T17:49:48.957Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/SelectorImagenWidget.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\SelectorImagenWidget.tsx",
@@ -10088,6 +10091,17 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-23T16:35:55.690Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/ThinkingLoader.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ThinkingLoader.tsx",
+      "moduleName": "src/components/ThinkingLoader.tsx",
+      "exports": [],
+      "imports": [
+        "react",
+        "lucide-react"
+      ],
+      "language": "typescript",
+      "mtime": "2026-06-29T17:48:58.693Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ui/alert.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ui\\alert.tsx",
@@ -10277,6 +10291,7 @@
       ],
       "imports": [
         "react",
+        "sonner",
         "@/lib/storage",
         "@/lib/template-file-store",
         "@/lib/utils",
@@ -10284,7 +10299,7 @@
         "@/lib/supabase-service"
       ],
       "language": "typescript",
-      "mtime": "2026-06-26T23:52:51.019Z"
+      "mtime": "2026-06-29T17:51:22.423Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
@@ -10295,13 +10310,24 @@
         "CriterioCoincidencia",
         "OpcionesParseoSincronizacion",
         "AplicacionSincronizacion",
-        "buscarExcelEnCarpeta"
+        "buscarExcelEnCarpeta",
+        "ColumnaEscaneada",
+        "HojaEscaneada",
+        "ExcelEscaneado",
+        "FilaReferencia",
+        "ResultadoMapeoColumna",
+        "DatosCSV",
+        "parsearCSV",
+        "leerCSV",
+        "generarHTMLDesdeCSV",
+        "descargarHTML"
       ],
       "imports": [
+        "xlsx",
         "xlsx"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T00:33:17.145Z"
+      "mtime": "2026-06-29T20:31:40.698Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-to-image.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-to-image.ts",
@@ -10420,14 +10446,13 @@
         "obtenerUltimoEstadoAppDesdeNube",
         "obtenerHistorialPunto",
         "obtenerHistorialCompleto",
-        "sincronizarPuntos",
         "cargarPuntosDesdeDB"
       ],
       "imports": [
         "./supabase"
       ],
       "language": "typescript",
-      "mtime": "2026-06-22T19:17:55.625Z"
+      "mtime": "2026-06-29T17:48:06.162Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
@@ -10715,9 +10740,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-06-29T15:31:28.801Z",
+    "generatedAt": "2026-06-29T21:04:40.903Z",
     "generator": "repo-graph",
-    "nodeCount": 767,
+    "nodeCount": 768,
     "edgeCount": 11
   }
 }

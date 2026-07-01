@@ -77,6 +77,22 @@ describe('compararSincronizacion', () => {
     expect(resultados[0].estado).toBe('ok')
     expect(resultados[0].puntoId).toBe('p2')
   })
+
+  it('coincide nomenclatura por prefijo (EUR1 -> EUR)', () => {
+    const noms: NomenclaturaEntry[] = [
+      { id: 'eur', codigo: 'EUR', definicion: 'Eural' },
+      { id: 'adr', codigo: 'ADR', definicion: 'Adherencia' },
+    ]
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 1, y: 2, z: 3, codigo: 'EUR1' },
+      { numeroPunto: '2', x: 1, y: 2, z: 3, codigo: 'ADR70' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, noms, 'numeroSerie')
+    expect(resultados[0].estado).toBe('ok')
+    expect(resultados[0].nomenclatura?.codigo).toBe('EUR')
+    expect(resultados[1].estado).toBe('ok')
+    expect(resultados[1].nomenclatura?.codigo).toBe('ADR')
+  })
 })
 
 describe('aplicarSincronizacion', () => {
@@ -128,6 +144,26 @@ describe('aplicarSincronizacion', () => {
       puntos,
       nomenclaturas,
       { agregarNomenclaturasFaltantes: false }
+    )
+
+    expect(resumen.nomenclaturasAgregadas).toBe(0)
+    expect(nomenclaturasActualizadas).toHaveLength(1)
+  })
+
+  it('no duplica nomenclaturas cuando el prefijo ya existe (EUR1 con EUR en base)', () => {
+    const noms: NomenclaturaEntry[] = [
+      { id: 'eur', codigo: 'EUR', definicion: 'Eural' },
+    ]
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 1, y: 2, z: 3, codigo: 'EUR1' },
+      { numeroPunto: '2', x: 1, y: 2, z: 3, codigo: 'EUR23' },
+    ]
+    const resultados = compararSincronizacion(filas, puntos, noms, 'numeroSerie')
+    const { resumen, nomenclaturasActualizadas } = aplicarSincronizacion(
+      resultados,
+      puntos,
+      noms,
+      { agregarNomenclaturasFaltantes: true }
     )
 
     expect(resumen.nomenclaturasAgregadas).toBe(0)

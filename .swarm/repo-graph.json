@@ -10383,7 +10383,7 @@
         "xlsx"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T17:53:25.632Z"
+      "mtime": "2026-07-01T18:14:05.444Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-to-image.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-to-image.ts",
@@ -10584,7 +10584,7 @@
         "@/lib/excel-sync"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T00:35:15.530Z"
+      "mtime": "2026-07-01T18:15:20.146Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
@@ -10796,7 +10796,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T17:57:55.183Z",
+    "generatedAt": "2026-07-01T18:15:25.898Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

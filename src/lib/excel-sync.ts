@@ -116,9 +116,26 @@ function puntoCoincide(punto: PuntoFerroviario, fila: FilaSincronizacion, criter
   return punto.nombre.trim().toLowerCase() === fila.numeroPunto.trim().toLowerCase()
 }
 
+/**
+ * Devuelve el prefijo de nomenclatura sin el seriado final.
+ * La base guarda códigos por prefijo (EUR); el CSV trae prefijo+número (EUR1).
+ */
+function prefijoDe(codigo: string): string {
+  return codigo.toUpperCase().replace(/\d+$/, '')
+}
+
 function buscarNomenclatura(codigo: string, nomenclaturas: NomenclaturaEntry[]): NomenclaturaEntry | undefined {
   if (!codigo) return undefined
-  return nomenclaturas.find(item => item.codigo.toUpperCase() === codigo.toUpperCase())
+  const completo = codigo.toUpperCase()
+  const prefijo = prefijoDe(completo)
+  // 1) coincidencia exacta (algunas bases guardan el código completo)
+  const exacta = nomenclaturas.find(item => item.codigo.toUpperCase() === completo)
+  if (exacta) return exacta
+  // 2) coincidencia por prefijo (EUR1 -> EUR)
+  if (prefijo !== completo) {
+    return nomenclaturas.find(item => item.codigo.toUpperCase() === prefijo)
+  }
+  return undefined
 }
 
 /**
@@ -260,14 +277,17 @@ export function aplicarSincronizacion(
 
     puntosModificadosMap.set(puntoId, puntoModificado)
 
-    if (agregarNomenclaturasFaltantes && fila.codigo && !codigosExistentes.has(fila.codigo.toUpperCase())) {
-      nuevasNomenclaturas.push({
-        id: `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        codigo: fila.codigo.toUpperCase(),
-        definicion: definicionPorDefecto,
-      })
-      codigosExistentes.add(fila.codigo.toUpperCase())
-      resumen.nomenclaturasAgregadas++
+    if (agregarNomenclaturasFaltantes && fila.codigo) {
+      const clave = prefijoDe(fila.codigo)
+      if (!codigosExistentes.has(clave)) {
+        nuevasNomenclaturas.push({
+          id: `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          codigo: clave,
+          definicion: definicionPorDefecto,
+        })
+        codigosExistentes.add(clave)
+        resumen.nomenclaturasAgregadas++
+      }
     }
   }
 

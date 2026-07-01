@@ -132,6 +132,8 @@ export interface PuntoFerroviario {
   nombre: string
   descripcion?: string
   carpetaPath?: string
+  /** Cadenamiento (prefijo separado de una coordenada X/Y/Z al sincronizar) */
+  cadenamiento?: string
   coordenadas?: {
     lat: number
     lng: number

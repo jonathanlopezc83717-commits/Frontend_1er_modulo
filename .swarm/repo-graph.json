@@ -9798,7 +9798,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T18:33:33.120Z"
+      "mtime": "2026-07-01T19:33:37.917Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -10119,7 +10119,7 @@
         "react"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T19:09:23.792Z"
+      "mtime": "2026-07-01T19:31:38.255Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ProgressBar.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ProgressBar.tsx",
@@ -10386,7 +10386,7 @@
         "xlsx"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T19:06:31.973Z"
+      "mtime": "2026-07-01T19:31:13.764Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-to-image.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-to-image.ts",
@@ -10644,7 +10644,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-06-27T00:30:41.633Z"
+      "mtime": "2026-07-01T19:30:36.658Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
@@ -10798,7 +10798,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T19:09:26.173Z",
+    "generatedAt": "2026-07-01T19:33:39.433Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

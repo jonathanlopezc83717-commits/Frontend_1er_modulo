@@ -81,7 +81,20 @@ interface FileRouting {
   fotos: number
 }
 
-type SortKey = 'manual' | 'nombre-asc' | 'nombre-desc' | 'fecha-asignada-asc' | 'fecha-asignada-desc' | 'fecha-ingreso-asc' | 'fecha-ingreso-desc'
+type SortKey = 'manual' | 'nombre-asc' | 'nombre-desc' | 'fecha-asignada-asc' | 'fecha-asignada-desc' | 'fecha-ingreso-asc' | 'fecha-ingreso-desc' | 'cadenamiento-asc' | 'cadenamiento-desc'
+
+/** Compara dos cadenamientos: numérico si ambos son números, sino lexicográfico. Vacíos al final. */
+function compararCadenamiento(a: string | undefined, b: string | undefined): number {
+  const va = (a ?? '').trim()
+  const vb = (b ?? '').trim()
+  if (!va && !vb) return 0
+  if (!va) return 1
+  if (!vb) return -1
+  const na = Number(va)
+  const nb = Number(vb)
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb
+  return va.localeCompare(vb)
+}
 
 export function GestorPuntos() {
   const {
@@ -154,6 +167,10 @@ export function GestorPuntos() {
         return puntos.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
       case 'fecha-ingreso-desc':
         return puntos.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      case 'cadenamiento-asc':
+        return puntos.sort((a, b) => compararCadenamiento(a.cadenamiento, b.cadenamiento))
+      case 'cadenamiento-desc':
+        return puntos.sort((a, b) => compararCadenamiento(b.cadenamiento, a.cadenamiento))
       case 'manual':
       default:
         return puntos.sort((a, b) => a.numeroSerie - b.numeroSerie)
@@ -476,6 +493,7 @@ export function GestorPuntos() {
     nombre: '',
     descripcion: '',
     carpetaPath: '',
+    cadenamiento: '',
     coordenadas: { lat: '', lng: '' }
   })
 
@@ -490,6 +508,7 @@ export function GestorPuntos() {
       nombre: punto.nombre,
       descripcion: punto.descripcion || '',
       carpetaPath: punto.carpetaPath || '',
+      cadenamiento: punto.cadenamiento || '',
       coordenadas: {
         lat: punto.coordenadas?.lat?.toString() || '',
         lng: punto.coordenadas?.lng?.toString() || ''
@@ -520,6 +539,7 @@ export function GestorPuntos() {
       nombre: editForm.nombre.trim(),
       descripcion: editForm.descripcion.trim() || undefined,
       carpetaPath: editForm.carpetaPath.trim() || undefined,
+      cadenamiento: editForm.cadenamiento.trim() || undefined,
     }
     if (editForm.coordenadas.lat && editForm.coordenadas.lng) {
       updates.coordenadas = {
@@ -981,6 +1001,16 @@ export function GestorPuntos() {
                         <Calendar className="w-3 h-3" /> Fecha de ingreso: antigua
                       </span>
                     </SelectItem>
+                    <SelectItem value="cadenamiento-asc">
+                      <span className="flex items-center gap-2">
+                        <Type className="w-3 h-3" /> Cadenamiento: menor
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="cadenamiento-desc">
+                      <span className="flex items-center gap-2">
+                        <Type className="w-3 h-3" /> Cadenamiento: mayor
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1196,6 +1226,9 @@ export function GestorPuntos() {
                                       <span className="truncate">{punto.carpetaPath}</span>
                                     </div>
                                   )}
+                                  {punto.cadenamiento && (
+                                    <span className="flex-shrink-0">· Cad. {punto.cadenamiento}</span>
+                                  )}
                                   <span className="flex-shrink-0">· {formatFecha(punto.updatedAt)}</span>
                                 </div>
                               </>
@@ -1381,6 +1414,14 @@ export function GestorPuntos() {
                 value={editForm.carpetaPath}
                 onChange={(e) => setEditForm(prev => ({ ...prev, carpetaPath: e.target.value }))}
                 placeholder="Ruta de la carpeta"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cadenamiento</label>
+              <Input
+                value={editForm.cadenamiento}
+                onChange={(e) => setEditForm(prev => ({ ...prev, cadenamiento: e.target.value }))}
+                placeholder="Ej: 56 (separado al sincronizar)"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">

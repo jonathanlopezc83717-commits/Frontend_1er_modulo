@@ -536,9 +536,9 @@ export function ModuloSincronizacion() {
               <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
                 <div className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">Separar dígitos de coordenadas</p>
+                  <p className="text-sm font-medium">Separar cadenamiento</p>
                   <span className="text-xs text-muted-foreground">
-                    (los primeros N dígitos del entero se apartan a una columna nueva)
+                    (los primeros N dígitos del entero se apartan como cadenamiento)
                   </span>
                 </div>
                 <div className="flex flex-wrap items-end gap-4">
@@ -659,11 +659,11 @@ export function ModuloSincronizacion() {
                       <tr>
                         <th className="px-2 py-2 text-left font-medium w-24">No. Punto</th>
                         <th className="px-2 py-2 text-left font-medium">X</th>
-                        {haySepX && <th className="px-2 py-2 text-left font-medium">sepX</th>}
+                        {haySepX && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
                         <th className="px-2 py-2 text-left font-medium">Y</th>
-                        {haySepY && <th className="px-2 py-2 text-left font-medium">sepY</th>}
+                        {haySepY && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
                         <th className="px-2 py-2 text-left font-medium">Z</th>
-                        {haySepZ && <th className="px-2 py-2 text-left font-medium">sepZ</th>}
+                        {haySepZ && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
                         <th className="px-2 py-2 text-left font-medium">Código</th>
                         <th className="px-2 py-2 text-left font-medium">Punto</th>
                         <th className="px-2 py-2 text-left font-medium">Nomenclatura</th>

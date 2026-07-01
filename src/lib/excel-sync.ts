@@ -259,6 +259,12 @@ export function aplicarSincronizacion(
 
     let puntoModificado = puntosModificadosMap.get(puntoId) ?? { ...punto, moduloData: { ...punto.moduloData } }
 
+    // Cadenamiento = primer valor separado disponible (X > Y > Z)
+    const cadenamiento = fila.sepX ?? fila.sepY ?? fila.sepZ
+    if (cadenamiento) {
+      puntoModificado = { ...puntoModificado, cadenamiento }
+    }
+
     if (actualizarCoordenadas && resultado.estado !== 'coordenadas_invalidas') {
       puntoModificado = {
         ...puntoModificado,

@@ -9,6 +9,8 @@ import type { NomenclaturaEntry } from '@/lib/nomenclaturas'
 import {
   compararSincronizacion,
   aplicarSincronizacion,
+  separarDigitos,
+  aplicarSeparacion,
   type FilaSincronizacion,
 } from '@/lib/excel-sync'
 
@@ -168,5 +170,35 @@ describe('aplicarSincronizacion', () => {
 
     expect(resumen.nomenclaturasAgregadas).toBe(0)
     expect(nomenclaturasActualizadas).toHaveLength(1)
+  })
+})
+
+describe('separarDigitos / aplicarSeparacion', () => {
+  it('separa los primeros N dígitos del entero (561009.175, N=2 -> 1009.175 / 56)', () => {
+    expect(separarDigitos(561009.175, 2)).toEqual({ resto: 1009.175, separado: '56' })
+  })
+
+  it('respeta los decimales al separar (N=3)', () => {
+    expect(separarDigitos(561009.175, 3)).toEqual({ resto: 9.175, separado: '561' })
+  })
+
+  it('no separa cuando N=0', () => {
+    expect(separarDigitos(561009.175, 0)).toEqual({ resto: 561009.175, separado: '' })
+  })
+
+  it('aplica separación solo a las columnas elegidas', () => {
+    const filas: FilaSincronizacion[] = [
+      { numeroPunto: '1', x: 561009.175, y: 2090622.274, z: 1816.64, codigo: 'EUR1' },
+    ]
+    const resultado = aplicarSeparacion(filas, {
+      digitos: 2,
+      columnas: { x: true, y: false, z: true },
+    })
+    expect(resultado[0].x).toBe(1009.175)
+    expect(resultado[0].sepX).toBe('56')
+    expect(resultado[0].y).toBe(2090622.274)
+    expect(resultado[0].sepY).toBeUndefined()
+    expect(resultado[0].z).toBe(16.64)
+    expect(resultado[0].sepZ).toBe('18')
   })
 })

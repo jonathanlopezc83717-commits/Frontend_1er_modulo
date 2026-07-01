@@ -10110,6 +10110,7 @@
         "@/components/ui/badge",
         "@/components/ui/select",
         "@/components/ui/checkbox",
+        "@/components/ui/input",
         "@/lib/excel-sync",
         "@/lib/sync-file-store",
         "@/lib/utils",
@@ -10118,7 +10119,7 @@
         "react"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T17:57:51.483Z"
+      "mtime": "2026-07-01T19:09:23.792Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/ProgressBar.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ProgressBar.tsx",
@@ -10366,6 +10367,8 @@
         "CriterioCoincidencia",
         "OpcionesParseoSincronizacion",
         "AplicacionSincronizacion",
+        "ConfigSeparacion",
+        "separarDigitos",
         "buscarExcelEnCarpeta",
         "ColumnaEscaneada",
         "HojaEscaneada",
@@ -10383,7 +10386,7 @@
         "xlsx"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T18:14:05.444Z"
+      "mtime": "2026-07-01T19:06:31.973Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-to-image.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-to-image.ts",
@@ -10583,7 +10586,7 @@
         "@/lib/excel-sync"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T18:15:20.146Z"
+      "mtime": "2026-07-01T19:06:56.498Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
@@ -10795,7 +10798,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T18:33:36.549Z",
+    "generatedAt": "2026-07-01T19:09:26.173Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

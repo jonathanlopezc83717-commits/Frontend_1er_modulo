@@ -49,9 +49,9 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 376 | 376 | 0 | 818ms |
-| edit | 310 | 310 | 0 | 35ms |
-| bash | 162 | 162 | 0 | 14125ms |
+| read | 380 | 380 | 0 | 810ms |
+| edit | 321 | 321 | 0 | 35ms |
+| bash | 166 | 166 | 0 | 14275ms |
 | write | 116 | 116 | 0 | 19ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | build_check | 32 | 32 | 0 | 17220ms |
@@ -72,3 +72,4 @@ Swarm: default
 | phase_complete | 1 | 1 | 0 | 50ms |
 | lint | 1 | 1 | 0 | 17ms |
 | syntax_check | 1 | 1 | 0 | 580ms |
+| question | 1 | 1 | 0 | 219467ms |

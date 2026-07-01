@@ -5,8 +5,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import {
   aplicarSincronizacion,
+  aplicarSeparacion,
   buscarExcelEnCarpeta,
   compararSincronizacion,
   procesarArchivoSincronizacion,
@@ -72,6 +74,10 @@ export function ModuloSincronizacion() {
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
 
+  // Separación de dígitos en columnas X/Y/Z
+  const [sepDigitos, setSepDigitos] = useState(0)
+  const [sepColumnas, setSepColumnas] = useState({ x: false, y: false, z: false })
+
   // Datos crudos del CSV escaneado (para vista previa HTML)
   const [datosCSV, setDatosCSV] = useState<DatosCSV | null>(null)
   const [mostrarHTML, setMostrarHTML] = useState(false)
@@ -96,6 +102,10 @@ export function ModuloSincronizacion() {
     }
     return conteo
   }, [resultados])
+
+  const haySepX = filas.some(f => f.sepX !== undefined)
+  const haySepY = filas.some(f => f.sepY !== undefined)
+  const haySepZ = filas.some(f => f.sepZ !== undefined)
 
   useEffect(() => {
     if (filas.length === 0) {
@@ -279,6 +289,53 @@ export function ModuloSincronizacion() {
     const html = generarHTMLDesdeCSV(datosCSV, titulo)
     const nombreSalida = `${titulo}.html`
     descargarHTML(html, nombreSalida)
+  }
+
+  const editarFila = (
+    filaIndex: number,
+    campo: 'numeroPunto' | 'x' | 'y' | 'z' | 'codigo',
+    valor: string
+  ) => {
+    setFilas(prev => prev.map((f, i) => {
+      if (i !== filaIndex) return f
+      if (campo === 'numeroPunto' || campo === 'codigo') return { ...f, [campo]: valor }
+      const num = valor.trim() === '' ? 0 : Number(valor)
+      return { ...f, [campo]: Number.isFinite(num) ? num : (f[campo] as number) }
+    }))
+  }
+
+  const handleAplicarSeparacion = () => {
+    if (sepDigitos <= 0) {
+      setMensaje('Indica el número de dígitos a separar')
+      return
+    }
+    if (!sepColumnas.x && !sepColumnas.y && !sepColumnas.z) {
+      setMensaje('Selecciona al menos una columna (X, Y o Z)')
+      return
+    }
+    setFilas(prev => aplicarSeparacion(prev, { digitos: sepDigitos, columnas: sepColumnas }))
+    const cols = [sepColumnas.x && 'X', sepColumnas.y && 'Y', sepColumnas.z && 'Z'].filter(Boolean).join(', ')
+    setMensaje(`Separación aplicada: ${sepDigitos} dígito(s) en ${cols}`)
+  }
+
+  const handleRestaurarDatos = async () => {
+    const archivo = ultimoArchivoRef.current
+    const nombre = ultimoNombreRef.current
+    if (!archivo || !nombre) {
+      setMensaje('No hay archivo original para restaurar')
+      return
+    }
+    setProcesando(true)
+    try {
+      const buffer = archivo instanceof File ? await archivo.arrayBuffer() : archivo
+      const { filas: originales } = await procesarArchivoSincronizacion(buffer, nombre, { saltarEncabezado })
+      setFilas(originales)
+      setMensaje('Datos restaurados al import original')
+    } catch (error) {
+      setMensaje(`Error restaurando: ${String(error)}`)
+    } finally {
+      setProcesando(false)
+    }
   }
 
   const handleSincronizar = async () => {
@@ -475,6 +532,53 @@ export function ModuloSincronizacion() {
               />
             )}
 
+            {filas.length > 0 && (
+              <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium">Separar dígitos de coordenadas</p>
+                  <span className="text-xs text-muted-foreground">
+                    (los primeros N dígitos del entero se apartan a una columna nueva)
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Nº de dígitos</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={9}
+                      value={sepDigitos}
+                      onChange={(e) => setSepDigitos(Math.max(0, Number(e.target.value)))}
+                      className="h-8 w-24"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {(['x', 'y', 'z'] as const).map((col) => (
+                      <div key={col} className="flex items-center gap-1.5">
+                        <Checkbox
+                          id={`sep-${col}`}
+                          checked={sepColumnas[col]}
+                          onCheckedChange={(checked) =>
+                            setSepColumnas(prev => ({ ...prev, [col]: checked === true }))
+                          }
+                        />
+                        <label htmlFor={`sep-${col}`} className="text-sm cursor-pointer">Columna {col.toUpperCase()}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <Button variant="outline" size="sm" onClick={handleRestaurarDatos} disabled={procesando}>
+                      Restaurar
+                    </Button>
+                    <Button size="sm" onClick={handleAplicarSeparacion} disabled={procesando}>
+                      Aplicar separación
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {dataGuardada?.ruta && (
               <div className="rounded-lg border p-3 text-sm bg-muted/50">
                 <p className="font-medium">Archivo vinculado desde la carpeta</p>
@@ -553,14 +657,17 @@ export function ModuloSincronizacion() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/60 sticky top-0">
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium w-24">No. Punto</th>
-                        <th className="px-3 py-2 text-left font-medium">X</th>
-                        <th className="px-3 py-2 text-left font-medium">Y</th>
-                        <th className="px-3 py-2 text-left font-medium">Z</th>
-                        <th className="px-3 py-2 text-left font-medium">Código</th>
-                        <th className="px-3 py-2 text-left font-medium">Punto</th>
-                        <th className="px-3 py-2 text-left font-medium">Nomenclatura</th>
-                        <th className="px-3 py-2 text-left font-medium">Estado</th>
+                        <th className="px-2 py-2 text-left font-medium w-24">No. Punto</th>
+                        <th className="px-2 py-2 text-left font-medium">X</th>
+                        {haySepX && <th className="px-2 py-2 text-left font-medium">sepX</th>}
+                        <th className="px-2 py-2 text-left font-medium">Y</th>
+                        {haySepY && <th className="px-2 py-2 text-left font-medium">sepY</th>}
+                        <th className="px-2 py-2 text-left font-medium">Z</th>
+                        {haySepZ && <th className="px-2 py-2 text-left font-medium">sepZ</th>}
+                        <th className="px-2 py-2 text-left font-medium">Código</th>
+                        <th className="px-2 py-2 text-left font-medium">Punto</th>
+                        <th className="px-2 py-2 text-left font-medium">Nomenclatura</th>
+                        <th className="px-2 py-2 text-left font-medium">Estado</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -568,11 +675,50 @@ export function ModuloSincronizacion() {
                         const estado = ESTADO_LABEL[item.estado]
                         return (
                           <tr key={item.filaIndex} className="border-t">
-                            <td className="px-3 py-2 font-medium">{item.fila.numeroPunto}</td>
-                            <td className="px-3 py-2">{item.fila.x.toFixed(6)}</td>
-                            <td className="px-3 py-2">{item.fila.y.toFixed(6)}</td>
-                            <td className="px-3 py-2">{item.fila.z.toFixed(6)}</td>
-                            <td className="px-3 py-2">{item.fila.codigo || '—'}</td>
+                            <td className="px-2 py-1">
+                              <input
+                                className="w-20 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5 font-medium"
+                                value={item.fila.numeroPunto}
+                                onChange={(e) => editarFila(item.filaIndex, 'numeroPunto', e.target.value)}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                className="w-28 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
+                                value={item.fila.x}
+                                onChange={(e) => editarFila(item.filaIndex, 'x', e.target.value)}
+                              />
+                            </td>
+                            {haySepX && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepX ?? '—'}</td>}
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                className="w-28 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
+                                value={item.fila.y}
+                                onChange={(e) => editarFila(item.filaIndex, 'y', e.target.value)}
+                              />
+                            </td>
+                            {haySepY && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepY ?? '—'}</td>}
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                className="w-24 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
+                                value={item.fila.z}
+                                onChange={(e) => editarFila(item.filaIndex, 'z', e.target.value)}
+                              />
+                            </td>
+                            {haySepZ && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepZ ?? '—'}</td>}
+                            <td className="px-2 py-1">
+                              <input
+                                className="w-24 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
+                                value={item.fila.codigo}
+                                onChange={(e) => editarFila(item.filaIndex, 'codigo', e.target.value)}
+                              />
+                            </td>
                             <td className="px-3 py-2">{item.puntoNombre || '—'}</td>
                             <td className="px-3 py-2">{item.nomenclatura?.definicion || '—'}</td>
                             <td className="px-3 py-2">

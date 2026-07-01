@@ -55,6 +55,14 @@ const CAMPOS_DATOS = [
 
 const MAX_PLANTILLAS_FICHA = 8
 
+// Campos de la ficha con autocompletado: lo escrito se guarda en localStorage
+// para volver a elegirlo despues (globales por etiqueta, reutilizables entre puntos).
+const CAMPOS_CON_OPCIONES = new Set([
+  'Tipo de instalacion',
+  'Ubicacion respecto al eje de proyecto',
+  'Estado fisico',
+])
+
 const ALIAS_CAMPOS: Record<string, string> = {
   titulo: 'titulo',
   proyecto: 'proyecto',
@@ -439,6 +447,39 @@ export function ModuloFicha() {
   const [exportandoId, setExportandoId] = useState<string | null>(null)
   const excelInputRef = useRef<HTMLInputElement>(null)
 
+  // Opciones guardadas para los campos con autocompletado.
+  const [opcionesGuardadas, setOpcionesGuardadas] = useState<Record<string, string[]>>({})
+
+  useEffect(() => {
+    const cargadas: Record<string, string[]> = {}
+    for (const etiqueta of CAMPOS_CON_OPCIONES) {
+      try {
+        const raw = localStorage.getItem(`ficha-opciones:${etiqueta}`)
+        cargadas[etiqueta] = raw ? (JSON.parse(raw) as string[]) : []
+      } catch {
+        cargadas[etiqueta] = []
+      }
+    }
+    setOpcionesGuardadas(cargadas)
+  }, [])
+
+  // Al salir del campo, si hay texto, lo agrega al historial de opciones (dedup sin distincion de mayusculas).
+  const registrarOpcion = (etiqueta: string, valor: string) => {
+    const valorLimpio = valor.trim()
+    if (!valorLimpio) return
+    setOpcionesGuardadas(prev => {
+      const actuales = prev[etiqueta] || []
+      if (actuales.some(op => op.toLowerCase() === valorLimpio.toLowerCase())) return prev
+      const nuevas = [...actuales, valorLimpio]
+      try {
+        localStorage.setItem(`ficha-opciones:${etiqueta}`, JSON.stringify(nuevas))
+      } catch {
+        // ponytail: cuota de localStorage agotada, se ignora
+      }
+      return { ...prev, [etiqueta]: nuevas }
+    })
+  }
+
   const camposLlenos = useMemo(
     () => ficha.datos.filter(campo => campo.valor.trim()).length,
     [ficha.datos]
@@ -753,12 +794,29 @@ export function ModuloFicha() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              {ficha.datos.map((campo, index) => (
-                <div key={campo.etiqueta} className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">{campo.etiqueta}</label>
-                  <Input value={campo.valor} onChange={(event) => actualizarDato(index, event.target.value)} className="px-0 py-0" />
-                </div>
-              ))}
+              {ficha.datos.map((campo, index) => {
+                const esCombo = CAMPOS_CON_OPCIONES.has(campo.etiqueta)
+                const listId = `ficha-opciones-${index}`
+                return (
+                  <div key={campo.etiqueta} className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">{campo.etiqueta}</label>
+                    <Input
+                      value={campo.valor}
+                      onChange={(event) => actualizarDato(index, event.target.value)}
+                      onBlur={esCombo ? (event) => registrarOpcion(campo.etiqueta, event.target.value) : undefined}
+                      list={esCombo ? listId : undefined}
+                      className="px-0 py-0"
+                    />
+                    {esCombo && (
+                      <datalist id={listId}>
+                        {(opcionesGuardadas[campo.etiqueta] || []).map(op => (
+                          <option key={op} value={op} />
+                        ))}
+                      </datalist>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">

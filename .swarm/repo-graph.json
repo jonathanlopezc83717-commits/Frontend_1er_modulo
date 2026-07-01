@@ -9969,7 +9969,7 @@
         "exceljs"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T23:31:09.821Z"
+      "mtime": "2026-07-01T23:45:51.015Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
@@ -10799,7 +10799,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T23:31:18.146Z",
+    "generatedAt": "2026-07-01T23:45:54.976Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

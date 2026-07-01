@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato, PlantillaCampoFormato, PlantillaImagenFormato } from '@/types'
-import { Download, FileSpreadsheet, ImagePlus, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
+import { Download, FileSpreadsheet, ImagePlus, RefreshCw, Save, Trash2, Upload, X, ChevronDown } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface CampoFicha {
@@ -437,6 +437,75 @@ async function extraerImagenesExcel(file: File): Promise<Record<string, string>>
   return imagenes
 }
 
+// Combobox de texto libre: tipea cualquier valor Y elegi cualquiera de las opciones
+// guardadas sin importar si lo tipeado coincide o no (el listado no filtra).
+function CampoCombo({
+  value,
+  onChange,
+  onCommit,
+  opciones,
+}: {
+  value: string
+  onChange: (valor: string) => void
+  onCommit: (valor: string) => void
+  opciones: string[]
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const contenedorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    const handler = (evento: MouseEvent) => {
+      if (contenedorRef.current && !contenedorRef.current.contains(evento.target as Node)) {
+        setAbierto(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [abierto])
+
+  const elegir = (opcion: string) => {
+    onChange(opcion)
+    onCommit(opcion)
+    setAbierto(false)
+  }
+
+  return (
+    <div ref={contenedorRef} className="relative">
+      <Input
+        value={value}
+        onChange={(evento) => onChange(evento.target.value)}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => onCommit(value)}
+        className="px-0 py-0 pr-7"
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onMouseDown={(evento) => { evento.preventDefault(); setAbierto(a => !a) }}
+        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+        aria-label="Ver opciones guardadas"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </button>
+      {abierto && opciones.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover shadow-md">
+          {opciones.map(opcion => (
+            <button
+              key={opcion}
+              type="button"
+              onMouseDown={(evento) => { evento.preventDefault(); elegir(opcion) }}
+              className={`flex w-full items-center px-2 py-1.5 text-left text-sm hover:bg-accent ${opcion === value ? 'bg-accent/60' : ''}`}
+            >
+              {opcion}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ModuloFicha() {
   const { state, actualizarPunto, setPlantillasFicha } = useApp()
   const punto = state.puntoActivo
@@ -796,23 +865,18 @@ export function ModuloFicha() {
             <div className="grid gap-3 md:grid-cols-3">
               {ficha.datos.map((campo, index) => {
                 const esCombo = CAMPOS_CON_OPCIONES.has(campo.etiqueta)
-                const listId = `ficha-opciones-${index}`
                 return (
                   <div key={campo.etiqueta} className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">{campo.etiqueta}</label>
-                    <Input
-                      value={campo.valor}
-                      onChange={(event) => actualizarDato(index, event.target.value)}
-                      onBlur={esCombo ? (event) => registrarOpcion(campo.etiqueta, event.target.value) : undefined}
-                      list={esCombo ? listId : undefined}
-                      className="px-0 py-0"
-                    />
-                    {esCombo && (
-                      <datalist id={listId}>
-                        {(opcionesGuardadas[campo.etiqueta] || []).map(op => (
-                          <option key={op} value={op} />
-                        ))}
-                      </datalist>
+                    {esCombo ? (
+                      <CampoCombo
+                        value={campo.valor}
+                        onChange={(valor) => actualizarDato(index, valor)}
+                        onCommit={(valor) => registrarOpcion(campo.etiqueta, valor)}
+                        opciones={opcionesGuardadas[campo.etiqueta] || []}
+                      />
+                    ) : (
+                      <Input value={campo.valor} onChange={(event) => actualizarDato(index, event.target.value)} className="px-0 py-0" />
                     )}
                   </div>
                 )

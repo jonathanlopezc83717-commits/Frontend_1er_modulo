@@ -492,7 +492,10 @@ export function ModuloFicha() {
 
     setFicha(completarDesdeModulos(normalizarFicha(data?.ficha)))
     setNombreArchivo(data?.nombreArchivo || '')
-  }, [punto])
+    // ponytail: depender de punto?.id, no del objeto punto entero.
+    // El reducer ACTUALIZAR_PUNTO crea una nueva ref de puntoActivo en cada update,
+    // lo que re-disparaba este reset y pisaba los edits locales sin guardar.
+  }, [punto?.id])
 
   const actualizarFicha = (data: Partial<FichaFormato>) => {
     setFicha(prev => ({ ...prev, ...data }))

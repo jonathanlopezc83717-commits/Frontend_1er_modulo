@@ -55,7 +55,8 @@ export function ModuloDocumentacion() {
       setNotas('')
       setNombreArchivo('')
     }
-  }, [punto])
+    // ponytail: depender de punto?.id (ver ModuloFicha). [punto] pisaba edits sin guardar.
+  }, [punto?.id])
 
   const handleGuardar = () => {
     if (!punto) return

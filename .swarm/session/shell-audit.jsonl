@@ -174,3 +174,5 @@
 {"ts":"2026-07-01T19:36:10.642Z","sessionID":"ses_0e13505afffeVP3YMJGltQ2SU9","agent":"build","tool":"bash","command":"npx vite build 2>&1 | Select-Object -Last 3"}
 {"ts":"2026-07-01T20:44:27.214Z","sessionID":"ses_0e09e24c7ffeHIWAbROpc0xdUA","agent":"build","tool":"bash","command":"npx tsc -b --noEmit 2>&1 | Select-Object -First 30"}
 {"ts":"2026-07-01T20:44:27.236Z","sessionID":"ses_0e09e24c7ffeHIWAbROpc0xdUA","agent":"build","tool":"bash","command":"npx eslint src/components/GestorPuntos.tsx 2>&1 | Select-Object -First 30"}
+{"ts":"2026-07-01T22:59:21.330Z","sessionID":"ses_0e09e24c7ffeHIWAbROpc0xdUA","agent":"build","tool":"bash","command":"npx eslint src/components/modulos/ModuloFicha.tsx src/components/modulos/ModuloDocumentacion.tsx 2>&1 | Select-Object -First 40"}
+{"ts":"2026-07-01T22:59:21.311Z","sessionID":"ses_0e09e24c7ffeHIWAbROpc0xdUA","agent":"build","tool":"bash","command":"npx tsc -b --noEmit 2>&1 | Select-Object -First 30"}

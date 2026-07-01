@@ -253,7 +253,8 @@ export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
                 <TabsContent
                   key={modulo.id}
                   value={modulo.id}
-                  className="mt-0 h-full"
+                  forceMount
+                  className="mt-0 h-full data-[state=inactive]:hidden"
                 >
                   <div className="p-3 h-full">
                     <ModuloComponent />

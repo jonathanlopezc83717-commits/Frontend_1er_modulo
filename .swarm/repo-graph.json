@@ -9798,7 +9798,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T01:00:41.901Z"
+      "mtime": "2026-07-01T18:33:33.120Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -9875,7 +9875,7 @@
         "./modulos/ModuloSincronizacion"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T00:30:46.799Z"
+      "mtime": "2026-07-01T18:32:29.470Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
@@ -10419,14 +10419,13 @@
         "procesarCarpetaPunto",
         "formatearNombreFoto",
         "agruparFotosPorSubcarpeta",
-        "buscarExcelEnCarpeta",
         "buscarExcelEnRaiz"
       ],
       "imports": [
         "jszip"
       ],
       "language": "typescript",
-      "mtime": "2026-06-27T01:01:11.012Z"
+      "mtime": "2026-07-01T18:29:20.980Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/nomenclaturas.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\nomenclaturas.ts",
@@ -10796,7 +10795,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T18:15:25.898Z",
+    "generatedAt": "2026-07-01T18:33:36.549Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

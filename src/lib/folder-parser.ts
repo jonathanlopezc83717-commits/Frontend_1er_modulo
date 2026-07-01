@@ -375,21 +375,12 @@ export function agruparFotosPorSubcarpeta(fotos: FotoIndexada[]): Map<string, Fo
 }
 
 /**
- * Busca un archivo Excel dentro de un FileList obtenido de <input webkitdirectory>.
+ * Extensiones reconocidas como hoja de cálculo para sincronización.
  */
-export function buscarExcelEnCarpeta(files: FileList): File | null {
-  for (let index = 0; index < files.length; index++) {
-    const file = files[index]
-    const ext = file.name.toLowerCase().split('.').pop()
-    if (ext === 'xlsx' || ext === 'xls') {
-      return file
-    }
-  }
-  return null
-}
+const EXTENSIONES_EXCEL = new Set(['xlsx', 'xls', 'xlsm', 'xlsb', 'csv', 'ods'])
 
 /**
- * Busca el primer archivo Excel que esté directamente en la raíz de la
+ * Busca el primer archivo Excel/CSV que esté directamente en la raíz de la
  * carpeta seleccionada (sin entrar a subcarpetas).
  */
 export function buscarExcelEnRaiz(files: FileList): File | null {
@@ -403,7 +394,7 @@ export function buscarExcelEnRaiz(files: FileList): File | null {
     if (pathParts.length > 2) continue
 
     const ext = file.name.toLowerCase().split('.').pop()
-    if (ext === 'xlsx' || ext === 'xls') {
+    if (ext && EXTENSIONES_EXCEL.has(ext)) {
       return file
     }
   }

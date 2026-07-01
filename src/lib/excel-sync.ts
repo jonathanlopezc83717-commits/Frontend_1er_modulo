@@ -581,6 +581,40 @@ export async function leerCSV(archivo: File | ArrayBuffer): Promise<DatosCSV> {
   return parsearCSV(texto)
 }
 
+/**
+ * Procesa un archivo de sincronización (CSV o XLSX/XLS/ODS) y devuelve
+ * tanto la vista previa (DatosCSV) como las filas estructuradas.
+ * Enruta por extensión: texto plano para CSV, librería xlsx para binarios.
+ */
+export async function procesarArchivoSincronizacion(
+  buffer: ArrayBuffer,
+  nombre: string,
+  opciones: { saltarEncabezado?: boolean } = {}
+): Promise<{ datos: DatosCSV; filas: FilaSincronizacion[] }> {
+  const { saltarEncabezado = false } = opciones
+  const ext = nombre.toLowerCase().split('.').pop()
+
+  const filas = await parsearExcelSincronizacion(buffer, { saltarEncabezado })
+
+  // CSV / TXT → parseo de texto plano
+  if (ext === 'csv' || ext === 'txt' || !ext) {
+    const texto = new TextDecoder().decode(buffer)
+    return { datos: parsearCSV(texto), filas }
+  }
+
+  // XLSX / XLS / XLSM / XLSB / ODS → vista previa desde la primera hoja
+  const escaneado = await escanearExcelCompleto(buffer, { saltarEncabezado: false })
+  const hoja = escaneado.hojas[escaneado.hojaActiva]
+  const todas = hoja?.filas ?? []
+  const encabezados = (todas[0] ?? []).map((h, i) => h || `Columna ${i + 1}`)
+  const datosFilas = todas.slice(1)
+
+  return {
+    datos: { encabezados, filas: datosFilas, totalFilas: datosFilas.length, delimitador: '' },
+    filas,
+  }
+}
+
 // =====================================================
 // GENERACIÓN DE HTML DESDE CSV
 // =====================================================

@@ -9787,6 +9787,7 @@
         "@/lib/utils",
         "@/lib/nomenclaturas",
         "@/components/ui/button",
+        "@/components/ThinkingLoader",
         "@/components/ui/input",
         "@/components/ui/textarea",
         "@/components/ui/badge",
@@ -9798,7 +9799,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T19:33:37.917Z"
+      "mtime": "2026-07-01T20:43:55.410Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -10798,7 +10799,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-01T19:33:39.433Z",
+    "generatedAt": "2026-07-01T20:44:17.223Z",
     "generator": "repo-graph",
     "nodeCount": 774,
     "edgeCount": 11

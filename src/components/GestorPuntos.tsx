@@ -10,6 +10,7 @@ import {
   type NomenclaturaEntry,
 } from '@/lib/nomenclaturas'
 import { Button } from '@/components/ui/button'
+import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -815,6 +816,13 @@ export function GestorPuntos() {
                         )}
                       </div>
                     </div>
+                  )}
+
+                  {procesandoCarpeta && (
+                    <ThinkingLoader
+                      variant="compact"
+                      rotatingMessages={['Leyendo carpeta...', 'Indexando fotos...', 'Extrayendo coordenadas y documento...']}
+                    />
                   )}
 
                   {datosCarpetaPreview && (

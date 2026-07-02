@@ -63,6 +63,14 @@ const CAMPOS_CON_OPCIONES = new Set([
   'Estado fisico',
 ])
 
+// Opciones iniciales por campo (edita esta lista segun el vocabulario del proyecto).
+// Se combinan con las que el usuario agrega posteriormente.
+const OPCIONES_POR_DEFECTO: Record<string, string[]> = {
+  'Tipo de instalacion': ['Aéreo', 'Terrestre'],
+  'Ubicacion respecto al eje de proyecto': ['Izquierda', 'Derecha', 'Centro'],
+  'Estado fisico': ['Bueno', 'Regular', 'Malo'],
+}
+
 const ALIAS_CAMPOS: Record<string, string> = {
   titulo: 'titulo',
   proyecto: 'proyecto',
@@ -522,12 +530,22 @@ export function ModuloFicha() {
   useEffect(() => {
     const cargadas: Record<string, string[]> = {}
     for (const etiqueta of CAMPOS_CON_OPCIONES) {
+      const porDefecto = OPCIONES_POR_DEFECTO[etiqueta] || []
+      let guardadas: string[] = []
       try {
         const raw = localStorage.getItem(`ficha-opciones:${etiqueta}`)
-        cargadas[etiqueta] = raw ? (JSON.parse(raw) as string[]) : []
+        guardadas = raw ? (JSON.parse(raw) as string[]) : []
       } catch {
-        cargadas[etiqueta] = []
+        guardadas = []
       }
+      // Defaults primero, luego las del usuario; dedup sin distinguir mayusculas.
+      const vistos = new Set<string>()
+      cargadas[etiqueta] = [...porDefecto, ...guardadas].filter(op => {
+        const clave = op.toLowerCase()
+        if (vistos.has(clave)) return false
+        vistos.add(clave)
+        return true
+      })
     }
     setOpcionesGuardadas(cargadas)
   }, [])

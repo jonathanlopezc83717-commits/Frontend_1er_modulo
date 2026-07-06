@@ -702,6 +702,50 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:55.534Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/metadata/importlib/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\metadata\\importlib\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/metadata/importlib/__init__.py",
+      "exports": [
+        "NAME"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.538Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/metadata/importlib/_compat.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\metadata\\importlib\\_compat.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/metadata/importlib/_compat.py",
+      "exports": [
+        "BadMetadata",
+        "BasePath",
+        "get_info_location",
+        "get_dist_name"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.539Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/metadata/importlib/_dists.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\metadata\\importlib\\_dists.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/metadata/importlib/_dists.py",
+      "exports": [
+        "WheelDistribution",
+        "Distribution"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.542Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/metadata/importlib/_envs.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\metadata\\importlib\\_envs.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/metadata/importlib/_envs.py",
+      "exports": [
+        "Environment"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.544Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/metadata/pkg_resources.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\metadata\\pkg_resources.py",
       "moduleName": ".venv/Lib/site-packages/pip/_internal/metadata/pkg_resources.py",
@@ -975,6 +1019,43 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:55.621Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/operations/install/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\operations\\install\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/operations/install/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.656Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/operations/install/editable_legacy.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\operations\\install\\editable_legacy.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/operations/install/editable_legacy.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.658Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/operations/install/wheel.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\operations\\install\\wheel.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/operations/install/wheel.py",
+      "exports": [
+        "rehash",
+        "csv_io_kwargs",
+        "fix_script",
+        "wheel_root_is_purelib",
+        "get_entrypoints",
+        "message_about_scripts_not_on_PATH",
+        "get_console_script_specs",
+        "ZipBackedFile",
+        "ScriptFile",
+        "MissingCallableSuffix",
+        "PipScriptMaker",
+        "req_error_context"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.659Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/operations/prepare.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py",
       "moduleName": ".venv/Lib/site-packages/pip/_internal/operations/prepare.py",
@@ -1086,6 +1167,127 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:55.693Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/legacy/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\legacy\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/legacy/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.696Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/legacy/resolver.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\legacy\\resolver.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/legacy/resolver.py",
+      "exports": [
+        "Resolver"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.698Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.700Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/base.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\base.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/base.py",
+      "exports": [
+        "format_name",
+        "Constraint",
+        "Requirement",
+        "Candidate"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.702Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/candidates.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/candidates.py",
+      "exports": [
+        "REQUIRES_PYTHON_IDENTIFIER",
+        "as_base_candidate",
+        "LinkCandidate",
+        "EditableCandidate",
+        "AlreadyInstalledCandidate",
+        "ExtrasCandidate",
+        "RequiresPythonCandidate"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.705Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/factory.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/factory.py",
+      "exports": [
+        "CollectedRootRequirements",
+        "Factory"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.708Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\found_candidates.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py",
+      "exports": [
+        "FoundCandidates"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.714Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/provider.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\provider.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/provider.py",
+      "exports": [
+        "PipProvider"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.721Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/reporter.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\reporter.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/reporter.py",
+      "exports": [
+        "PipReporter",
+        "PipDebuggingReporter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.728Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/requirements.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\requirements.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/requirements.py",
+      "exports": [
+        "ExplicitRequirement",
+        "SpecifierRequirement",
+        "SpecifierWithoutExtrasRequirement",
+        "RequiresPythonRequirement",
+        "UnsatisfiableRequirement"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.731Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/resolution/resolvelib/resolver.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\resolver.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_internal/resolution/resolvelib/resolver.py",
+      "exports": [
+        "Resolver"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.734Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_internal/self_outdated_check.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_internal\\self_outdated_check.py",
@@ -1570,6 +1772,36 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:55.860Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\cachecontrol\\caches\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.875Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/file_cache.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\cachecontrol\\caches\\file_cache.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/file_cache.py",
+      "exports": [
+        "FileCache",
+        "SeparateBodyFileCache",
+        "url_to_file_path"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.877Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/redis_cache.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\cachecontrol\\caches\\redis_cache.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/cachecontrol/caches/redis_cache.py",
+      "exports": [
+        "RedisCache"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:55.882Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/cachecontrol/controller.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\cachecontrol\\controller.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/cachecontrol/controller.py",
@@ -1718,6 +1950,24 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:55.916Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/cli/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\cli\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/chardet/cli/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.036Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/cli/chardetect.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\cli\\chardetect.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/chardet/cli/chardetect.py",
+      "exports": [
+        "main"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.038Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/codingstatemachine.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\codingstatemachine.py",
@@ -2141,6 +2391,25 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:56.009Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/metadata/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\metadata\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/chardet/metadata/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.041Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/metadata/languages.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\metadata\\languages.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/chardet/metadata/languages.py",
+      "exports": [
+        "Language",
+        "LANGUAGES"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.046Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/chardet/resultdict.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\chardet\\resultdict.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/chardet/resultdict.py",
@@ -2275,6 +2544,82 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.067Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.072Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/ansi_test.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\ansi_test.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/ansi_test.py",
+      "exports": [
+        "AnsiTest"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.075Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/ansitowin32_test.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\ansitowin32_test.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/ansitowin32_test.py",
+      "exports": [
+        "StreamWrapperTest",
+        "AnsiToWin32Test"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.076Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/initialise_test.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\initialise_test.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/initialise_test.py",
+      "exports": [
+        "InitTest",
+        "JustFixWindowsConsoleTest"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.085Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/isatty_test.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\isatty_test.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/isatty_test.py",
+      "exports": [
+        "is_a_tty",
+        "IsattyTest"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.091Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/utils.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\utils.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/utils.py",
+      "exports": [
+        "StreamTTY",
+        "StreamNonTTY",
+        "osname",
+        "replace_by",
+        "replace_original_by",
+        "pycharm"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.096Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/tests/winterm_test.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\tests\\winterm_test.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/colorama/tests/winterm_test.py",
+      "exports": [
+        "WinTermTest"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.103Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/colorama/win32.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\colorama\\win32.py",
@@ -3139,6 +3484,28 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:56.390Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/filters/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\filters\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/filters/__init__.py",
+      "exports": [
+        "find_filter_class",
+        "get_filter_by_name",
+        "get_all_filters",
+        "CodeTagFilter",
+        "SymbolFilter",
+        "KeywordCaseFilter",
+        "NameHighlightFilter",
+        "ErrorToken",
+        "RaiseOnErrorTokenFilter",
+        "VisibleWhitespaceFilter",
+        "GobbleFilter",
+        "TokenMergeFilter",
+        "FILTERS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.430Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatter.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatter.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatter.py",
@@ -3148,6 +3515,170 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.392Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/__init__.py",
+      "exports": [
+        "get_all_formatters",
+        "get_formatter_by_name",
+        "load_formatter_from_file",
+        "get_formatter_for_filename"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.432Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/_mapping.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\_mapping.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/_mapping.py",
+      "exports": [
+        "FORMATTERS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.434Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/bbcode.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\bbcode.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/bbcode.py",
+      "exports": [
+        "BBCodeFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.437Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/groff.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\groff.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/groff.py",
+      "exports": [
+        "GroffFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.439Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/html.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\html.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/html.py",
+      "exports": [
+        "CSSFILE_TEMPLATE",
+        "DOC_HEADER",
+        "DOC_HEADER_EXTERNALCSS",
+        "DOC_FOOTER",
+        "HtmlFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.444Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/img.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\img.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/img.py",
+      "exports": [
+        "STYLES",
+        "DEFAULT_FONT_NAME_NIX",
+        "DEFAULT_FONT_NAME_WIN",
+        "DEFAULT_FONT_NAME_MAC",
+        "ImageFormatter",
+        "GifImageFormatter",
+        "JpgImageFormatter",
+        "BmpImageFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.454Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/irc.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\irc.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/irc.py",
+      "exports": [
+        "IRC_COLORS",
+        "IRC_COLOR_MAP",
+        "IRCFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.462Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/latex.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\latex.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/latex.py",
+      "exports": [
+        "DOC_TEMPLATE",
+        "STYLE_TEMPLATE",
+        "LatexFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.466Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/other.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\other.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/other.py",
+      "exports": [
+        "NullFormatter",
+        "RawTokenFormatter",
+        "TESTCASE_BEFORE",
+        "TESTCASE_AFTER",
+        "TestcaseFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.468Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/pangomarkup.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\pangomarkup.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/pangomarkup.py",
+      "exports": [
+        "PangoMarkupFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.470Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/rtf.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\rtf.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/rtf.py",
+      "exports": [
+        "RtfFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.472Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/svg.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\svg.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/svg.py",
+      "exports": [
+        "SvgFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.475Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/terminal.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\terminal.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/terminal.py",
+      "exports": [
+        "TERMINAL_COLORS",
+        "TerminalFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.481Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/formatters/terminal256.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\formatters\\terminal256.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/formatters/terminal256.py",
+      "exports": [
+        "Terminal256Formatter",
+        "TerminalTrueColorFormatter"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.487Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/lexer.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\lexer.py",
@@ -3167,6 +3698,48 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.393Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/lexers/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\lexers\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/lexers/__init__.py",
+      "exports": [
+        "COMPAT",
+        "find_lexer_class",
+        "get_lexer_by_name",
+        "load_lexer_from_file",
+        "get_lexer_for_filename",
+        "guess_lexer"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.499Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/lexers/_mapping.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\lexers\\_mapping.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/lexers/_mapping.py",
+      "exports": [
+        "LEXERS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.505Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/lexers/python.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\lexers\\python.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/lexers/python.py",
+      "exports": [
+        "PythonLexer",
+        "Python2Lexer",
+        "PythonConsoleLexer",
+        "PythonTracebackLexer",
+        "Python2TracebackLexer",
+        "CythonLexer",
+        "DgLexer",
+        "NumPyLexer"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.507Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/modeline.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\modeline.py",
@@ -3246,6 +3819,18 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.417Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/styles/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\styles\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pygments/styles/__init__.py",
+      "exports": [
+        "STYLE_MAP",
+        "get_style_by_name",
+        "get_all_styles"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.510Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pygments/token.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pygments\\token.py",
@@ -3405,6 +3990,22 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:56.517Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pyparsing/diagram/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pyparsing\\diagram\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pyparsing/diagram/__init__.py",
+      "exports": [
+        "EachItem",
+        "AnnotatedItem",
+        "EditablePartial",
+        "railroad_to_html",
+        "resolve_partial",
+        "ElementState",
+        "ConverterState"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.558Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pyparsing/exceptions.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pyparsing\\exceptions.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/pyparsing/exceptions.py",
@@ -3530,6 +4131,39 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.572Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pyproject_hooks/_in_process/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_in_process\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pyproject_hooks/_in_process/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.583Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_in_process\\_in_process.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py",
+      "exports": [
+        "write_json",
+        "read_json",
+        "BackendUnavailable",
+        "BackendInvalid",
+        "HookMissing",
+        "contained_in",
+        "get_requires_for_build_wheel",
+        "get_requires_for_build_editable",
+        "WHEEL_BUILT_MARKER",
+        "build_wheel",
+        "build_editable",
+        "get_requires_for_build_sdist",
+        "GotUnsupportedOperation",
+        "build_sdist",
+        "HOOK_NAMES",
+        "main"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.587Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/requests/__init__.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\requests\\__init__.py",
@@ -3819,6 +4453,22 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:56.655Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/resolvelib/compat/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\resolvelib\\compat\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/resolvelib/compat/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.674Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/resolvelib/compat/collections_abc.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\resolvelib\\compat\\collections_abc.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/resolvelib/compat/collections_abc.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:56.676Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/resolvelib/providers.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\resolvelib\\providers.py",
@@ -5250,6 +5900,121 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:57.076Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.087Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_appengine_environ.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_appengine_environ.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_appengine_environ.py",
+      "exports": [
+        "is_appengine",
+        "is_appengine_sandbox",
+        "is_local_appengine",
+        "is_prod_appengine",
+        "is_prod_appengine_mvms"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.091Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.119Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\bindings.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py",
+      "exports": [
+        "load_cdll",
+        "CFConst",
+        "SecurityConst"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.121Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\_securetransport\\low_level.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py",
+      "exports": [
+        "TLS_PROTOCOL_VERSIONS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.123Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\appengine.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/appengine.py",
+      "exports": [
+        "AppEnginePlatformWarning",
+        "AppEnginePlatformError",
+        "AppEngineManager"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.093Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/ntlmpool.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\ntlmpool.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/ntlmpool.py",
+      "exports": [
+        "NTLMConnectionPool"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.100Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/pyopenssl.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\pyopenssl.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/pyopenssl.py",
+      "exports": [
+        "HAS_SNI",
+        "SSL_WRITE_BLOCKSIZE",
+        "inject_into_urllib3",
+        "extract_from_urllib3"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.110Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/securetransport.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\securetransport.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/securetransport.py",
+      "exports": [
+        "HAS_SNI",
+        "SSL_WRITE_BLOCKSIZE",
+        "CIPHER_SUITES",
+        "inject_into_urllib3",
+        "extract_from_urllib3"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.115Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/contrib/socks.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\contrib\\socks.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/contrib/socks.py",
+      "exports": [
+        "SOCKSConnection",
+        "SOCKSHTTPSConnection",
+        "SOCKSHTTPConnectionPool",
+        "SOCKSHTTPSConnectionPool",
+        "SOCKSProxyManager"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.117Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/exceptions.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\exceptions.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/exceptions.py",
@@ -5322,6 +6087,72 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:57.081Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.125Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.133Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\makefile.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.137Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\backports\\weakref_finalize.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/backports/weakref_finalize.py",
+      "exports": [
+        "weakref_finalize"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.139Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/packages/six.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\packages\\six.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/packages/six.py",
+      "exports": [
+        "PY2",
+        "PY3",
+        "PY34",
+        "MovedModule",
+        "MovedAttribute",
+        "Module_six_moves_urllib_parse",
+        "Module_six_moves_urllib_error",
+        "Module_six_moves_urllib_request",
+        "Module_six_moves_urllib_response",
+        "Module_six_moves_urllib_robotparser",
+        "Module_six_moves_urllib",
+        "add_move",
+        "remove_move",
+        "assertCountEqual",
+        "assertRaisesRegex",
+        "assertRegex",
+        "assertNotRegex",
+        "with_metaclass",
+        "add_metaclass",
+        "ensure_binary",
+        "ensure_str",
+        "ensure_text",
+        "python_2_unicode_compatible"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.130Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/poolmanager.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\poolmanager.py",
       "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/poolmanager.py",
@@ -5358,6 +6189,178 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:57.086Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.147Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/connection.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\connection.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/connection.py",
+      "exports": [
+        "is_connection_dropped",
+        "allowed_gai_family",
+        "HAS_IPV6"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.153Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/proxy.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\proxy.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/proxy.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.157Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/queue.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\queue.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/queue.py",
+      "exports": [
+        "LifoQueue"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.159Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/request.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\request.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/request.py",
+      "exports": [
+        "SKIP_HEADER",
+        "SKIPPABLE_HEADERS",
+        "ACCEPT_ENCODING",
+        "set_file_position",
+        "rewind_body"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.160Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/response.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\response.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/response.py",
+      "exports": [
+        "is_fp_closed",
+        "assert_header_parsing",
+        "is_response_to_head"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.162Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/retry.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\retry.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/retry.py",
+      "exports": [
+        "Retry"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.164Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/ssl_.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\ssl_.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/ssl_.py",
+      "exports": [
+        "HAS_SNI",
+        "IS_PYOPENSSL",
+        "IS_SECURETRANSPORT",
+        "ALPN_PROTOCOLS",
+        "HASHFUNC_MAP",
+        "DEFAULT_CIPHERS",
+        "assert_fingerprint",
+        "resolve_cert_reqs",
+        "resolve_ssl_version",
+        "is_ipaddress"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.166Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/ssl_match_hostname.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\ssl_match_hostname.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/ssl_match_hostname.py",
+      "exports": [
+        "CertificateError",
+        "match_hostname"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.169Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/ssltransport.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\ssltransport.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/ssltransport.py",
+      "exports": [
+        "SSL_BLOCKSIZE",
+        "SSLTransport"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.173Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/timeout.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\timeout.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/timeout.py",
+      "exports": [
+        "Timeout"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.179Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/url.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\url.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/url.py",
+      "exports": [
+        "NORMALIZABLE_SCHEMES",
+        "PERCENT_RE",
+        "SCHEME_RE",
+        "URI_RE",
+        "IPV4_PAT",
+        "HEX_PAT",
+        "LS32_PAT",
+        "UNRESERVED_PAT",
+        "IPV6_PAT",
+        "ZONE_ID_PAT",
+        "IPV6_ADDRZ_PAT",
+        "REG_NAME_PAT",
+        "TARGET_RE",
+        "IPV4_RE",
+        "IPV6_RE",
+        "IPV6_ADDRZ_RE",
+        "BRACELESS_IPV6_ADDRZ_RE",
+        "ZONE_ID_RE",
+        "UNRESERVED_CHARS",
+        "SUB_DELIM_CHARS",
+        "USERINFO_CHARS",
+        "PATH_CHARS",
+        "QUERY_CHARS",
+        "split_first",
+        "parse_url",
+        "get_host"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.182Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/urllib3/util/wait.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\urllib3\\util\\wait.py",
+      "moduleName": ".venv/Lib/site-packages/pip/_vendor/urllib3/util/wait.py",
+      "exports": [
+        "NoWayToWaitForSocketError",
+        "wait_for_read",
+        "wait_for_write"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:57.190Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pip/_vendor/webencodings/__init__.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pip\\_vendor\\webencodings\\__init__.py",
@@ -5674,6 +6677,35 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:42.908Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pkg_resources/_vendor/jaraco/text/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pkg_resources\\_vendor\\jaraco\\text\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pkg_resources/_vendor/jaraco/text/__init__.py",
+      "exports": [
+        "substitution",
+        "multi_substitution",
+        "FoldedCase",
+        "is_decodable",
+        "is_binary",
+        "trim",
+        "wrap",
+        "unwrap",
+        "Splitter",
+        "indent",
+        "WordSet",
+        "simple_html_strip",
+        "SeparatedValues",
+        "Stripper",
+        "remove_prefix",
+        "remove_suffix",
+        "normalize_newlines",
+        "yield_lines",
+        "drop_comment",
+        "join_continuation"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:42.911Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pkg_resources/_vendor/more_itertools/__init__.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pkg_resources\\_vendor\\more_itertools\\__init__.py",
@@ -6089,6 +7121,22 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:42.978Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pkg_resources/_vendor/pyparsing/diagram/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pkg_resources\\_vendor\\pyparsing\\diagram\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/pkg_resources/_vendor/pyparsing/diagram/__init__.py",
+      "exports": [
+        "EachItem",
+        "AnnotatedItem",
+        "EditablePartial",
+        "railroad_to_html",
+        "resolve_partial",
+        "ElementState",
+        "ConverterState"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.002Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/pkg_resources/_vendor/pyparsing/exceptions.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\pkg_resources\\_vendor\\pyparsing\\exceptions.py",
@@ -7229,6 +8277,35 @@
       "language": "python",
       "mtime": "2026-06-19T23:57:43.444Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/jaraco/text/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\jaraco\\text\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/jaraco/text/__init__.py",
+      "exports": [
+        "substitution",
+        "multi_substitution",
+        "FoldedCase",
+        "is_decodable",
+        "is_binary",
+        "trim",
+        "wrap",
+        "unwrap",
+        "Splitter",
+        "indent",
+        "WordSet",
+        "simple_html_strip",
+        "SeparatedValues",
+        "Stripper",
+        "remove_prefix",
+        "remove_suffix",
+        "normalize_newlines",
+        "yield_lines",
+        "drop_comment",
+        "join_continuation"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.457Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/more_itertools/__init__.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\more_itertools\\__init__.py",
       "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/more_itertools/__init__.py",
@@ -7545,6 +8622,273 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:43.540Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.542Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/actions.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\actions.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/actions.py",
+      "exports": [
+        "OnlyOnce",
+        "match_only_at_col",
+        "replace_with",
+        "remove_quotes",
+        "with_attribute",
+        "with_class"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.546Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/common.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\common.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/common.py",
+      "exports": [
+        "pyparsing_common"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.551Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/core.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\core.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/core.py",
+      "exports": [
+        "Diagnostics",
+        "enable_diag",
+        "disable_diag",
+        "enable_all_warnings",
+        "null_debug_action",
+        "ParserElement",
+        "Token",
+        "Empty",
+        "NoMatch",
+        "Literal",
+        "Keyword",
+        "CaselessLiteral",
+        "CaselessKeyword",
+        "CloseMatch",
+        "Word",
+        "Char",
+        "Regex",
+        "QuotedString",
+        "CharsNotIn",
+        "White",
+        "PositionToken",
+        "GoToColumn",
+        "LineStart",
+        "LineEnd",
+        "StringStart",
+        "StringEnd",
+        "WordStart",
+        "WordEnd",
+        "ParseExpression",
+        "And",
+        "Or",
+        "MatchFirst",
+        "Each",
+        "ParseElementEnhance",
+        "IndentedBlock",
+        "AtStringStart",
+        "AtLineStart",
+        "FollowedBy",
+        "PrecededBy",
+        "Located",
+        "NotAny",
+        "OneOrMore",
+        "ZeroOrMore",
+        "Opt",
+        "SkipTo",
+        "Forward",
+        "TokenConverter",
+        "Combine",
+        "Group",
+        "Dict",
+        "Suppress",
+        "trace_parse_action",
+        "srange",
+        "token_map",
+        "autoname_elements"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.558Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/diagram/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\diagram\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/diagram/__init__.py",
+      "exports": [
+        "EachItem",
+        "AnnotatedItem",
+        "EditablePartial",
+        "railroad_to_html",
+        "resolve_partial",
+        "ElementState",
+        "ConverterState"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.583Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/exceptions.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\exceptions.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/exceptions.py",
+      "exports": [
+        "ExceptionWordUnicode",
+        "ParseBaseException",
+        "ParseException",
+        "ParseFatalException",
+        "ParseSyntaxException",
+        "RecursiveGrammarException"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.567Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/helpers.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\helpers.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/helpers.py",
+      "exports": [
+        "match_previous_literal",
+        "match_previous_expr",
+        "dict_of",
+        "ungroup",
+        "locatedExpr",
+        "replace_html_entity",
+        "OpAssoc",
+        "indentedBlock"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.573Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/results.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\results.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/results.py",
+      "exports": [
+        "ParseResults"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.575Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/testing.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\testing.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/testing.py",
+      "exports": [
+        "pyparsing_test"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.576Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/unicode.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\unicode.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/unicode.py",
+      "exports": [
+        "unicode_set",
+        "pyparsing_unicode"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.578Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/pyparsing/util.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\pyparsing\\util.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/pyparsing/util.py",
+      "exports": [
+        "col",
+        "lineno",
+        "line",
+        "LRUMemo",
+        "UnboundedMemo"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.580Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/tomli/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\tomli\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/tomli/__init__.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.587Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/tomli/_parser.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\tomli\\_parser.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/tomli/_parser.py",
+      "exports": [
+        "ASCII_CTRL",
+        "ILLEGAL_BASIC_STR_CHARS",
+        "ILLEGAL_MULTILINE_BASIC_STR_CHARS",
+        "ILLEGAL_LITERAL_STR_CHARS",
+        "ILLEGAL_MULTILINE_LITERAL_STR_CHARS",
+        "ILLEGAL_COMMENT_CHARS",
+        "TOML_WS",
+        "TOML_WS_AND_NEWLINE",
+        "BARE_KEY_CHARS",
+        "KEY_INITIAL_CHARS",
+        "HEXDIGIT_CHARS",
+        "BASIC_STR_ESCAPE_REPLACEMENTS",
+        "TOMLDecodeError",
+        "load",
+        "loads",
+        "Flags",
+        "NestedDict",
+        "Output",
+        "skip_chars",
+        "skip_comment",
+        "skip_comments_and_array_ws",
+        "create_dict_rule",
+        "create_list_rule",
+        "parse_key",
+        "parse_key_part",
+        "parse_one_line_basic_str",
+        "parse_array",
+        "parse_inline_table",
+        "parse_basic_str_escape_multiline",
+        "parse_hex_char",
+        "parse_literal_str",
+        "parse_multiline_str",
+        "parse_basic_str",
+        "suffixed_err",
+        "is_unicode_scalar_value",
+        "make_safe_parse_float"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.595Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/tomli/_re.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\tomli\\_re.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/tomli/_re.py",
+      "exports": [
+        "RE_NUMBER",
+        "RE_LOCALTIME",
+        "RE_DATETIME",
+        "match_to_datetime",
+        "cached_tz",
+        "match_to_localtime",
+        "match_to_number"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.604Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/tomli/_types.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\tomli\\_types.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/_vendor/tomli/_types.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.610Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/_vendor/typing_extensions.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\_vendor\\typing_extensions.py",
@@ -7931,6 +9275,105 @@
       "imports": [],
       "language": "python",
       "mtime": "2026-06-19T23:57:43.722Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/__init__.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\__init__.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/__init__.py",
+      "exports": [
+        "FORMAT_FUNCTIONS",
+        "validate"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.741Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/error_reporting.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\error_reporting.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/error_reporting.py",
+      "exports": [
+        "ValidationError",
+        "detailed_errors"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.743Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/extra_validations.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\extra_validations.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/extra_validations.py",
+      "exports": [
+        "RedefiningStaticFieldAsDynamic",
+        "validate_project_dynamic",
+        "EXTRA_VALIDATIONS"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.748Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/fastjsonschema_exceptions.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\fastjsonschema_exceptions.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/fastjsonschema_exceptions.py",
+      "exports": [
+        "SPLIT_RE",
+        "JsonSchemaException",
+        "JsonSchemaValueException",
+        "JsonSchemaDefinitionException"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.752Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/fastjsonschema_validations.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\fastjsonschema_validations.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/fastjsonschema_validations.py",
+      "exports": [
+        "VERSION",
+        "REGEX_PATTERNS",
+        "validate",
+        "validate_https___packaging_python_org_en_latest_specifications_declaring_build_dependencies",
+        "validate_https___setuptools_pypa_io_en_latest_references_keywords_html",
+        "validate_https___setuptools_pypa_io_en_latest_references_keywords_html__definitions_file_directive",
+        "validate_https___setuptools_pypa_io_en_latest_references_keywords_html__definitions_attr_directive",
+        "validate_https___setuptools_pypa_io_en_latest_references_keywords_html__definitions_find_directive",
+        "validate_https___docs_python_org_3_install",
+        "validate_https___packaging_python_org_en_latest_specifications_declaring_project_metadata",
+        "validate_https___packaging_python_org_en_latest_specifications_declaring_project_metadata___definitions_dependency",
+        "validate_https___packaging_python_org_en_latest_specifications_declaring_project_metadata___definitions_entry_point_group",
+        "validate_https___packaging_python_org_en_latest_specifications_declaring_project_metadata___definitions_author"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.758Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/_validate_pyproject/formats.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\_validate_pyproject\\formats.py",
+      "moduleName": ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/formats.py",
+      "exports": [
+        "VERSION_PATTERN",
+        "VERSION_REGEX",
+        "pep440",
+        "PEP508_IDENTIFIER_PATTERN",
+        "PEP508_IDENTIFIER_REGEX",
+        "pep508_identifier",
+        "pep508_versionspec",
+        "pep517_backend_reference",
+        "url",
+        "ENTRYPOINT_PATTERN",
+        "ENTRYPOINT_REGEX",
+        "RECOMMEDED_ENTRYPOINT_PATTERN",
+        "RECOMMEDED_ENTRYPOINT_REGEX",
+        "ENTRYPOINT_GROUP_PATTERN",
+        "ENTRYPOINT_GROUP_REGEX",
+        "python_identifier",
+        "python_qualified_identifier",
+        "python_module_name",
+        "python_entrypoint_group",
+        "python_entrypoint_name",
+        "python_entrypoint_reference"
+      ],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-06-19T23:57:43.765Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/.venv/Lib/site-packages/setuptools/config/expand.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\.venv\\Lib\\site-packages\\setuptools\\config\\expand.py",
@@ -8330,6 +9773,34 @@
       "language": "typescript",
       "mtime": "2026-06-22T16:05:34.455Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/gestor-puntos-hooks.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\gestor-puntos-hooks.ts",
+      "moduleName": "src/components/gestor-puntos-hooks.ts",
+      "exports": [
+        "useSeleccionPuntos"
+      ],
+      "imports": [
+        "react",
+        "@/lib/folder-parser",
+        "@/lib/sync-file-store",
+        "@/lib/utils",
+        "@/lib/nomenclaturas"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T20:42:24.115Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/gestor-puntos-logica.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\gestor-puntos-logica.ts",
+      "moduleName": "src/components/gestor-puntos-logica.ts",
+      "exports": [
+        "SortKey",
+        "compararCadenamiento",
+        "ordenarPuntos"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-07-06T18:52:38.395Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/GestorPuntos.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\GestorPuntos.tsx",
       "moduleName": "src/components/GestorPuntos.tsx",
@@ -8340,9 +9811,8 @@
         "react",
         "@/context/AppContext",
         "@/lib/folder-parser",
-        "@/lib/sync-file-store",
-        "@/lib/utils",
-        "@/lib/nomenclaturas",
+        "@/components/gestor-puntos-logica",
+        "@/components/gestor-puntos-hooks",
         "@/components/ui/button",
         "@/components/ThinkingLoader",
         "@/components/ui/input",
@@ -8356,7 +9826,7 @@
         "lucide-react"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T20:43:55.410Z"
+      "mtime": "2026-07-06T20:43:10.099Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/HistorialObras.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\HistorialObras.tsx",
@@ -8430,10 +9900,11 @@
         "./modulos/ModuloMateriales",
         "./modulos/ModuloFicha",
         "./modulos/ModuloReportes",
-        "./modulos/ModuloSincronizacion"
+        "./modulos/ModuloSincronizacion",
+        "./modulos/ModuloRespaldo"
       ],
       "language": "typescript",
-      "mtime": "2026-07-06T16:32:48.237Z"
+      "mtime": "2026-07-06T20:16:33.268Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
@@ -8635,11 +10106,11 @@
       "language": "typescript",
       "mtime": "2026-06-11T00:44:30.949Z"
     },
-    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSeguridad.tsx": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSeguridad.tsx",
-      "moduleName": "src/components/modulos/ModuloSeguridad.tsx",
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloRespaldo.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloRespaldo.tsx",
+      "moduleName": "src/components/modulos/ModuloRespaldo.tsx",
       "exports": [
-        "ModuloSeguridad"
+        "ModuloRespaldo"
       ],
       "imports": [
         "@/context/AppContext",
@@ -8652,7 +10123,7 @@
         "@/components/ui/scroll-area"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T17:35:01.497Z"
+      "mtime": "2026-07-06T20:10:35.830Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSincronizacion.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
@@ -9146,6 +10617,18 @@
       "language": "typescript",
       "mtime": "2026-07-01T19:06:56.498Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/gestor-puntos.smoke.test.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\gestor-puntos.smoke.test.tsx",
+      "moduleName": "src/tests/gestor-puntos.smoke.test.tsx",
+      "exports": [],
+      "imports": [
+        "vitest",
+        "@testing-library/react",
+        "@/components/GestorPuntos"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T19:57:03.867Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/module-filter.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\module-filter.test.ts",
       "moduleName": "src/tests/module-filter.test.ts",
@@ -9172,10 +10655,11 @@
       "moduleName": "src/tests/puntos-ui.test.ts",
       "exports": [],
       "imports": [
-        "vitest"
+        "vitest",
+        "@/components/gestor-puntos-logica"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T22:59:35.178Z"
+      "mtime": "2026-07-06T18:55:48.409Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/types/index.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\types\\index.ts",
@@ -9213,7 +10697,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-07-01T19:30:36.658Z"
+      "mtime": "2026-07-06T20:15:57.198Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
@@ -9343,6 +10827,12 @@
     },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloRespaldo.tsx",
+      "importSpecifier": "./modulos/ModuloRespaldo",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
       "importSpecifier": "./modulos/ModuloSincronizacion",
       "importType": "named"
@@ -9367,9 +10857,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-06T16:51:17.781Z",
+    "generatedAt": "2026-07-06T20:43:12.672Z",
     "generator": "repo-graph",
-    "nodeCount": 667,
-    "edgeCount": 11
+    "nodeCount": 778,
+    "edgeCount": 12
   }
 }

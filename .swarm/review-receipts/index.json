@@ -64,6 +64,22 @@
       "scope_hash": "f8349aad3065afbc3a80456366339bc25021a7adec65d324f5a46d011b7ecdca",
       "agent": "curator",
       "filename": "2026-07-06-ec70d5c9-bea7-41c2-b8d5-ab00fbbe331c.json"
+    },
+    {
+      "id": "c375f840-0e4b-4f5c-ae68-5d351d5dffe7",
+      "verdict": "approved",
+      "reviewed_at": "2026-07-06T17:54:51.201Z",
+      "scope_hash": "4712ee66bc1d1e945838369d1d020f514aa926263a6b94924a95862ccca70aad",
+      "agent": "curator",
+      "filename": "2026-07-06-c375f840-0e4b-4f5c-ae68-5d351d5dffe7.json"
+    },
+    {
+      "id": "285a8b33-c348-4a46-a6ef-1643a410eae9",
+      "verdict": "approved",
+      "reviewed_at": "2026-07-06T18:21:20.565Z",
+      "scope_hash": "f6e7f25272d1efd5bf5accc425a7f432e9e1a041f0684eca257be62ea7bd5f36",
+      "agent": "curator",
+      "filename": "2026-07-06-285a8b33-c348-4a46-a6ef-1643a410eae9.json"
     }
   ]
 }

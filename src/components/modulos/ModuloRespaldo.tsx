@@ -20,7 +20,7 @@ interface Riesgo {
   mitigacion: string
 }
 
-export function ModuloSeguridad() {
+export function ModuloRespaldo() {
   const { state, actualizarPunto } = useApp()
   const punto = state.puntoActivo
   const [riesgos, setRiesgos] = useState<Riesgo[]>([])
@@ -52,13 +52,13 @@ export function ModuloSeguridad() {
     actualizarPunto(punto.id, {
       moduloData: {
         ...punto.moduloData,
-        seguridad: {
+        respaldo: {
           riesgos,
           updatedAt: new Date().toISOString(),
         },
       },
     })
-    alert('Análisis de seguridad guardado')
+    alert('Análisis de respaldo guardado')
   }
 
   if (!punto) {
@@ -66,7 +66,7 @@ export function ModuloSeguridad() {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Shield className="w-12 h-12 text-muted-foreground opacity-30 mb-3" />
-          <p className="text-muted-foreground">Selecciona un punto para análisis de seguridad</p>
+          <p className="text-muted-foreground">Selecciona un punto para análisis de respaldo</p>
         </CardContent>
       </Card>
     )

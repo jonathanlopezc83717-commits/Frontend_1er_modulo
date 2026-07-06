@@ -1,0 +1,648 @@
+{
+  "exportedAt": "2026-07-06T18:38:33.826Z",
+  "source": "image_analyses (legacy table, pre punto-centric model)",
+  "rowCount": 32,
+  "note": "All rows have punto_id=null and single-image image_url. Backed up before potential cleanup.",
+  "rows": [
+    {
+      "id": "9fc30f55-c4ae-48ef-a92a-3575043b2232",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780533192812-5h08t7.png",
+      "description": "Vista de vía férrea en zona rural. Se observan rieles y durmientes sobre balasto de piedra triturada. El entorno muestra vegetación arbustiva y árboles dispersos. La infraestructura incluye torres de catenaria visibles en el horizonte. El cielo parcialmente nublado sugiere condiciones climáticas variables.",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "torres de catenaria"
+      ],
+      "colors": [
+        "gris hormigón",
+        "marrón tierra",
+        "verde vegetación",
+        "plateado metal"
+      ],
+      "mood": "Zona rural con clima parcialmente nublado. Actividad constructiva no visible, pero operación ferroviaria activa.",
+      "quality": "La vía parece estar en buen estado con balasto adecuadamente distribuido. No se observan signos de erosión o desalineación de la vía.",
+      "suggestions": [
+        "Verificar nivel de compactación del balasto",
+        "Revisar estabilidad de la vegetación cercana a la vía para evitar obstrucciones"
+      ],
+      "created_at": "2026-06-04T00:33:17.363529+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780533192812-5h08t7.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "5327e54b-dc33-4480-ac3e-1528f205c6e6",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780533289955-xlwyty.png",
+      "description": "Vista de vía férrea en zona rural con presencia de vegetación arbustiva. La vía se encuentra sobre un terraplén de balasto bien compactado. Se observan rieles y durmientes en buen estado. En el entorno se aprecian torres de transmisión eléctrica. El cielo parcialmente nublado sugiere condiciones climáticas favorables para la operación ferroviaria.",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "terraplén",
+        "torres de catenaria"
+      ],
+      "colors": [
+        "gris hormigón",
+        "marrón tierra",
+        "verde vegetación",
+        "plateado metal"
+      ],
+      "mood": "Ambiente de la zona de obra: rural, clima parcialmente nublado, época del año indeterminada, actividad constructiva no visible",
+      "quality": "Evaluación técnica de la calidad visible: buen estado de los materiales, nivel de compactación adecuado, sin señales de erosión visibles, drenaje parece adecuado, alineación de la vía correcta",
+      "suggestions": [
+        "Verificar nivel de compactación del terraplén",
+        "Instalar sistemas de drenaje transversal",
+        "Revisar estabilidad de taludes"
+      ],
+      "created_at": "2026-06-04T00:34:57.045568+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780533289955-xlwyty.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "ee39c8c8-5274-4a84-b920-5d94a3b15145",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780533430594-2bt73w.png",
+      "description": "Inspección de terreno para futura obra ferroviaria en zona rural. El área está cubierta de vegetación densa y arbustos, con terreno mayormente plano. No se observan elementos constructivos visibles ni infraestructura ferroviaria existente. El entorno es natural con presencia de vegetación típica de la región.",
+      "objects": [],
+      "colors": [
+        "verde vegetación",
+        "marrón tierra"
+      ],
+      "mood": "Ambiente rural con clima despejado y soleado. Actividad de inspección en curso, sin actividad constructiva visible.",
+      "quality": "No hay elementos constructivos para evaluar calidad. El terreno parece estable, pero requiere limpieza y preparación para futuras obras.",
+      "suggestions": [
+        "Realizar limpieza del terreno y desbroce de vegetación",
+        "Realizar estudios geotécnicos para evaluar condiciones del suelo",
+        "Planificar sistemas de drenaje para evitar acumulación de agua"
+      ],
+      "created_at": "2026-06-04T00:37:15.185982+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780533430594-2bt73w.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "9032ff3b-fc40-4d82-bdfa-ecfcc720eb7e",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780533677432-li18ce.png",
+      "description": "Inspección preliminar en terreno para futura obra ferroviaria en zona rural. El área está cubierta de vegetación alta y densa, indicando que aún no se ha iniciado la limpieza o preparación del terreno. Se observan estacas de madera con marcas de pintura, posiblemente para delimitación o levantamiento topográfico. No hay presencia de infraestructura ferroviaria visible ni maquinaria de construcción en el sitio. El entorno es plano con vegetación arbustiva dispersa y cielo despejado, sugiriendo condiciones climáticas favorables.",
+      "objects": [
+        "estacas de delimitación"
+      ],
+      "colors": [
+        "verde vegetación",
+        "marrón tierra"
+      ],
+      "mood": "Ambiente rural con clima despejado, indicando época del año seca. Actividad constructiva aún no iniciada, en fase de planificación o estudio.",
+      "quality": "No se puede evaluar la calidad de la obra ya que no ha comenzado la construcción. El terreno parece no haber sido alterado, sin signos de erosión o compactación.",
+      "suggestions": [
+        "Realizar limpieza del terreno para preparación de la obra",
+        "Llevar a cabo estudios topográficos detallados",
+        "Planificar sistemas de drenaje adecuados para evitar acumulación de agua"
+      ],
+      "created_at": "2026-06-04T00:41:22.093212+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780533677432-li18ce.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "d9969a67-20ec-4136-b754-2502b9088c40",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780586342442-nxn3h.png",
+      "description": "Inspección preliminar de terreno para futura obra ferroviaria en zona rural. El área es predominantemente plana con vegetación alta y arbustiva. No se observan elementos constructivos visibles como rieles o durmientes. El terreno parece estar sin intervenir, con presencia de estacas de señalización que podrían indicar el trazado de la futura vía. La inspección se realiza bajo condiciones climáticas despejadas.",
+      "objects": [
+        "señalización ferroviaria"
+      ],
+      "colors": [
+        "verde vegetación",
+        "marrón tierra"
+      ],
+      "mood": "Zona rural con clima despejado, indicando condiciones favorables para la inspección. Actividad constructiva aún no iniciada.",
+      "quality": "El terreno parece estar en estado natural, sin signos de intervención o compactación. La vegetación alta sugiere que no se ha realizado limpieza ni preparación del terreno.",
+      "suggestions": [
+        "Realizar limpieza y desbroce del terreno",
+        "Iniciar estudios geotécnicos para evaluar condiciones del suelo",
+        "Marcar claramente el trazado de la vía para futuras intervenciones"
+      ],
+      "created_at": "2026-06-04T15:19:07.943013+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780586342442-nxn3h.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "b3f40dc8-f3aa-4e9c-ae6d-d3c1423c8340",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780587597387-ta0e9.png",
+      "description": "La obra civil corresponde a la preparación del terreno para la construcción de una vía férrea en un área rural. Se observa un estado inicial de la obra, donde se están realizando trabajos de topografía y delimitación del terreno. Los materiales visibles son principalmente tierra y vegetación, con algunos marcadores de señalización en el terreno. Las condiciones del terreno son naturales, con vegetación densa y un entorno rural.",
+      "objects": [],
+      "colors": null,
+      "mood": "Rural, clima soleado con algunas nubes, condiciones meteorológicas secas.",
+      "quality": "La evaluación técnica muestra un terreno sin obras visibles de compactación o drenaje, con presencia de vegetación alta que podría requerir desmonte antes de proceder con la construcción.",
+      "suggestions": null,
+      "created_at": "2026-06-04T15:40:06.391475+00:00",
+      "model_used": null,
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780587597387-ta0e9.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "f13877a5-02df-4ea3-b19d-f656d1a5035a",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780589895792-9vsnp5.png",
+      "description": "La obra corresponde a una sección de vía férrea en un entorno rural. Se observa un terraplén con rieles y balasto. El estado de avance es completo, ya que la vía está operativa. Los materiales visibles incluyen acero en los rieles y balasto de piedra. El terreno es plano y rodeado de vegetación.",
+      "objects": [
+        "rieles",
+        "balasto",
+        "terraplén",
+        "acero"
+      ],
+      "colors": null,
+      "mood": "rural, clima nublado con condiciones meteorológicas estables",
+      "quality": "Los materiales parecen en buen estado, el balasto está bien compactado y no se observan señales de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-04T16:18:21.137686+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780589895792-9vsnp5.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "412de4bc-6723-40c2-b0d2-2d04c734f243",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780592325770-tgyy6i.png",
+      "description": "La obra corresponde a una vía férrea en un entorno rural. Se observa un tramo de vía en superficie con rieles y balasto. El estado de avance parece completo, ya que las vías están instaladas y operativas. Los materiales visibles incluyen acero para los rieles y piedra triturada para el balasto. El terreno es plano con vegetación baja y líneas de transmisión eléctrica en el entorno.",
+      "objects": [
+        "rieles",
+        "balasto",
+        "maquinaria pesada"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales parecen estar en buen estado, el balasto está bien distribuido, no hay señales visibles de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-04T16:58:52.500327+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780592325770-tgyy6i.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "348b0777-ea5b-4306-9a22-3dda39224895",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780593222187-w004j.png",
+      "description": "Las imágenes muestran una vía férrea en un entorno rural. Se observa un tramo recto de vía con rieles y durmientes sobre balasto. El terreno es plano y está rodeado de vegetación baja y arbustos. Hay presencia de líneas de transmisión eléctrica en el entorno.",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles parecen estar en buen estado. El balasto está bien distribuido, sin señales evidentes de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-04T17:13:46.941313+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780593222187-w004j.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "f22c8abf-21da-4f63-97ca-70182dc49d00",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780602679492-cfq54l.png",
+      "description": "La obra es una vía férrea en un entorno rural. Se observa una vía existente con rieles y balasto, y un posible trabajo de inspección o levantamiento topográfico en curso. El terreno es plano con vegetación baja.",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima despejado con algunas nubes, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión significativas ni problemas de drenaje evidentes.",
+      "suggestions": null,
+      "created_at": "2026-06-04T19:51:46.106747+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780602679492-cfq54l.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "2030cef9-7d6e-459d-8f9c-af9839d8e7ad",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780603187936-3iq1st.png",
+      "description": "La obra es una vía férrea en un entorno rural. Se observa un tren en circulación sobre la vía. La vía está compuesta por rieles y balasto, y parece estar en buen estado. El terreno es plano y rodeado de vegetación baja.",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-04T19:59:52.890202+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780603187936-3iq1st.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "1b4fb308-6607-44d5-be8e-aff7fb5b2803",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780603215743-tgl6nj9.png",
+      "description": "La obra corresponde a una vía férrea en un entorno rural. Se observa una línea de ferrocarril sobre un terraplén con balasto. El estado de avance parece completo, con rieles y durmientes instalados. El terreno es plano y rodeado de vegetación baja, con torres de alta tensión visibles en el entorno.",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "terraplén"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje evidentes.",
+      "suggestions": null,
+      "created_at": "2026-06-04T20:00:22.194738+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780603215743-tgl6nj9.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "6a32f111-d0ce-4c3b-8704-e4f860773408",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780607694069-oefj6k.png",
+      "description": "La obra parece ser una inspección preliminar para la construcción de una vía férrea, posiblemente un terraplén. No se observan estructuras construidas como rieles o durmientes. El terreno es plano y cubierto de vegetación, indicando que aún no ha comenzado la construcción.",
+      "objects": [],
+      "colors": null,
+      "mood": "Rural, con clima soleado y condiciones meteorológicas estables.",
+      "quality": "El terreno está cubierto de vegetación, lo que sugiere que no ha habido intervención reciente. No se observan señales de erosión o problemas de drenaje visibles.",
+      "suggestions": null,
+      "created_at": "2026-06-04T21:15:01.286054+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780607694069-oefj6k.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "1a9494ad-8ed4-4ed9-9d82-f02a9b6f3494",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780608418174-s0x62.png",
+      "description": "La obra parece estar en una fase inicial de inspección o levantamiento topográfico para una futura construcción ferroviaria. No se observan estructuras visibles como puentes, túneles o vías férreas. El terreno es mayormente plano y cubierto de vegetación.",
+      "objects": [],
+      "colors": null,
+      "mood": "rural, clima despejado, condiciones meteorológicas estables",
+      "quality": "El terreno parece estar en estado natural sin signos de compactación o erosión visibles. No hay evidencia de drenaje o preparación del suelo.",
+      "suggestions": null,
+      "created_at": "2026-06-04T21:27:01.938967+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780608418174-s0x62.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "88f1df31-9f86-4ea5-bba9-ab5e29a493b1",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780608476252-48smbh.png",
+      "description": "La obra parece ser una inspección preliminar de un terreno destinado a la construcción de infraestructura ferroviaria. No se observan estructuras visibles como puentes, túneles o terraplenes. El terreno es mayormente plano y cubierto de vegetación.",
+      "objects": [],
+      "colors": null,
+      "mood": "rural",
+      "quality": "El terreno está cubierto de vegetación densa, lo que sugiere que no ha habido intervención reciente. No se observan signos de erosión o problemas de drenaje visibles.",
+      "suggestions": null,
+      "created_at": "2026-06-04T21:28:00.826797+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780608476252-48smbh.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "19d8de06-4474-4df7-bcfe-cbe3b73557e7",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780608619096-eqfm5.png",
+      "description": "La obra parece estar en una etapa inicial de inspección o estudio del terreno para la futura construcción de una vía férrea. No se observan estructuras ferroviarias visibles como rieles o durmientes. El terreno es plano y cubierto de vegetación, lo que sugiere que podría ser una futura explanada o terraplén.",
+      "objects": [],
+      "colors": null,
+      "mood": "Rural, con clima despejado y soleado. Las condiciones meteorológicas parecen ser favorables.",
+      "quality": "El terreno muestra vegetación densa, lo que indica que aún no se ha realizado limpieza o nivelación. No hay señales visibles de erosión o problemas de drenaje, pero la evaluación completa requeriría más inspección.",
+      "suggestions": null,
+      "created_at": "2026-06-04T21:30:23.592362+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780608619096-eqfm5.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "5e2b2df5-0e5e-4748-9082-40d6b69dbd3c",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780612346278-1t281.png",
+      "description": "La obra parece estar en una fase preliminar de inspección o levantamiento topográfico para una futura construcción ferroviaria. No se observan estructuras visibles como puentes, túneles o terraplenes. El terreno es plano y cubierto de vegetación natural.",
+      "objects": [],
+      "colors": null,
+      "mood": "rural, clima despejado, condiciones meteorológicas favorables",
+      "quality": "No hay materiales de construcción visibles para evaluar. El terreno parece estable, sin señales de erosión o problemas de drenaje evidentes.",
+      "suggestions": null,
+      "created_at": "2026-06-04T22:32:32.131767+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780612346278-1t281.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "c8acf91c-b7a7-4d9c-b80f-f259157f8887",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780612578349-2lhp8l.png",
+      "description": "La imagen muestra una zona de obra civil ferroviaria en etapa de planificación o inspección preliminar. No se observan estructuras ferroviarias visibles como rieles o durmientes. El terreno es plano y cubierto de vegetación, posiblemente indicando un área destinada a futura construcción de infraestructura ferroviaria.",
+      "objects": [],
+      "colors": null,
+      "mood": "rural, clima despejado, condiciones meteorológicas estables",
+      "quality": "El terreno parece estar en estado natural sin signos visibles de compactación o preparación. No hay indicios de erosión o sistemas de drenaje implementados.",
+      "suggestions": null,
+      "created_at": "2026-06-04T22:36:21.536128+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780612578349-2lhp8l.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "4f768d9e-1394-4709-af51-f5ab1a4ba634",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780617390553-de786i.png",
+      "description": "La obra consiste en una vía férrea sobre terraplén. Se observa un tren en operación, lo que indica que la vía está en uso. Los materiales visibles incluyen rieles de acero, durmientes y balasto. El terreno es plano con vegetación baja típica de una zona rural.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780617390553-de786i.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780617390555-b29bxo.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780617390555-mqwgxl.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780617390555-ehyy7.png]",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "terraplén",
+        "acero"
+      ],
+      "colors": null,
+      "mood": "Ambiente rural con clima parcialmente nublado. No se observan condiciones meteorológicas adversas.",
+      "quality": "Los materiales parecen estar en buen estado. El balasto está bien distribuido y no hay señales evidentes de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-04T23:56:35.579997+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780617390553-de786i.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "8d570672-7108-4efe-88b3-5fae7ccb66e6",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780617570281-qjsnx.png",
+      "description": "La obra corresponde a una vía férrea en un entorno rural. Se observa un tramo de vía con rieles y balasto. No se aprecian estructuras adicionales como puentes o túneles. El terreno es plano y el entorno está compuesto por vegetación baja.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780617570281-qjsnx.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780617570282-3nmw2.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780617570282-xha4jf.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje evidentes.",
+      "suggestions": null,
+      "created_at": "2026-06-04T23:59:35.849605+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780617570281-qjsnx.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "5e01d1ea-0295-42cd-8072-962a8630e138",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780675314574-nk19pg.png",
+      "description": "La obra corresponde a una vía férrea en un entorno abierto. Se observan rieles y balasto en una vía sencilla. No hay indicios de puentes, túneles o estructuras complejas. El terreno es plano con vegetación baja y líneas de transmisión eléctrica cercanas.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780675314574-nk19pg.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780675314575-0ekwg.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780675314575-wy9j3c.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780675314575-jy5s6j.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje significativos.",
+      "suggestions": null,
+      "created_at": "2026-06-05T16:01:58.829587+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780675314574-nk19pg.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "dab52553-4af9-46a4-a55c-0fce60fd331d",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780676128070-nhcvui.png",
+      "description": "La obra consiste en una vía férrea en un entorno rural. Se observa un tramo recto de vía con rieles y durmientes asentados sobre balasto. No se aprecian estructuras como puentes o túneles. El terreno es plano y rodeado de vegetación baja.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780676128070-nhcvui.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676128073-97zkd.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676128073-q7w1h.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676128073-t9love.png]",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "Rural, con clima parcialmente nublado. No se observan condiciones meteorológicas adversas.",
+      "quality": "Los materiales visibles parecen estar en buen estado. El balasto está bien distribuido, aunque no se puede evaluar el nivel de compactación o el drenaje desde las imágenes.",
+      "suggestions": null,
+      "created_at": "2026-06-05T16:15:31.470433+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780676128070-nhcvui.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "8bf24d14-e0db-4c39-9c23-824e6d6dd567",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780676500543-rxv3fy.png",
+      "description": "La obra parece ser una fase inicial de un proyecto ferroviario, posiblemente un levantamiento topográfico o inspección preliminar. No se observan estructuras visibles como puentes, túneles o vías férreas instaladas. El terreno es mayormente plano con vegetación densa.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780676500543-rxv3fy.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676500545-b2ha.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676500545-6f5ofk.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780676500545-zdc0g.png]",
+      "objects": [],
+      "colors": null,
+      "mood": "Rural, con clima soleado y condiciones meteorológicas estables.",
+      "quality": "El terreno parece estar en su estado natural, sin signos de compactación o erosión significativos. No se observan sistemas de drenaje visibles.",
+      "suggestions": null,
+      "created_at": "2026-06-05T16:21:43.446187+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780676500543-rxv3fy.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "18a5caff-c91d-493e-9cec-72a38cae6382",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780690069744-e18pdb.png",
+      "description": "La obra corresponde a una línea ferroviaria convencional en un entorno rural. Se observa una vía férrea sobre un terraplén con balasto. La infraestructura parece estar en operación, dado que se aprecia un tren circulando. El terreno es plano con vegetación baja.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780690069744-e18pdb.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780690069749-0f9hur.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780690069749-eoy82.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780690069749-dy7wv.png]",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "terraplén"
+      ],
+      "colors": null,
+      "mood": "Rural, con clima parcialmente nublado y condiciones meteorológicas estables.",
+      "quality": "Los materiales visibles parecen en buen estado, con un nivel de compactación adecuado del balasto. No se observan señales evidentes de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-05T20:07:57.855061+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780690069744-e18pdb.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "c1a6c084-1545-4442-9d87-692fd3f7a287",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780696772094-ifksp9.png",
+      "description": "[Emma 20_01_2026]\nLa obra corresponde a una vía férrea en un entorno rural. Se observan rieles y durmientes sobre un lecho de balasto. No hay señales de construcción adicional como puentes o túneles. El entorno es plano con vegetación dispersa.\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780696772094-ifksp9.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780696772096-3i7z06.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780696772096-bix1tn.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780696772096-xlkdpu.png]",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan signos de erosión o problemas de drenaje significativos.",
+      "suggestions": null,
+      "created_at": "2026-06-05T21:59:40.461157+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780696772094-ifksp9.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "f6ee2551-120d-4d28-909a-a7d92101db9c",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780698533761-1vijbk.png",
+      "description": "[Emma 20_01_2026]\nLa obra consiste en una vía férrea sobre un terraplén. El estado de avance parece completo, con rieles y balasto bien asentados. Los materiales visibles incluyen acero para los rieles y balasto para la cama de la vía. El terreno es plano y el entorno es natural, con vegetación baja y torres de transmisión eléctrica cercanas.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780698533761-1vijbk.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780698533761-0i6la.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780698533762-3vk5t.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780698533762-ofpcx.png]",
+      "objects": [
+        "rieles",
+        "balasto",
+        "terraplén",
+        "acero"
+      ],
+      "colors": null,
+      "mood": "Ambiente de la zona: rural, clima despejado con algunas nubes, condiciones meteorológicas estables.",
+      "quality": "Evaluación técnica: los materiales parecen en buen estado, el balasto está bien compactado, no se observan señales de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-05T22:28:58.098321+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780698533761-1vijbk.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "7c550969-329c-4d9a-89b2-91c9e09f5316",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780703622827-0e44x.png",
+      "description": "[Agustin 21_01_2026]\nLa obra corresponde a una vía férrea en un entorno rural. Se observa un terraplén con rieles y balasto. El estado de avance parece completo, ya que los rieles están instalados y operativos. Los materiales visibles incluyen acero para los rieles y balasto de piedra. El terreno es plano y rodeado de vegetación baja, con líneas de transmisión eléctrica en el entorno.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780703622827-0e44x.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780703622829-b3zowg.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780703622829-2s00t5.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780703622829-fp82vd.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales parecen estar en buen estado, el balasto está bien distribuido y no se observan señales de erosión o problemas de drenaje visibles.",
+      "suggestions": null,
+      "created_at": "2026-06-05T23:53:48.867339+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780703622827-0e44x.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "15e28a86-c169-434d-ac16-9e29b7c5e5b6",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780704449071-b2evtl.png",
+      "description": "[Agustin 21_01_2026]\nLa obra corresponde a una vía férrea en un entorno rural. Se observan rieles y balasto, con vegetación alrededor. No hay indicios de construcción de puentes, túneles o terraplenes significativos. El terreno parece plano y bien mantenido.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780704449071-b2evtl.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704449074-cjpp2c.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704449074-l4s5rf.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704449074-md40o.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-06T00:07:45.461155+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780704449071-b2evtl.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "d1ed9e6f-d4eb-421c-a40d-74f1df76c0f4",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780704546176-rodwrc.png",
+      "description": "[Agustin 21_01_2026]\nLa obra consiste en una vía férrea en un entorno rural. Se observa un tramo de vía en operación con rieles y durmientes asentados sobre balasto. No hay indicios de construcción de puentes o túneles. El terreno es plano y parece estar bien compactado.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780704546176-rodwrc.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704546180-zwkcw.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704546180-107t8n.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704546180-z79prr.png]",
+      "objects": [
+        "rieles",
+        "durmientes",
+        "balasto",
+        "maquinaria pesada"
+      ],
+      "colors": null,
+      "mood": "Ambiente rural con clima parcialmente nublado. Las condiciones meteorológicas parecen estables.",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-06T00:09:10.152496+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780704546176-rodwrc.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "96340778-6c92-45d1-a258-f968f7f239c7",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780704597243-q1u11.png",
+      "description": "[Agustin 21_01_2026]\nLa obra es una vía férrea en un entorno rural. Se observa una línea de ferrocarril en operación, con rieles y balasto visibles. El terreno es plano con vegetación baja y líneas de transmisión eléctrica cercanas.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780704597243-q1u11.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704597244-f52y3b.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704597244-7hglo6.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780704597244-2yn6ui.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles como los rieles y el balasto parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje significativos.",
+      "suggestions": null,
+      "created_at": "2026-06-06T00:10:02.842147+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780704597243-q1u11.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "5151ca60-a19a-444f-b81b-0559820dcbec",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780705028072-198fxw.png",
+      "description": "[Agustin 21_01_2026]\nLa obra corresponde a un tramo de vía férrea en un entorno rural. Se observa una vía simple con rieles y balasto. No hay estructuras complejas como puentes o túneles visibles. El terreno es relativamente plano con vegetación baja alrededor.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780705028072-198fxw.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705028074-gk3od.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705028074-ryuwll.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705028075-efjxlf.png]",
+      "objects": [
+        "rieles",
+        "balasto"
+      ],
+      "colors": null,
+      "mood": "rural, clima parcialmente nublado, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No hay señales evidentes de erosión o problemas de drenaje.",
+      "suggestions": null,
+      "created_at": "2026-06-06T00:17:12.68157+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780705028072-198fxw.png"
+      ],
+      "punto_id": null
+    },
+    {
+      "id": "6139a2eb-8734-4ea2-b59b-8f55da5ef8a3",
+      "image_url": "http://127.0.0.1:54321/storage/v1/object/public/images/1780705043447-5t008t.png",
+      "description": "[Emma 20_01_2026]\nLa obra corresponde a una vía férrea en un entorno rural. Se observan rieles y balasto, con un tren circulando en una de las imágenes. El terreno es plano y cubierto de vegetación baja, con líneas de transmisión eléctrica visibles. No se aprecian obras de gran envergadura como puentes o túneles.\n\nContexto del documento técnico asociado a este punto:\nEUR1\r\nRegistro\r\n\r\nALU2\r\nPoste de alumbrado público\r\n\r\nCOM3\r\nPoste de madera de telecomunicaciones\r\nSe encuentra del lado derecho en el sentido del cadenamiento\n\n[URLS_ADICIONALES:http://127.0.0.1:54321/storage/v1/object/public/images/1780705043447-5t008t.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705043448-r3ylz.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705043448-fhc2r.png,http://127.0.0.1:54321/storage/v1/object/public/images/1780705043448-r9xqm.png]",
+      "objects": [
+        "rieles",
+        "balasto",
+        "maquinaria pesada"
+      ],
+      "colors": null,
+      "mood": "rural, clima despejado con algunas nubes, condiciones meteorológicas estables",
+      "quality": "Los materiales visibles, como los rieles y el balasto, parecen estar en buen estado. No se observan señales de erosión o problemas de drenaje evidentes.",
+      "suggestions": null,
+      "created_at": "2026-06-06T00:17:26.168067+00:00",
+      "model_used": "GPT-4o",
+      "image_urls": [
+        "http://127.0.0.1:54321/storage/v1/object/public/images/1780705043447-5t008t.png"
+      ],
+      "punto_id": null
+    }
+  ]
+}

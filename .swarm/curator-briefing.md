@@ -53,14 +53,14 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 389 | 389 | 0 | 793ms |
-| edit | 327 | 327 | 0 | 35ms |
-| bash | 168 | 168 | 0 | 14396ms |
+| read | 423 | 423 | 0 | 742ms |
+| edit | 344 | 344 | 0 | 37ms |
+| bash | 179 | 179 | 0 | 15005ms |
 | write | 116 | 116 | 0 | 19ms |
 | todowrite | 61 | 61 | 0 | 6ms |
+| grep | 34 | 34 | 0 | 288ms |
 | build_check | 32 | 32 | 0 | 17220ms |
-| grep | 23 | 23 | 0 | 294ms |
-| glob | 20 | 20 | 0 | 602ms |
+| glob | 21 | 21 | 0 | 582ms |
 | declare_scope | 6 | 6 | 0 | 9ms |
 | save_plan | 4 | 4 | 0 | 120ms |
 | update_task_status | 4 | 4 | 0 | 77ms |
@@ -68,6 +68,7 @@ Swarm: default
 | search | 3 | 3 | 0 | 201536ms |
 | swarm_command | 2 | 2 | 0 | 86ms |
 | task | 2 | 2 | 0 | 97908ms |
+| question | 2 | 2 | 0 | 127181ms |
 | spec_write | 1 | 1 | 0 | 33ms |
 | pre_check_batch | 1 | 1 | 0 | 460ms |
 | diff | 1 | 1 | 0 | 64ms |
@@ -76,4 +77,3 @@ Swarm: default
 | phase_complete | 1 | 1 | 0 | 50ms |
 | lint | 1 | 1 | 0 | 17ms |
 | syntax_check | 1 | 1 | 0 | 580ms |
-| question | 1 | 1 | 0 | 219467ms |

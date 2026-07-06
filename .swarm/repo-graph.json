@@ -9900,32 +9900,10 @@
         "./modulos/ModuloMateriales",
         "./modulos/ModuloFicha",
         "./modulos/ModuloReportes",
-        "./modulos/ModuloSincronizacion",
-        "./modulos/ModuloRespaldo"
+        "./modulos/ModuloSincronizacion"
       ],
       "language": "typescript",
-      "mtime": "2026-07-06T20:16:33.268Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAmbiental.tsx": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAmbiental.tsx",
-      "moduleName": "src/components/modulos/ModuloAmbiental.tsx",
-      "exports": [
-        "ModuloAmbiental"
-      ],
-      "imports": [
-        "@/context/AppContext",
-        "@/components/ui/button",
-        "@/components/ui/input",
-        "@/components/ui/textarea",
-        "@/components/ui/card",
-        "@/components/ui/badge",
-        "@/components/ui/scroll-area",
-        "@/components/ui/separator",
-        "lucide-react",
-        "react"
-      ],
-      "language": "typescript",
-      "mtime": "2026-06-09T17:45:31.127Z"
+      "mtime": "2026-07-06T23:07:34.086Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAnalisis.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAnalisis.tsx",
@@ -10020,26 +9998,6 @@
       "language": "typescript",
       "mtime": "2026-06-18T20:52:14.388Z"
     },
-    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloInspeccion.tsx": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloInspeccion.tsx",
-      "moduleName": "src/components/modulos/ModuloInspeccion.tsx",
-      "exports": [
-        "ModuloInspeccion"
-      ],
-      "imports": [
-        "@/context/AppContext",
-        "@/components/ui/button",
-        "@/components/ui/card",
-        "@/components/ui/badge",
-        "@/components/ui/textarea",
-        "@/components/ui/label",
-        "lucide-react",
-        "react",
-        "@/components/ui/scroll-area"
-      ],
-      "language": "typescript",
-      "mtime": "2026-06-09T17:36:08.595Z"
-    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloMateriales.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloMateriales.tsx",
       "moduleName": "src/components/modulos/ModuloMateriales.tsx",
@@ -10105,25 +10063,6 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-11T00:44:30.949Z"
-    },
-    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloRespaldo.tsx": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloRespaldo.tsx",
-      "moduleName": "src/components/modulos/ModuloRespaldo.tsx",
-      "exports": [
-        "ModuloRespaldo"
-      ],
-      "imports": [
-        "@/context/AppContext",
-        "@/components/ui/button",
-        "@/components/ui/card",
-        "@/components/ui/input",
-        "@/components/ui/select",
-        "lucide-react",
-        "react",
-        "@/components/ui/scroll-area"
-      ],
-      "language": "typescript",
-      "mtime": "2026-07-06T20:10:35.830Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloSincronizacion.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
@@ -10368,6 +10307,21 @@
       "language": "typescript",
       "mtime": "2026-06-05T18:53:54.236Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/context/app-reducer.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\app-reducer.ts",
+      "moduleName": "src/context/app-reducer.ts",
+      "exports": [
+        "MAX_ESTADOS_GUARDADOS",
+        "reenumerarPuntos",
+        "appReducer"
+      ],
+      "imports": [
+        "@/lib/utils",
+        "@/lib/nomenclaturas"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T22:03:20.050Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/context/AppContext.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\AppContext.tsx",
       "moduleName": "src/context/AppContext.tsx",
@@ -10382,10 +10336,11 @@
         "@/lib/template-file-store",
         "@/lib/utils",
         "@/lib/nomenclaturas",
-        "@/lib/supabase-service"
+        "@/lib/supabase-service",
+        "./app-reducer"
       ],
       "language": "typescript",
-      "mtime": "2026-06-29T17:51:22.422Z"
+      "mtime": "2026-07-06T23:08:24.080Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
@@ -10435,7 +10390,7 @@
         "xlsx"
       ],
       "language": "typescript",
-      "mtime": "2026-06-24T00:28:41.477Z"
+      "mtime": "2026-07-06T22:21:17.239Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/folder-parser.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\folder-parser.ts",
@@ -10479,13 +10434,14 @@
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\openrouter.ts",
       "moduleName": "src/lib/openrouter.ts",
       "exports": [
-        "getEstimatedTime"
+        "getEstimatedTime",
+        "parsearRespuestaAnalisis"
       ],
       "imports": [
         "@/types"
       ],
       "language": "typescript",
-      "mtime": "2026-06-11T16:36:13.469Z"
+      "mtime": "2026-07-06T22:23:02.576Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/simmetry.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\simmetry.ts",
@@ -10539,7 +10495,7 @@
         "./supabase"
       ],
       "language": "typescript",
-      "mtime": "2026-06-29T17:48:06.161Z"
+      "mtime": "2026-07-06T23:10:17.652Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/supabase.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\supabase.ts",
@@ -10640,15 +10596,27 @@
       "language": "typescript",
       "mtime": "2026-07-06T16:39:36.972Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/openrouter.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\openrouter.test.ts",
+      "moduleName": "src/tests/openrouter.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest",
+        "@/lib/openrouter"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T22:23:22.288Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-logic.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-logic.test.ts",
       "moduleName": "src/tests/puntos-logic.test.ts",
       "exports": [],
       "imports": [
-        "vitest"
+        "vitest",
+        "@/context/app-reducer"
       ],
       "language": "typescript",
-      "mtime": "2026-06-09T22:59:23.160Z"
+      "mtime": "2026-07-06T22:13:23.587Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/puntos-ui.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\puntos-ui.test.ts",
@@ -10697,7 +10665,7 @@
       ],
       "imports": [],
       "language": "typescript",
-      "mtime": "2026-07-06T20:15:57.198Z"
+      "mtime": "2026-07-06T23:07:04.988Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/vite-env.d.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\vite-env.d.ts",
@@ -10827,14 +10795,14 @@
     },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloRespaldo.tsx",
-      "importSpecifier": "./modulos/ModuloRespaldo",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
+      "importSpecifier": "./modulos/ModuloSincronizacion",
       "importType": "named"
     },
     {
-      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\ModuleTabs.tsx",
-      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloSincronizacion.tsx",
-      "importSpecifier": "./modulos/ModuloSincronizacion",
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\AppContext.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\app-reducer.ts",
+      "importSpecifier": "./app-reducer",
       "importType": "named"
     },
     {
@@ -10857,9 +10825,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-06T20:43:12.672Z",
+    "generatedAt": "2026-07-06T23:10:19.194Z",
     "generator": "repo-graph",
-    "nodeCount": 778,
+    "nodeCount": 777,
     "edgeCount": 12
   }
 }

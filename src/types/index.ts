@@ -344,7 +344,6 @@ export const MODULOS: ModuloConfig[] = [
   { id: 'sincronizacion', nombre: 'Sincronización', descripcion: 'Sincronizar puntos desde Excel con nomenclaturas', icono: 'RefreshCw', componente: 'ModuloSincronizacion' },
   { id: 'materiales', nombre: 'Formato', descripcion: 'Formato editable desde Excel', icono: 'Package', componente: 'ModuloMateriales' },
   { id: 'nomenclaturas', nombre: 'Nomenclaturas', descripcion: 'Códigos y nomenclaturas registradas', icono: 'Tag', componente: 'ModuloNomenclaturas' },
-  { id: 'respaldo', nombre: 'Respaldo', descripcion: 'Análisis de riesgos', icono: 'Shield', componente: 'ModuloRespaldo' },
 ]
 
 export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o'

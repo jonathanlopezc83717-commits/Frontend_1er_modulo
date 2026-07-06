@@ -61,6 +61,33 @@ async function urlToBase64(url: string): Promise<string | null> {
   }
 }
 
+export function parsearRespuestaAnalisis(content: string, modelName: string): ImageAnalysisResult {
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      return {
+        description: parsed.description || 'No se generó descripción',
+        objects: Array.isArray(parsed.objects) ? parsed.objects : [],
+        mood: parsed.mood || '',
+        quality: parsed.quality || '',
+        rawResponse: content,
+        modelUsed: modelName,
+      }
+    }
+  } catch {
+    // JSON no válido: usar fallback con el texto crudo
+  }
+  return {
+    description: content,
+    objects: [],
+    mood: '',
+    quality: '',
+    rawResponse: content,
+    modelUsed: modelName,
+  }
+}
+
 export async function analyzeImages(
   images: ImageToAnalyze[],
   modelId: ModelId = DEFAULT_MODEL,
@@ -219,42 +246,9 @@ export async function analyzeImages(
 
     onProgress?.(95, 'Finalizando...', 1, 'Finalizando')
 
-    try {
-      // Intentar extraer JSON de la respuesta
-      const jsonMatch = content.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        
-        onProgress?.(100, 'Completado', 0, 'Completado')
-        
-        return [
-          {
-            description: parsed.description || 'No se generó descripción',
-            objects: Array.isArray(parsed.objects) ? parsed.objects : [],
-            mood: parsed.mood || '',
-            quality: parsed.quality || '',
-            rawResponse: content,
-            modelUsed: model.name,
-          },
-        ]
-      }
-    } catch {
-      // Si no se pudo parsear JSON
-    }
-
-    // Si no se pudo parsear JSON, devolver el texto como descripción
     onProgress?.(100, 'Completado', 0, 'Completado')
 
-    return [
-      {
-        description: content,
-        objects: [],
-        mood: '',
-        quality: '',
-        rawResponse: content,
-        modelUsed: model.name,
-      },
-    ]
+    return [parsearRespuestaAnalisis(content, model.name)]
   } catch (error) {
     onProgress?.(0, 'Error', 0, 'Error')
     

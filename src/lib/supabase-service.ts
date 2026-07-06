@@ -351,28 +351,28 @@ export async function cargarPuntosCompletos(): Promise<PuntoFerroviario[]> {
       supabase.from('fotos_punto').select('*').in('punto_id', puntoIds).order('indice', { ascending: true }),
     ])
 
-    const coordsMap = new Map<string, any>()
+    const coordsMap = new Map<string, CoordenadasDB>()
     if (coordsResult.data) {
       for (const c of coordsResult.data) {
         coordsMap.set(c.punto_id, c)
       }
     }
 
-    const docsMap = new Map<string, any>()
+    const docsMap = new Map<string, DocumentoDB>()
     if (docsResult.data) {
       for (const d of docsResult.data) {
         docsMap.set(d.punto_id, d)
       }
     }
 
-    const analisisMap = new Map<string, any>()
+    const analisisMap = new Map<string, AnalisisDB>()
     if (analisisResult.data) {
       for (const a of analisisResult.data) {
         analisisMap.set(a.punto_id, a)
       }
     }
 
-    const fotosMap = new Map<string, any[]>()
+    const fotosMap = new Map<string, FotoDB[]>()
     if (fotosResult.data) {
       for (const f of fotosResult.data) {
         if (!fotosMap.has(f.punto_id)) {
@@ -383,19 +383,25 @@ export async function cargarPuntosCompletos(): Promise<PuntoFerroviario[]> {
     }
 
     // 6. Combinar todo
+    type PuntoConRelaciones = PuntoDB & {
+      coordenadas_gps?: CoordenadasDB[]
+      documentos_punto?: DocumentoDB[]
+      analisis_imagenes?: AnalisisDB[]
+      fotos_punto?: FotoDB[]
+    }
     const puntosCompletos = puntosData.map(p => {
-      const punto: any = { ...p }
+      const punto: PuntoConRelaciones = { ...p }
       if (coordsMap.has(p.id)) {
-        punto.coordenadas_gps = [coordsMap.get(p.id)]
+        punto.coordenadas_gps = [coordsMap.get(p.id)!]
       }
       if (docsMap.has(p.id)) {
-        punto.documentos_punto = [docsMap.get(p.id)]
+        punto.documentos_punto = [docsMap.get(p.id)!]
       }
       if (analisisMap.has(p.id)) {
-        punto.analisis_imagenes = [analisisMap.get(p.id)]
+        punto.analisis_imagenes = [analisisMap.get(p.id)!]
       }
       if (fotosMap.has(p.id)) {
-        punto.fotos_punto = fotosMap.get(p.id)
+        punto.fotos_punto = fotosMap.get(p.id)!
       }
       return punto
     })

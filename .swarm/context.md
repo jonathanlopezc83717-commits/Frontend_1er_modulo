@@ -49,25 +49,25 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 494 | 494 | 0 | 689ms |
-| edit | 398 | 398 | 0 | 41ms |
-| bash | 238 | 238 | 0 | 13643ms |
-| write | 124 | 124 | 0 | 21ms |
-| grep | 74 | 74 | 0 | 354ms |
+| read | 524 | 524 | 0 | 661ms |
+| edit | 451 | 451 | 0 | 45ms |
+| bash | 275 | 275 | 0 | 14194ms |
+| write | 130 | 130 | 0 | 22ms |
+| grep | 85 | 85 | 0 | 387ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | glob | 38 | 38 | 0 | 387ms |
 | build_check | 33 | 33 | 0 | 18812ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
-| question | 6 | 6 | 0 | 162064ms |
+| question | 7 | 7 | 0 | 142939ms |
 | save_plan | 5 | 5 | 0 | 166ms |
 | search | 5 | 5 | 0 | 136229ms |
 | update_task_status | 5 | 5 | 0 | 263ms |
 | codebase-memory-mcp_query_graph | 5 | 5 | 0 | 51ms |
 | knowledge_add | 5 | 5 | 0 | 59ms |
 | codebase-memory-mcp_manage_adr | 4 | 4 | 0 | 35ms |
+| codebase-memory-mcp_get_code_snippet | 4 | 4 | 0 | 52ms |
 | set_qa_gates | 3 | 3 | 0 | 15ms |
 | task | 3 | 3 | 0 | 85398ms |
-| codebase-memory-mcp_get_code_snippet | 3 | 3 | 0 | 52ms |
 | swarm_command | 2 | 2 | 0 | 86ms |
 | pre_check_batch | 2 | 2 | 0 | 1252ms |
 | test_runner | 2 | 2 | 0 | 4445ms |
@@ -88,3 +88,4 @@ Swarm: default
 | codebase-memory-mcp_get_graph_schema | 1 | 1 | 0 | 46ms |
 | codebase-memory-mcp_get_architecture | 1 | 1 | 0 | 62ms |
 | knowledge_recall | 1 | 1 | 0 | 459ms |
+| codebase-memory-mcp_search_graph | 1 | 1 | 0 | 79ms |

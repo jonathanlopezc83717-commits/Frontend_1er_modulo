@@ -5,6 +5,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import { appReducer as realAppReducer } from '@/context/app-reducer'
+import type { AppState as RealAppState, AppAction as RealAppAction } from '@/types'
 
 // ============ TIPOS ============
 interface PuntoFerroviario {
@@ -45,137 +47,10 @@ function generarUUID(): string {
   })
 }
 
-function reenumerarPuntos(puntos: PuntoFerroviario[]): PuntoFerroviario[] {
-  return puntos
-    .sort((a, b) => a.numeroSerie - b.numeroSerie)
-    .map((punto, index) => ({
-      ...punto,
-      numeroSerie: index + 1,
-      updatedAt: new Date().toISOString(),
-    }))
-}
-
-// ============ REDUCER (copia exacta del AppContext) ============
+// appReducer delega al reducer real (slices en app-reducer.ts) — el test guarda código de producción.
+// El cast es necesario porque el estado del test es un subconjunto del AppState real.
 function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case 'SET_PUNTOS': {
-      const puntosOrdenados = reenumerarPuntos(action.payload)
-      return {
-        ...state,
-        puntos: puntosOrdenados,
-        puntoActivo: state.puntoActivo
-          ? puntosOrdenados.find(p => p.id === state.puntoActivo!.id) || puntosOrdenados[0] || null
-          : puntosOrdenados[0] || null,
-      }
-    }
-
-    case 'AGREGAR_PUNTO': {
-      const { posicion, punto } = action.payload
-      const nuevoPunto: PuntoFerroviario = {
-        ...punto,
-        id: generarUUID(),
-        numeroSerie: posicion,
-        moduloData: punto.moduloData || {},
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-
-      const puntosAntes = state.puntos.filter(p => p.numeroSerie < posicion)
-      const puntosDespues = state.puntos.filter(p => p.numeroSerie >= posicion)
-
-      const nuevosPuntos = reenumerarPuntos([
-        ...puntosAntes,
-        nuevoPunto,
-        ...puntosDespues,
-      ])
-
-      return {
-        ...state,
-        puntos: nuevosPuntos,
-        puntoActivo: nuevoPunto,
-      }
-    }
-
-    case 'ELIMINAR_PUNTO': {
-      const puntosFiltrados = state.puntos.filter(p => p.id !== action.payload)
-      const puntosReenumerados = reenumerarPuntos(puntosFiltrados)
-      return {
-        ...state,
-        puntos: puntosReenumerados,
-        puntoActivo: state.puntoActivo?.id === action.payload
-          ? puntosReenumerados[0] || null
-          : state.puntoActivo,
-      }
-    }
-
-    case 'SET_PUNTO_ACTIVO':
-      return { ...state, puntoActivo: action.payload }
-
-    case 'ACTUALIZAR_PUNTO': {
-      const { id, data } = action.payload
-      const puntosActualizados = state.puntos.map(p =>
-        p.id === id
-          ? { ...p, ...data, updatedAt: new Date().toISOString() }
-          : p
-      )
-      return {
-        ...state,
-        puntos: puntosActualizados,
-        puntoActivo: state.puntoActivo?.id === id
-          ? { ...state.puntoActivo, ...data, updatedAt: new Date().toISOString() }
-          : state.puntoActivo,
-      }
-    }
-
-    case 'REORDENAR_PUNTOS': {
-      const puntosReenumerados = reenumerarPuntos(action.payload)
-      return {
-        ...state,
-        puntos: puntosReenumerados,
-        puntoActivo: state.puntoActivo
-          ? puntosReenumerados.find(p => p.id === state.puntoActivo!.id) || puntosReenumerados[0] || null
-          : puntosReenumerados[0] || null,
-      }
-    }
-
-    case 'BLOQUEAR_PUNTO': {
-      const puntosActualizados = state.puntos.map(p =>
-        p.id === action.payload
-          ? { ...p, bloqueado: !p.bloqueado, updatedAt: new Date().toISOString() }
-          : p
-      )
-      return {
-        ...state,
-        puntos: puntosActualizados,
-        puntoActivo: state.puntoActivo?.id === action.payload
-          ? { ...state.puntoActivo, bloqueado: !state.puntoActivo!.bloqueado }
-          : state.puntoActivo,
-      }
-    }
-
-    case 'RENUMERAR_PUNTOS': {
-      const idsOrdenados = action.payload
-      const puntosRenumerados = idsOrdenados.map((id, index) => {
-        const punto = state.puntos.find(p => p.id === id)
-        if (!punto) return null
-        return {
-          ...punto,
-          numeroSerie: index + 1,
-          updatedAt: new Date().toISOString(),
-        }
-      }).filter((p): p is PuntoFerroviario => p !== null)
-      return {
-        ...state,
-        puntos: puntosRenumerados,
-        puntoActivo: state.puntoActivo
-          ? puntosRenumerados.find(p => p.id === state.puntoActivo!.id) || puntosRenumerados[0] || null
-          : puntosRenumerados[0] || null,
-      }
-    }
-
-    default:
-      return state
-  }
+  return realAppReducer(state as unknown as RealAppState, action as unknown as RealAppAction) as unknown as AppState
 }
 
 // ============ HELPERS DEL GESTOR DE PUNTOS ============
@@ -435,4 +310,4 @@ describe('AppReducer - RENUMERAR_PUNTOS', () => {
 })
 
 // Estado inicial para tests que lo necesiten
-let estadoInicial: AppState = { puntos: [], puntoActivo: null, moduloActivo: 'analisis' }
+const estadoInicial: AppState = { puntos: [], puntoActivo: null, moduloActivo: 'analisis' }

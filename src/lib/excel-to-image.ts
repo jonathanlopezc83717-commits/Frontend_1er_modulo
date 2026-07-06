@@ -352,6 +352,58 @@ function rowToIndex(cell: string): number {
   return match ? Math.max(0, Number(match[1]) - 1) : 0
 }
 
+async function cargarHojaExcelJS(
+  buffer: ArrayBuffer,
+  options: { sheetName?: string; fallbackAHojaConContenido?: boolean } = {},
+): Promise<{ workbook: ExcelJS.Workbook; worksheet: ExcelJS.Worksheet }> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+
+  if (workbook.worksheets.length === 0) {
+    throw new Error('El archivo Excel no contiene hojas')
+  }
+
+  let worksheet = options.sheetName
+    ? workbook.getWorksheet(options.sheetName)
+    : workbook.worksheets[0]
+
+  if (options.fallbackAHojaConContenido && worksheet && worksheet.rowCount === 0) {
+    const hojaConContenido = workbook.worksheets.find(ws => ws.rowCount > 0)
+    if (hojaConContenido) worksheet = hojaConContenido
+  }
+
+  if (!worksheet) {
+    throw new Error(`No se encontró la hoja "${options.sheetName || ''}"`)
+  }
+
+  if (worksheet.rowCount === 0) {
+    throw new Error(`La hoja "${worksheet.name}" está vacía`)
+  }
+
+  return { workbook, worksheet }
+}
+
+function calcularRangoRender(
+  worksheet: ExcelJS.Worksheet,
+  requestedRange?: string,
+): { startCol: number; startRow: number; endCol: number; endRow: number } {
+  const usedRange = obtenerRangoRealUsadoExcelJS(worksheet)
+  let startCol = usedRange.startCol - 1
+  let startRow = usedRange.startRow - 1
+  let endCol = usedRange.endCol - 1
+  let endRow = usedRange.endRow - 1
+
+  if (requestedRange) {
+    const requested = decodeRange(normalizarRango(requestedRange))
+    startCol = Math.max(startCol, requested.s.c)
+    startRow = Math.max(startRow, requested.s.r)
+    endCol = Math.min(endCol, requested.e.c)
+    endRow = Math.min(endRow, requested.e.r)
+  }
+
+  return { startCol, startRow, endCol, endRow }
+}
+
 async function renderizarExcelConExceljs(
   buffer: ArrayBuffer,
   options: {
@@ -365,43 +417,11 @@ async function renderizarExcelConExceljs(
   },
 ): Promise<ExcelRenderResult | null> {
   try {
-    const workbook = new ExcelJS.Workbook()
-    await workbook.xlsx.load(buffer)
-
-    if (workbook.worksheets.length === 0) {
-      throw new Error('El archivo Excel no contiene hojas')
-    }
-
-    let worksheet = options.sheetName
-      ? workbook.getWorksheet(options.sheetName)
-      : workbook.worksheets[0]
-
-    if (options.fallbackAHojaConContenido && worksheet && worksheet.rowCount === 0) {
-      const hojaConContenido = workbook.worksheets.find(ws => ws.rowCount > 0)
-      if (hojaConContenido) worksheet = hojaConContenido
-    }
-
-    if (!worksheet) {
-      throw new Error(`No se encontró la hoja "${options.sheetName || ''}"`)
-    }
-
-    if (worksheet.rowCount === 0) {
-      throw new Error(`La hoja "${worksheet.name}" está vacía`)
-    }
-
-    const usedRange = obtenerRangoRealUsadoExcelJS(worksheet)
-    let startCol = usedRange.startCol - 1
-    let startRow = usedRange.startRow - 1
-    let endCol = usedRange.endCol - 1
-    let endRow = usedRange.endRow - 1
-
-    if (options.range) {
-      const requested = decodeRange(normalizarRango(options.range))
-      startCol = Math.max(startCol, requested.s.c)
-      startRow = Math.max(startRow, requested.s.r)
-      endCol = Math.min(endCol, requested.e.c)
-      endRow = Math.min(endRow, requested.e.r)
-    }
+    const { worksheet } = await cargarHojaExcelJS(buffer, {
+      sheetName: options.sheetName,
+      fallbackAHojaConContenido: options.fallbackAHojaConContenido,
+    })
+    const { startCol, startRow, endCol, endRow } = calcularRangoRender(worksheet, options.range)
 
     log(options.debug, `Renderizando con exceljs hoja "${worksheet.name}" rango ${numeroAColumnaExcel(startCol + 1)}${startRow + 1}:${numeroAColumnaExcel(endCol + 1)}${endRow + 1}`)
 
@@ -848,38 +868,8 @@ export async function excelToEditableHtml(
   buffer: ArrayBuffer,
   options: { sheetName?: string; range?: string } = {},
 ): Promise<ExcelToHtmlResult> {
-  const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.load(buffer)
-
-  if (workbook.worksheets.length === 0) {
-    throw new Error('El archivo Excel no contiene hojas')
-  }
-
-  let worksheet = options.sheetName
-    ? workbook.getWorksheet(options.sheetName)
-    : workbook.worksheets[0]
-
-  if (!worksheet) {
-    throw new Error(`No se encontró la hoja "${options.sheetName || ''}"`)
-  }
-
-  if (worksheet.rowCount === 0) {
-    throw new Error(`La hoja "${worksheet.name}" está vacía`)
-  }
-
-  const usedRange = obtenerRangoRealUsadoExcelJS(worksheet)
-  let startCol = usedRange.startCol - 1
-  let startRow = usedRange.startRow - 1
-  let endCol = usedRange.endCol - 1
-  let endRow = usedRange.endRow - 1
-
-  if (options.range) {
-    const requested = decodeRange(normalizarRango(options.range))
-    startCol = Math.max(startCol, requested.s.c)
-    startRow = Math.max(startRow, requested.s.r)
-    endCol = Math.min(endCol, requested.e.c)
-    endRow = Math.min(endRow, requested.e.r)
-  }
+  const { worksheet } = await cargarHojaExcelJS(buffer, { sheetName: options.sheetName })
+  const { startCol, startRow, endCol, endRow } = calcularRangoRender(worksheet, options.range)
 
   // Mapa de merges.
   const mergeMap = new Map<string, { rowspan: number; colspan: number; master: boolean }>()

@@ -9905,6 +9905,49 @@
       "language": "typescript",
       "mtime": "2026-07-06T23:07:34.086Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ficha-helpers.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ficha-helpers.ts",
+      "moduleName": "src/components/modulos/ficha-helpers.ts",
+      "exports": [
+        "CampoFicha",
+        "FichaFormato",
+        "MapeoPlantilla",
+        "CAMPOS_DATOS",
+        "ALIAS_CAMPOS",
+        "ETIQUETAS_A_CAMPO",
+        "IMAGENES_PREDETERMINADAS",
+        "crearFichaVacia",
+        "normalizarTexto",
+        "normalizarClave",
+        "limpiarEtiqueta",
+        "indiceColumnaALetra",
+        "celda",
+        "rangoImagenDesdeCelda",
+        "arrayBufferABase64",
+        "base64AArrayBuffer",
+        "descargarArchivo",
+        "obtenerValoresFicha",
+        "obtenerImagenesFicha",
+        "obtenerCamposPlantilla",
+        "obtenerImagenesPlantilla",
+        "detectarMapeo",
+        "normalizarFicha",
+        "asignarCampo",
+        "extraerNombreCarpeta",
+        "extraerFechaDeCarpeta",
+        "extraerOperadorDeCarpeta",
+        "extraerDescripcionAnalisis",
+        "extraerEvidenciasAnalisis",
+        "leerImagen",
+        "convertirImagenADataUrl",
+        "extraerImagenesExcel"
+      ],
+      "imports": [
+        "jszip"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T23:30:25.137Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloAnalisis.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloAnalisis.tsx",
       "moduleName": "src/components/modulos/ModuloAnalisis.tsx",
@@ -9970,12 +10013,12 @@
         "@/components/ui/badge",
         "lucide-react",
         "react",
-        "jszip",
+        "./ficha-helpers",
         "xlsx",
         "exceljs"
       ],
       "language": "typescript",
-      "mtime": "2026-07-01T23:56:39.560Z"
+      "mtime": "2026-07-06T23:34:40.878Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
@@ -10573,6 +10616,17 @@
       "language": "typescript",
       "mtime": "2026-07-01T19:06:56.498Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/ficha-helpers.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\ficha-helpers.test.ts",
+      "moduleName": "src/tests/ficha-helpers.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest",
+        "@/components/modulos/ficha-helpers"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-06T23:36:04.622Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/gestor-puntos.smoke.test.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\gestor-puntos.smoke.test.tsx",
       "moduleName": "src/tests/gestor-puntos.smoke.test.tsx",
@@ -10800,6 +10854,12 @@
       "importType": "named"
     },
     {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloFicha.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ficha-helpers.ts",
+      "importSpecifier": "./ficha-helpers",
+      "importType": "named"
+    },
+    {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\AppContext.tsx",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\context\\app-reducer.ts",
       "importSpecifier": "./app-reducer",
@@ -10825,9 +10885,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-06T23:10:19.194Z",
+    "generatedAt": "2026-07-06T23:36:08.724Z",
     "generator": "repo-graph",
-    "nodeCount": 777,
-    "edgeCount": 12
+    "nodeCount": 779,
+    "edgeCount": 13
   }
 }

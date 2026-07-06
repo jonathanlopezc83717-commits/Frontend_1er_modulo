@@ -66,6 +66,7 @@ const componentMap: Record<string, React.ComponentType> = {
 
 interface ModuleTabsProps {
   mostrarNomenclaturas?: boolean
+  mostrarFicha?: boolean
 }
 
 function ordenarModulos(modulos: ModuloConfig[], orden: string[] | null): ModuloConfig[] {
@@ -137,14 +138,18 @@ function SortableTab({ modulo, isActive, tieneDatos }: SortableTabProps) {
   )
 }
 
-export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
+export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false }: ModuleTabsProps) {
   const { state, setModuloActivo, reordenarModulos } = useApp()
   const { moduloActivo, puntoActivo, modulosOrden } = state
   const [draggedId, setDraggedId] = useState<string | null>(null)
 
   const modulosVisibles = useMemo(
-    () => MODULOS.filter(modulo => modulo.id !== 'nomenclaturas' || mostrarNomenclaturas),
-    [mostrarNomenclaturas]
+    () => MODULOS.filter(
+      modulo =>
+        (modulo.id !== 'nomenclaturas' || mostrarNomenclaturas) &&
+        (modulo.id !== 'ficha' || mostrarFicha)
+    ),
+    [mostrarNomenclaturas, mostrarFicha]
   )
 
   const modulosOrdenados = useMemo(

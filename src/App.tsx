@@ -29,6 +29,7 @@ function App() {
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
+  const [mostrarFicha, setMostrarFicha] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
 
   // Estados para el diálogo de guardado en la nube (con título)
@@ -162,6 +163,7 @@ function App() {
               className="h-8 w-8 text-primary hover:text-primary/80"
               onClick={() => {
                 setMostrarNomenclaturas(true)
+                setMostrarFicha(true)
                 setModuloActivo('nomenclaturas')
               }}
               title="Obras Ferroviarias"
@@ -191,7 +193,7 @@ function App() {
 
           {/* Main Area - capa superior para evitar interferencia con sidebar */}
           <div className="flex-1 h-full overflow-hidden min-w-0 z-20 relative">
-            <ModuleTabs mostrarNomenclaturas={mostrarNomenclaturas} />
+            <ModuleTabs mostrarNomenclaturas={mostrarNomenclaturas} mostrarFicha={mostrarFicha} />
           </div>
         </div>
       </main>

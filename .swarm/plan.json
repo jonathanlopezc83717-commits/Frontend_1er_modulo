@@ -16,7 +16,6 @@
           "size": "medium",
           "description": "Actualizar schema Supabase: migrar columna image_url a image_urls (array de TEXT), agregar índice GIN para búsquedas, migrar datos existentes de image_url a image_urls",
           "depends": [],
-          "acceptance": "La tabla image_analyses usa image_urls como array de strings, datos antiguos migrados correctamente, índice GIN creado",
           "files_touched": []
         },
         {
@@ -26,7 +25,6 @@
           "size": "medium",
           "description": "Actualizar tipado TypeScript: definir interfaces estrictas para OpenRouter response, análisis, props de componentes, y tipos de Supabase",
           "depends": [],
-          "acceptance": "Zero errores de tipo, interfaces definidas para todas las respuestas de API y props",
           "files_touched": []
         },
         {
@@ -36,7 +34,6 @@
           "size": "small",
           "description": "Implementar rate limiting y debounce: prevenir análisis múltiples simultáneos, agregar debounce de 500ms en cambios de imagen, estado isProcessing claro",
           "depends": [],
-          "acceptance": "No se pueden disparar múltiples análisis simultáneos, debounce de 500ms en cambios de imagen",
           "files_touched": []
         }
       ]
@@ -55,7 +52,6 @@
           "depends": [
             "1.1"
           ],
-          "acceptance": "Todas las imágenes subidas se guardan en el historial, no solo la primera",
           "files_touched": []
         },
         {
@@ -67,7 +63,6 @@
           "depends": [
             "2.1"
           ],
-          "acceptance": "Usuario puede subir nuevas imágenes sin presionar Limpiar, alerta de confirmación aparece cuando hay imágenes existentes",
           "files_touched": []
         },
         {
@@ -79,7 +74,6 @@
           "depends": [
             "2.1"
           ],
-          "acceptance": "Historial muestra hasta 4 miniaturas por entrada, clic abre modal con imagen grande y análisis",
           "files_touched": []
         },
         {
@@ -91,13 +85,21 @@
           "depends": [
             "2.1"
           ],
-          "acceptance": "Componente muestra todas las imágenes analizadas, no solo una",
+          "files_touched": []
+        },
+        {
+          "id": "2.5",
+          "phase": 2,
+          "status": "completed",
+          "size": "small",
+          "description": "Ocultar módulo Ficha de forma condicional, análogo al patrón de nomenclaturas: añadir prop mostrarFicha a ModuleTabs, filtrar el módulo 'ficha' del array visible por defecto, y revelarlo al pulsar el botón 'Obras Ferroviarias' (HardHat) en el header junto con nomenclaturas",
+          "depends": [],
           "files_touched": []
         }
       ]
     }
   ],
   "migration_status": "native",
-  "specMtime": "2026-06-04T16:57:19.441Z",
+  "specMtime": "2026-06-04T18:25:31.343Z",
   "specHash": "d12cb3674164fca492394d690f3bf7cd694974627d2299d45c0899de34eb9c44"
 }

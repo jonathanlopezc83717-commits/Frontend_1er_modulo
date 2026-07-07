@@ -1096,8 +1096,7 @@ export function ModuloMateriales() {
   const [valores, setValores] = useState<Record<string, string>>({})
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
   const [coordActiva, setCoordActiva] = useState<string | null>(null)
-  const [exportandoPdf, setExportandoPdf] = useState(false)
-  const [exportandoExcel, setExportandoExcel] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [mapaAbierto, setMapaAbierto] = useState(false)
   const [quitarFondoLogos, setQuitarFondoLogos] = useState(false)
   const [numEvidencias, setNumEvidencias] = useState(EVIDENCIAS_DEFECTO)
@@ -1345,38 +1344,26 @@ export function ModuloMateriales() {
     toast.info('Plantilla eliminada')
   }
 
-  const handleExportarPdf = async () => {
-    setExportandoPdf(true)
+  const handleExportarTodo = async () => {
+    setExportando(true)
+    const nombre = `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`
     try {
-      await exportarPdfFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
-        quitarFondoLogos: quitarFondoLogos,
-        numEvidencias: numEvidencias,
+      await exportarPdfFicha(valores, imagenes, nombre, {
+        quitarFondoLogos,
+        numEvidencias,
       })
-      toast.success('PDF exportado')
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Error PDF:', err)
-      toast.error('Error al exportar PDF: ' + String(err))
-    } finally {
-      setExportandoPdf(false)
-    }
-  }
-
-  const handleExportarExcel = async () => {
-    setExportandoExcel(true)
-    try {
-      await exportarExcelFicha(valores, imagenes, `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`, {
-        quitarFondoLogos: quitarFondoLogos,
-        numEvidencias: numEvidencias,
+      await exportarExcelFicha(valores, imagenes, nombre, {
+        quitarFondoLogos,
+        numEvidencias,
         imagenesReconocimiento: imagenesReconocimientoDisponibles,
       })
-      toast.success('Excel exportado')
+      toast.success('PDF y Excel exportados')
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('Error Excel:', err)
-      toast.error('Error al exportar Excel: ' + String(err))
+      console.error('Error exportando:', err)
+      toast.error('Error al exportar: ' + String(err))
     } finally {
-      setExportandoExcel(false)
+      setExportando(false)
     }
   }
 
@@ -1456,13 +1443,9 @@ export function ModuloMateriales() {
                   <Eraser className="h-4 w-4" />
                   <span>Quitar fondo</span>
                 </label>
-                <Button variant="outline" size="sm" onClick={handleExportarExcel} disabled={exportandoExcel}>
-                  <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
-                  {exportandoExcel ? 'Exportando...' : 'Excel'}
-                </Button>
-                <Button size="sm" onClick={handleExportarPdf} disabled={exportandoPdf}>
+                <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
                   <FileText className="mr-2 h-4 w-4" />
-                  {exportandoPdf ? 'Exportando...' : 'PDF'}
+                  {exportando ? 'Exportando...' : 'PDF + Excel'}
                 </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
                   <DialogTrigger asChild>

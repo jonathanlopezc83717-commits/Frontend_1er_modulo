@@ -10067,7 +10067,7 @@
         "react"
       ],
       "language": "typescript",
-      "mtime": "2026-06-26T23:22:44.038Z"
+      "mtime": "2026-07-06T23:47:00.122Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -10885,7 +10885,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-06T23:36:08.724Z",
+    "generatedAt": "2026-07-06T23:47:03.017Z",
     "generator": "repo-graph",
     "nodeCount": 779,
     "edgeCount": 13

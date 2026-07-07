@@ -37,6 +37,7 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 
 // =====================================================
 // TIPOS
@@ -1094,6 +1095,7 @@ export function ModuloMateriales() {
   const punto = state.puntoActivo
 
   const [valores, setValores] = useState<Record<string, string>>({})
+  const { opciones: opcionesCombo, registrar: registrarCombo } = useOpcionesCampos()
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
   const [coordActiva, setCoordActiva] = useState<string | null>(null)
   const [exportando, setExportando] = useState(false)
@@ -1587,21 +1589,36 @@ export function ModuloMateriales() {
             <div className="space-y-2">
               {FILAS_DATOS.map((fila, filaIndex) => (
                 <div key={filaIndex} className="grid gap-2 md:grid-cols-3">
-                  {fila.map(({ etiqueta, coord }) => (
-                    <div key={coord} className="space-y-1">
-                      <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>{etiqueta}</span>
-                        <span className="font-mono text-[10px] text-emerald-600">{coord}</span>
-                      </label>
-                      <CoordInput
-                        coord={coord}
-                        value={valores[coord] || ''}
-                        onChange={v => actualizarValor(coord, v)}
-                        onFocus={setCoordActiva}
-                        placeholder={etiqueta}
-                      />
-                    </div>
-                  ))}
+                  {fila.map(({ etiqueta, coord }) => {
+                    const etiquetaCombo = COORDS_CON_OPCIONES[coord]
+                    return (
+                      <div key={coord} className="space-y-1">
+                        <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                          <span>{etiqueta}</span>
+                          <span className="font-mono text-[10px] text-emerald-600">{coord}</span>
+                        </label>
+                        {etiquetaCombo ? (
+                          <CampoCombo
+                            value={valores[coord] || ''}
+                            onChange={v => actualizarValor(coord, v)}
+                            onCommit={v => registrarCombo(etiquetaCombo, v)}
+                            opciones={opcionesCombo[etiquetaCombo] || []}
+                            onFocus={() => setCoordActiva(coord)}
+                            placeholder={etiqueta}
+                            className="px-2 py-1"
+                          />
+                        ) : (
+                          <CoordInput
+                            coord={coord}
+                            value={valores[coord] || ''}
+                            onChange={v => actualizarValor(coord, v)}
+                            onFocus={setCoordActiva}
+                            placeholder={etiqueta}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>

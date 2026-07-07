@@ -6,8 +6,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato } from '@/types'
-import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, ChevronDown } from 'lucide-react'
+import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
 import { generarCroquisDesdeDwg, DwgError } from '@/lib/dwg-croquis'
+import { CampoCombo, CAMPOS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type FichaFormato,
@@ -36,90 +37,7 @@ import {
 
 const MAX_PLANTILLAS_FICHA = 8
 
-// Campos de la ficha con autocompletado: lo escrito se guarda en localStorage
-// para volver a elegirlo despues (globales por etiqueta, reutilizables entre puntos).
-const CAMPOS_CON_OPCIONES = new Set([
-  'Tipo de instalacion',
-  'Ubicacion respecto al eje de proyecto',
-  'Estado fisico',
-])
-
-// Opciones iniciales por campo (edita esta lista segun el vocabulario del proyecto).
-// Se combinan con las que el usuario agrega posteriormente.
-const OPCIONES_POR_DEFECTO: Record<string, string[]> = {
-  'Tipo de instalacion': ['Aéreo', 'Terrestre'],
-  'Ubicacion respecto al eje de proyecto': ['Izquierda', 'Derecha', 'Centro'],
-  'Estado fisico': ['Bueno', 'Regular', 'Malo'],
-}
-
-// Combobox de texto libre: tipea cualquier valor Y elegi cualquiera de las opciones
-// guardadas sin importar si lo tipeado coincide o no (el listado no filtra).
-function CampoCombo({
-  value,
-  onChange,
-  onCommit,
-  opciones,
-}: {
-  value: string
-  onChange: (valor: string) => void
-  onCommit: (valor: string) => void
-  opciones: string[]
-}) {
-  const [abierto, setAbierto] = useState(false)
-  const contenedorRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!abierto) return
-    const handler = (evento: MouseEvent) => {
-      if (contenedorRef.current && !contenedorRef.current.contains(evento.target as Node)) {
-        setAbierto(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [abierto])
-
-  const elegir = (opcion: string) => {
-    onChange(opcion)
-    onCommit(opcion)
-    setAbierto(false)
-  }
-
-  return (
-    <div ref={contenedorRef} className="relative">
-      <Input
-        value={value}
-        onChange={(evento) => onChange(evento.target.value)}
-        onFocus={() => setAbierto(true)}
-        onBlur={() => onCommit(value)}
-        className="px-0 py-0 pr-7"
-      />
-      <button
-        type="button"
-        tabIndex={-1}
-        onMouseDown={(evento) => { evento.preventDefault(); setAbierto(a => !a) }}
-        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-        aria-label="Ver opciones guardadas"
-      >
-        <ChevronDown className="h-4 w-4" />
-      </button>
-      {abierto && opciones.length > 0 && (
-        <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover shadow-md">
-          {opciones.map(opcion => (
-            <button
-              key={opcion}
-              type="button"
-              onMouseDown={(evento) => { evento.preventDefault(); elegir(opcion) }}
-              className={`flex w-full items-center px-2 py-1.5 text-left text-sm hover:bg-accent ${opcion === value ? 'bg-accent/60' : ''}`}
-            >
-              {opcion}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+// Combobox reutilizable: ver campo-combo.tsx.
 
 export function ModuloFicha() {
   const { state, actualizarPunto, setPlantillasFicha } = useApp()
@@ -132,48 +50,8 @@ export function ModuloFicha() {
   const [cargandoCroquisDwg, setCargandoCroquisDwg] = useState(false)
   const excelInputRef = useRef<HTMLInputElement>(null)
 
-  // Opciones guardadas para los campos con autocompletado.
-  const [opcionesGuardadas, setOpcionesGuardadas] = useState<Record<string, string[]>>({})
-
-  useEffect(() => {
-    const cargadas: Record<string, string[]> = {}
-    for (const etiqueta of CAMPOS_CON_OPCIONES) {
-      const porDefecto = OPCIONES_POR_DEFECTO[etiqueta] || []
-      let guardadas: string[] = []
-      try {
-        const raw = localStorage.getItem(`ficha-opciones:${etiqueta}`)
-        guardadas = raw ? (JSON.parse(raw) as string[]) : []
-      } catch {
-        guardadas = []
-      }
-      // Defaults primero, luego las del usuario; dedup sin distinguir mayusculas.
-      const vistos = new Set<string>()
-      cargadas[etiqueta] = [...porDefecto, ...guardadas].filter(op => {
-        const clave = op.toLowerCase()
-        if (vistos.has(clave)) return false
-        vistos.add(clave)
-        return true
-      })
-    }
-    setOpcionesGuardadas(cargadas)
-  }, [])
-
-  // Al salir del campo, si hay texto, lo agrega al historial de opciones (dedup sin distincion de mayusculas).
-  const registrarOpcion = (etiqueta: string, valor: string) => {
-    const valorLimpio = valor.trim()
-    if (!valorLimpio) return
-    setOpcionesGuardadas(prev => {
-      const actuales = prev[etiqueta] || []
-      if (actuales.some(op => op.toLowerCase() === valorLimpio.toLowerCase())) return prev
-      const nuevas = [...actuales, valorLimpio]
-      try {
-        localStorage.setItem(`ficha-opciones:${etiqueta}`, JSON.stringify(nuevas))
-      } catch {
-        // ponytail: cuota de localStorage agotada, se ignora
-      }
-      return { ...prev, [etiqueta]: nuevas }
-    })
-  }
+  // Opciones guardadas (compartidas con ModuloMateriales via localStorage).
+  const { opciones: opcionesGuardadas, registrar: registrarOpcion } = useOpcionesCampos()
 
   const camposLlenos = useMemo(
     () => ficha.datos.filter(campo => campo.valor.trim()).length,

@@ -9905,6 +9905,24 @@
       "language": "typescript",
       "mtime": "2026-07-06T23:07:34.086Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/campo-combo.tsx": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\campo-combo.tsx",
+      "moduleName": "src/components/modulos/campo-combo.tsx",
+      "exports": [
+        "CAMPOS_CON_OPCIONES",
+        "OPCIONES_POR_DEFECTO",
+        "COORDS_CON_OPCIONES",
+        "useOpcionesCampos"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "@/components/ui/input",
+        "@/lib/utils"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-07T18:56:00.561Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ficha-helpers.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ficha-helpers.ts",
       "moduleName": "src/components/modulos/ficha-helpers.ts",
@@ -10013,13 +10031,14 @@
         "@/components/ui/badge",
         "lucide-react",
         "@/lib/dwg-croquis",
+        "./campo-combo",
         "react",
         "./ficha-helpers",
         "xlsx",
         "exceljs"
       ],
       "language": "typescript",
-      "mtime": "2026-07-07T18:46:20.260Z"
+      "mtime": "2026-07-07T18:58:44.680Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
@@ -10065,10 +10084,11 @@
         "exceljs",
         "jspdf",
         "lucide-react",
-        "react"
+        "react",
+        "./campo-combo"
       ],
       "language": "typescript",
-      "mtime": "2026-07-06T23:47:00.122Z"
+      "mtime": "2026-07-07T18:58:05.884Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -10869,8 +10889,20 @@
     },
     {
       "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloFicha.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\campo-combo.tsx",
+      "importSpecifier": "./campo-combo",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloFicha.tsx",
       "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ficha-helpers.ts",
       "importSpecifier": "./ficha-helpers",
+      "importType": "named"
+    },
+    {
+      "source": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloMateriales.tsx",
+      "target": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\campo-combo.tsx",
+      "importSpecifier": "./campo-combo",
       "importType": "named"
     },
     {
@@ -10899,9 +10931,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-07T18:46:28.299Z",
+    "generatedAt": "2026-07-07T18:58:47.701Z",
     "generator": "repo-graph",
-    "nodeCount": 780,
-    "edgeCount": 13
+    "nodeCount": 781,
+    "edgeCount": 15
   }
 }

@@ -10012,13 +10012,14 @@
         "@/components/ui/input",
         "@/components/ui/badge",
         "lucide-react",
+        "@/lib/dwg-croquis",
         "react",
         "./ficha-helpers",
         "xlsx",
         "exceljs"
       ],
       "language": "typescript",
-      "mtime": "2026-07-06T23:34:40.878Z"
+      "mtime": "2026-07-07T18:46:20.260Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloGeoreferencia.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloGeoreferencia.tsx",
@@ -10384,6 +10385,19 @@
       ],
       "language": "typescript",
       "mtime": "2026-07-06T23:08:24.080Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/dwg-croquis.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\dwg-croquis.ts",
+      "moduleName": "src/lib/dwg-croquis.ts",
+      "exports": [
+        "CapturaDwgParams",
+        "DwgError",
+        "DwgError.constructor",
+        "DwgError.super"
+      ],
+      "imports": [],
+      "language": "typescript",
+      "mtime": "2026-07-07T18:32:26.549Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
@@ -10885,9 +10899,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-06T23:47:03.017Z",
+    "generatedAt": "2026-07-07T18:46:28.299Z",
     "generator": "repo-graph",
-    "nodeCount": 779,
+    "nodeCount": 780,
     "edgeCount": 13
   }
 }

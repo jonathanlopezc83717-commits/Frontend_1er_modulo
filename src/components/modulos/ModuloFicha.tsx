@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato } from '@/types'
-import { Download, FileSpreadsheet, ImagePlus, RefreshCw, Save, Trash2, Upload, X, ChevronDown } from 'lucide-react'
+import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, ChevronDown } from 'lucide-react'
+import { generarCroquisDesdeDwg, DwgError } from '@/lib/dwg-croquis'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type FichaFormato,
@@ -128,6 +129,7 @@ export function ModuloFicha() {
   const [archivoPlantillaBase64, setArchivoPlantillaBase64] = useState('')
   const [mapeoPlantilla, setMapeoPlantilla] = useState<MapeoPlantilla>({ campos: {}, imagenes: {} })
   const [exportandoId, setExportandoId] = useState<string | null>(null)
+  const [cargandoCroquisDwg, setCargandoCroquisDwg] = useState(false)
   const excelInputRef = useRef<HTMLInputElement>(null)
 
   // Opciones guardadas para los campos con autocompletado.
@@ -188,6 +190,11 @@ export function ModuloFicha() {
     const coordenadas = geoData?.coordenadas
     const observaciones = extraerDescripcionAnalisis(punto.moduloData?.analisis)
     const evidencias = extraerEvidenciasAnalisis(punto.moduloData?.analisis)
+    // ponytail: indices por coordenada Excel del modulo Materiales (layout estable, ver COORD_A_CAMPO).
+    const mat = (punto.moduloData?.materiales as { valores?: Record<string, string> } | undefined)?.valores
+    const tipoInstalacion = mat?.['3-D'] || ''
+    const ubicacionEje = mat?.['3-F'] || ''
+    const estadoFisico = mat?.['5-F'] || ''
 
     const datos = baseFicha.datos.map(campo => {
       if (!sobrescribir && campo.valor.trim()) return campo
@@ -195,6 +202,12 @@ export function ModuloFicha() {
       switch (campo.etiqueta) {
         case 'Fecha':
           return { ...campo, valor: fecha }
+        case 'Tipo de instalacion':
+          return { ...campo, valor: tipoInstalacion }
+        case 'Ubicacion respecto al eje de proyecto':
+          return { ...campo, valor: ubicacionEje }
+        case 'Estado fisico':
+          return { ...campo, valor: estadoFisico }
         case 'Coordenada "X"':
           return { ...campo, valor: coordenadas?.x !== undefined ? String(coordenadas.x) : '' }
         case 'Coordenada "Y"':
@@ -377,6 +390,26 @@ export function ModuloFicha() {
     }
   }
 
+  const cargarCroquisDwg = async (file?: File) => {
+    if (!file) return
+    const x = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "X"')?.valor)
+    const y = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "Y"')?.valor)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      alert('Faltan coordenadas X/Y validas en la ficha para centrar la captura')
+      return
+    }
+    setCargandoCroquisDwg(true)
+    try {
+      const imagen = await generarCroquisDesdeDwg(file, { x, y })
+      actualizarFicha({ croquis: imagen })
+    } catch (error) {
+      const msg = error instanceof DwgError ? error.message : String(error)
+      alert(`No se pudo generar el croquis desde el DWG: ${msg}`)
+    } finally {
+      setCargandoCroquisDwg(false)
+    }
+  }
+
   const cargarImagen = async (tipo: 'croquis' | 'evidencia', file?: File, index = 0) => {
     if (!file) return
     const preview = await leerImagen(file)
@@ -527,7 +560,14 @@ export function ModuloFicha() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <ImageSlot title="Croquis de localizacion" image={ficha.croquis} onImage={(file) => cargarImagen('croquis', file)} onClear={() => limpiarImagen('croquis')} />
+              <ImageSlot
+                title="Croquis de localizacion"
+                image={ficha.croquis}
+                onImage={(file) => cargarImagen('croquis', file)}
+                onClear={() => limpiarImagen('croquis')}
+                onDwgCargar={cargarCroquisDwg}
+                cargandoDwg={cargandoCroquisDwg}
+              />
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Observaciones</CardTitle>
@@ -616,13 +656,18 @@ function ImageSlot({
   image,
   onImage,
   onClear,
+  onDwgCargar,
+  cargandoDwg = false,
 }: {
   title: string
   image: string
   onImage: (file?: File) => void
   onClear: () => void
+  onDwgCargar?: (file?: File) => void
+  cargandoDwg?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const dwgInputRef = useRef<HTMLInputElement>(null)
   const [dragActivo, setDragActivo] = useState(false)
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -638,11 +683,38 @@ function ImageSlot({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => onImage(event.target.files?.[0])} />
-          <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-            <ImagePlus className="mr-2 h-4 w-4" />
-            Imagen
-          </Button>
+          <div className="flex items-center gap-2">
+            {onDwgCargar && (
+              <>
+                <input
+                  ref={dwgInputRef}
+                  type="file"
+                  accept=".dwg"
+                  className="hidden"
+                  onChange={(event) => onDwgCargar(event.target.files?.[0])}
+                  disabled={cargandoDwg}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dwgInputRef.current?.click()}
+                  disabled={cargandoDwg}
+                >
+                  {cargandoDwg ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <MapPin className="mr-2 h-4 w-4" />
+                  )}
+                  {cargandoDwg ? 'Generando...' : 'DWG'}
+                </Button>
+              </>
+            )}
+            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => onImage(event.target.files?.[0])} disabled={cargandoDwg} />
+            <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={cargandoDwg}>
+              <ImagePlus className="mr-2 h-4 w-4" />
+              Imagen
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

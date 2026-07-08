@@ -176,7 +176,7 @@ export function bboxEntidades(entidades: EntidadDxf[]): Bbox | null {
       case 'CIRCLE':
       case 'ARC': {
         const c = e.center
-        const r = e.radius ?? 0
+        const r = e.radius ?? 100
         if (c) {
           comer(c.x - r, c.y - r)
           comer(c.x + r, c.y + r)

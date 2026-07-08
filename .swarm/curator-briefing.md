@@ -53,25 +53,25 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 542 | 542 | 0 | 643ms |
-| edit | 472 | 472 | 0 | 45ms |
-| bash | 291 | 291 | 0 | 14825ms |
-| write | 134 | 134 | 0 | 24ms |
-| grep | 98 | 98 | 0 | 368ms |
+| read | 556 | 556 | 0 | 736ms |
+| edit | 486 | 486 | 0 | 46ms |
+| bash | 327 | 327 | 0 | 14464ms |
+| write | 146 | 146 | 0 | 25ms |
+| grep | 100 | 100 | 0 | 363ms |
 | todowrite | 61 | 61 | 0 | 6ms |
-| glob | 40 | 40 | 0 | 374ms |
+| glob | 47 | 47 | 0 | 388ms |
 | build_check | 33 | 33 | 0 | 18812ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
-| question | 8 | 8 | 0 | 145092ms |
+| question | 9 | 9 | 0 | 139576ms |
+| codebase-memory-mcp_get_code_snippet | 7 | 7 | 0 | 43ms |
+| codebase-memory-mcp_search_graph | 7 | 7 | 0 | 1786ms |
+| codebase-memory-mcp_search_code | 7 | 7 | 0 | 3121ms |
 | save_plan | 5 | 5 | 0 | 166ms |
 | search | 5 | 5 | 0 | 136229ms |
 | update_task_status | 5 | 5 | 0 | 263ms |
 | codebase-memory-mcp_query_graph | 5 | 5 | 0 | 51ms |
 | knowledge_add | 5 | 5 | 0 | 59ms |
-| codebase-memory-mcp_search_code | 5 | 5 | 0 | 3049ms |
 | codebase-memory-mcp_manage_adr | 4 | 4 | 0 | 35ms |
-| codebase-memory-mcp_get_code_snippet | 4 | 4 | 0 | 52ms |
-| codebase-memory-mcp_search_graph | 4 | 4 | 0 | 3069ms |
 | set_qa_gates | 3 | 3 | 0 | 15ms |
 | task | 3 | 3 | 0 | 85398ms |
 | codebase-memory-mcp_trace_path | 3 | 3 | 0 | 40ms |
@@ -81,6 +81,7 @@ Swarm: default
 | lint | 2 | 2 | 0 | 1216ms |
 | syntax_check | 2 | 2 | 0 | 511ms |
 | codebase-memory-mcp_list_projects | 2 | 2 | 0 | 28ms |
+| codebase-memory-mcp_get_architecture | 2 | 2 | 0 | 92ms |
 | codebase-memory-mcp_index_status | 2 | 2 | 0 | 7ms |
 | knowledge_query | 2 | 2 | 0 | 9ms |
 | spec_write | 1 | 1 | 0 | 33ms |
@@ -92,6 +93,5 @@ Swarm: default
 | skill | 1 | 1 | 0 | 98ms |
 | codebase-memory-mcp_index_repository | 1 | 1 | 0 | 2396ms |
 | codebase-memory-mcp_get_graph_schema | 1 | 1 | 0 | 46ms |
-| codebase-memory-mcp_get_architecture | 1 | 1 | 0 | 62ms |
 | knowledge_recall | 1 | 1 | 0 | 459ms |
 | symbols | 1 | 1 | 0 | 33ms |

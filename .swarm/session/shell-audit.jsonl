@@ -320,3 +320,18 @@
 {"ts":"2026-07-08T19:53:57.212Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":".\\.venv\\Scripts\\python.exe -m pip install --quiet \"ezdxf>=0.19\" matplotlib"}
 {"ts":"2026-07-08T19:55:48.423Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":".\\.venv\\Scripts\\python.exe -c \"import ezdxf, matplotlib; print('ezdxf', ezdxf.__version__); print('mpl', matplotlib.__version__); from ezdxf.addons.drawing.matplotlib import MatplotlibBackend; print('backend ok'); from ezdxf.addons.drawing import RenderContext, Frontend; print('frontend ok')\""}
 {"ts":"2026-07-08T19:57:07.270Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":".\\.venv\\Scripts\\python.exe scripts\\dwg-to-croquis.py --self-test"}
+{"ts":"2026-07-08T20:20:26.435Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npm install dxf-parser"}
+{"ts":"2026-07-08T20:21:09.498Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":".\\.venv\\Scripts\\python.exe scripts\\_gen_probe.py"}
+{"ts":"2026-07-08T20:21:34.916Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"node scripts/_probe_parse.mjs"}
+{"ts":"2026-07-08T20:21:44.196Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"node -e \"import('dxf-parser').then(m => { console.log('keys:', Object.keys(m)); console.log('default?', typeof m.default); console.log('types:', Object.keys(m).map(k => k + ':' + typeof m[k]).join(', ')) })\""}
+{"ts":"2026-07-08T20:22:12.935Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"node scripts/_probe_parse.mjs"}
+{"ts":"2026-07-08T20:24:54.772Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx vitest run src/tests/dxf-render.test.ts 2>&1"}
+{"ts":"2026-07-08T20:27:18.235Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx eslint src/lib/dxf-render.ts src/components/modulos/ModuloMateriales.tsx src/tests/dxf-render.test.ts 2>&1"}
+{"ts":"2026-07-08T20:27:18.220Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx tsc -b 2>&1"}
+{"ts":"2026-07-08T20:28:05.854Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"git stash; npx eslint src/components/modulos/ModuloMateriales.tsx 2>&1 | Select-String \"prefer-const|1117|1116\"; git stash pop"}
+{"ts":"2026-07-08T20:28:46.582Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx tsc -b 2>&1; if ($LASTEXITCODE -eq 0) { echo \"TYPECHECK_OK\" }"}
+{"ts":"2026-07-08T20:28:46.599Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx eslint src/lib/dxf-render.ts src/tests/dxf-render.test.ts 2>&1; if ($LASTEXITCODE -eq 0) { echo \"LINT_OK_NEW\" }"}
+{"ts":"2026-07-08T20:28:56.688Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx tsc -b"}
+{"ts":"2026-07-08T20:28:56.705Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx eslint src/lib/dxf-render.ts src/tests/dxf-render.test.ts"}
+{"ts":"2026-07-08T20:29:29.976Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"Remove-Item -LiteralPath scripts/_gen_probe.py, scripts/_probe.dxf, scripts/_probe_parse.mjs -Force"}
+{"ts":"2026-07-08T20:29:30.008Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx vitest run src/tests/dxf-render.test.ts"}

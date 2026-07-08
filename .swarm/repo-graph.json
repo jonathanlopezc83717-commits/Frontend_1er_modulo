@@ -36745,6 +36745,25 @@
       "language": "javascript",
       "mtime": "2026-06-04T18:25:31.348Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/scripts/_gen_probe.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_gen_probe.py",
+      "moduleName": "scripts/_gen_probe.py",
+      "exports": [],
+      "imports": [],
+      "language": "python",
+      "mtime": "2026-07-08T20:20:52.234Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/scripts/_probe_parse.mjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_probe_parse.mjs",
+      "moduleName": "scripts/_probe_parse.mjs",
+      "exports": [],
+      "imports": [
+        "dxf-parser",
+        "node:fs"
+      ],
+      "language": "javascript",
+      "mtime": "2026-07-08T20:21:54.150Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/scripts/dwg-to-croquis.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\dwg-to-croquis.py",
       "moduleName": "scripts/dwg-to-croquis.py",
@@ -37158,10 +37177,11 @@
         "jspdf",
         "lucide-react",
         "react",
-        "./campo-combo"
+        "./campo-combo",
+        "@/lib/dxf-render"
       ],
       "language": "typescript",
-      "mtime": "2026-07-07T18:58:05.884Z"
+      "mtime": "2026-07-08T20:28:16.380Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -37492,6 +37512,22 @@
       "language": "typescript",
       "mtime": "2026-07-07T18:32:26.549Z"
     },
+    "C:/Users/YOGA-01/Documents/Frontend/src/lib/dxf-render.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\dxf-render.ts",
+      "moduleName": "src/lib/dxf-render.ts",
+      "exports": [
+        "OpcionesCroquis",
+        "Ventana",
+        "EntidadDxf",
+        "ventanaDe",
+        "dxfACroquis"
+      ],
+      "imports": [
+        "dxf-parser"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-08T20:28:29.189Z"
+    },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
       "moduleName": "src/lib/excel-sync.ts",
@@ -37711,6 +37747,17 @@
       ],
       "language": "typescript",
       "mtime": "2026-06-23T20:54:09.615Z"
+    },
+    "C:/Users/YOGA-01/Documents/Frontend/src/tests/dxf-render.test.ts": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\dxf-render.test.ts",
+      "moduleName": "src/tests/dxf-render.test.ts",
+      "exports": [],
+      "imports": [
+        "vitest",
+        "@/lib/dxf-render"
+      ],
+      "language": "typescript",
+      "mtime": "2026-07-08T20:24:41.812Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/excel-sync.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\excel-sync.test.ts",
@@ -38004,9 +38051,9 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-08T19:56:58.447Z",
+    "generatedAt": "2026-07-08T20:28:37.090Z",
     "generator": "repo-graph",
-    "nodeCount": 2413,
+    "nodeCount": 2417,
     "edgeCount": 15
   }
 }

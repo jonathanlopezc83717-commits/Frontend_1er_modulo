@@ -335,3 +335,9 @@
 {"ts":"2026-07-08T20:28:56.705Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx eslint src/lib/dxf-render.ts src/tests/dxf-render.test.ts"}
 {"ts":"2026-07-08T20:29:29.976Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"Remove-Item -LiteralPath scripts/_gen_probe.py, scripts/_probe.dxf, scripts/_probe_parse.mjs -Force"}
 {"ts":"2026-07-08T20:29:30.008Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx vitest run src/tests/dxf-render.test.ts"}
+{"ts":"2026-07-08T20:52:44.528Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":".\\.venv\\Scripts\\python.exe scripts\\_gen_probe2.py"}
+{"ts":"2026-07-08T20:53:25.405Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"node scripts/_probe2_parse.mjs"}
+{"ts":"2026-07-08T20:56:37.429Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx vitest run src/tests/dxf-render.test.ts"}
+{"ts":"2026-07-08T20:56:37.457Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx tsc -b"}
+{"ts":"2026-07-08T20:57:15.555Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"npx eslint src/lib/dxf-render.ts src/tests/dxf-render.test.ts"}
+{"ts":"2026-07-08T20:57:15.589Z","sessionID":"ses_0bcb9dd3dffeZ7yWGaXOgbpW8K","agent":"build","tool":"bash","command":"Remove-Item -LiteralPath scripts/_gen_probe2.py, scripts/_probe2.dxf, scripts/_probe2_parse.mjs -Force"}

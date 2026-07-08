@@ -3,6 +3,8 @@ import {
   ventanaDe,
   mundoAPixel,
   dibujarEntidades,
+  aplanarInserts,
+  bboxEntidades,
   type EntidadDxf,
   type Ventana,
 } from '@/lib/dxf-render'
@@ -80,7 +82,7 @@ describe('dibujarEntidades', () => {
     expect(ctx.__llamadas.fillText?.[0]?.[0]).toBe('P1')
   })
 
-  it('ignora INSERT y entidades malformadas', () => {
+  it('ignora INSERT sin bloque y entidades malformadas', () => {
     const ctx = ctxMock()
     dibujarEntidades(
       ctx,
@@ -93,5 +95,68 @@ describe('dibujarEntidades', () => {
       1000,
     )
     expect(ctx.__llamadas.stroke).toBeUndefined()
+  })
+})
+
+describe('aplanarInserts', () => {
+  it('expande un bloque INSERT con posicion y escala', () => {
+    const blocks = {
+      B: {
+        name: 'B',
+        entities: [
+          { type: 'LINE', vertices: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+          { type: 'CIRCLE', center: { x: 5, y: 5 }, radius: 2 },
+        ],
+      },
+    }
+    const entidades: EntidadDxf[] = [
+      { type: 'INSERT', name: 'B', position: { x: 100, y: 100 }, xScale: 2, yScale: 2 },
+    ]
+    const plano = aplanarInserts(entidades, blocks)
+    const linea = plano.find(e => e.type === 'LINE') as EntidadDxf
+    expect(linea.vertices).toEqual([
+      { x: 100, y: 100 },
+      { x: 120, y: 100 },
+    ])
+    const circ = plano.find(e => e.type === 'CIRCLE') as EntidadDxf
+    expect(circ.center).toEqual({ x: 110, y: 110 })
+    expect(circ.radius).toBe(4)
+  })
+
+  it('aplica rotacion del INSERT', () => {
+    const blocks = {
+      B: { name: 'B', entities: [{ type: 'LINE', vertices: [{ x: 1, y: 0 }, { x: 2, y: 0 }] }] },
+    }
+    const entidades: EntidadDxf[] = [
+      { type: 'INSERT', name: 'B', position: { x: 0, y: 0 }, rotation: 90 },
+    ]
+    const plano = aplanarInserts(entidades, blocks)
+    const linea = plano[0]
+    expect(linea.vertices![0].x).toBeCloseTo(0, 5)
+    expect(linea.vertices![0].y).toBeCloseTo(1, 5)
+  })
+
+  it('evita recursion infinita entre bloques', () => {
+    const blocks = {
+      A: { name: 'A', entities: [{ type: 'INSERT', name: 'B' }] },
+      B: { name: 'B', entities: [{ type: 'INSERT', name: 'A' }] },
+    }
+    const plano = aplanarInserts([{ type: 'INSERT', name: 'A' }], blocks)
+    expect(plano).toEqual([])
+  })
+})
+
+describe('bboxEntidades', () => {
+  it('calcula el bounding box de varias entidades', () => {
+    const entidades: EntidadDxf[] = [
+      { type: 'LINE', vertices: [{ x: 10, y: 10 }, { x: 20, y: 30 }] },
+      { type: 'CIRCLE', center: { x: 50, y: 50 }, radius: 5 },
+    ]
+    const b = bboxEntidades(entidades)
+    expect(b).toEqual({ minX: 10, minY: 10, maxX: 55, maxY: 55 })
+  })
+
+  it('devuelve null si no hay geometria dibujable', () => {
+    expect(bboxEntidades([{ type: 'INSERT' }])).toBeNull()
   })
 })

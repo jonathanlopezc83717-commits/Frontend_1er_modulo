@@ -49,10 +49,10 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 554 | 554 | 0 | 633ms |
-| edit | 478 | 478 | 0 | 45ms |
-| bash | 306 | 306 | 0 | 14677ms |
-| write | 140 | 140 | 0 | 24ms |
+| read | 555 | 555 | 0 | 632ms |
+| edit | 484 | 484 | 0 | 46ms |
+| bash | 316 | 316 | 0 | 14532ms |
+| write | 143 | 143 | 0 | 25ms |
 | grep | 100 | 100 | 0 | 363ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | glob | 44 | 44 | 0 | 380ms |

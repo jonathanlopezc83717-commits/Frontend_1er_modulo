@@ -36745,24 +36745,24 @@
       "language": "javascript",
       "mtime": "2026-06-04T18:25:31.348Z"
     },
-    "C:/Users/YOGA-01/Documents/Frontend/scripts/_gen_probe.py": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_gen_probe.py",
-      "moduleName": "scripts/_gen_probe.py",
+    "C:/Users/YOGA-01/Documents/Frontend/scripts/_gen_probe2.py": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_gen_probe2.py",
+      "moduleName": "scripts/_gen_probe2.py",
       "exports": [],
       "imports": [],
       "language": "python",
-      "mtime": "2026-07-08T20:20:52.234Z"
+      "mtime": "2026-07-08T20:51:43.140Z"
     },
-    "C:/Users/YOGA-01/Documents/Frontend/scripts/_probe_parse.mjs": {
-      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_probe_parse.mjs",
-      "moduleName": "scripts/_probe_parse.mjs",
+    "C:/Users/YOGA-01/Documents/Frontend/scripts/_probe2_parse.mjs": {
+      "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\_probe2_parse.mjs",
+      "moduleName": "scripts/_probe2_parse.mjs",
       "exports": [],
       "imports": [
         "dxf-parser",
         "node:fs"
       ],
       "language": "javascript",
-      "mtime": "2026-07-08T20:21:54.150Z"
+      "mtime": "2026-07-08T20:53:01.636Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/scripts/dwg-to-croquis.py": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\scripts\\dwg-to-croquis.py",
@@ -37181,7 +37181,7 @@
         "@/lib/dxf-render"
       ],
       "language": "typescript",
-      "mtime": "2026-07-08T20:28:16.380Z"
+      "mtime": "2026-07-08T20:55:16.776Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/components/modulos/ModuloNomenclaturas.tsx": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\components\\modulos\\ModuloNomenclaturas.tsx",
@@ -37519,14 +37519,17 @@
         "OpcionesCroquis",
         "Ventana",
         "EntidadDxf",
+        "BloqueDxf",
         "ventanaDe",
+        "Bbox",
+        "bboxEntidades",
         "dxfACroquis"
       ],
       "imports": [
         "dxf-parser"
       ],
       "language": "typescript",
-      "mtime": "2026-07-08T20:28:29.189Z"
+      "mtime": "2026-07-08T20:54:36.457Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/lib/excel-sync.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\lib\\excel-sync.ts",
@@ -37757,7 +37760,7 @@
         "@/lib/dxf-render"
       ],
       "language": "typescript",
-      "mtime": "2026-07-08T20:24:41.812Z"
+      "mtime": "2026-07-08T20:56:15.814Z"
     },
     "C:/Users/YOGA-01/Documents/Frontend/src/tests/excel-sync.test.ts": {
       "filePath": "C:\\Users\\YOGA-01\\Documents\\Frontend\\src\\tests\\excel-sync.test.ts",
@@ -38051,7 +38054,7 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-07-08T20:28:37.090Z",
+    "generatedAt": "2026-07-08T20:56:26.634Z",
     "generator": "repo-graph",
     "nodeCount": 2417,
     "edgeCount": 15

@@ -1387,9 +1387,9 @@ export function ModuloMateriales() {
         toast.error('Faltan coordenadas X/Y del punto. Pulsa "Autocompletar" o rellena 6-B/6-D.')
         return
       }
-      const dataUrl = dxfACroquis(texto, { x, y, size: 100 })
+      const dataUrl = dxfACroquis(texto, { x, y, size: 200 })
       setImagenes(prev => ({ ...prev, croquis: dataUrl }))
-      toast.success('Croquis generado desde DXF (100×100 cm)')
+      toast.success('Croquis generado desde DXF (200×200 cm, ±100 cm del punto)')
     } catch (err) {
       toast.error('No se pudo procesar el DXF: ' + String(err))
     }
@@ -1680,7 +1680,7 @@ export function ModuloMateriales() {
                   <label className="text-xs font-medium text-muted-foreground">
                     Croquis de localización <span className="font-mono text-[10px] text-emerald-600">img-croquis</span>
                   </label>
-                  <label className="flex cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent" title="Genera el croquis recortando 100×100 cm del DXF en las coordenadas X/Y del punto">
+                  <label className="flex cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent"                     title="Genera el croquis recortando ±100 cm (200×200) del DXF en las coordenadas X/Y del punto">
                     <FileText className="h-3 w-3" />
                     Importar DXF
                     <input type="file" accept=".dxf" className="hidden" onChange={e => importarCroquisDesdeDxf(e.target.files?.[0])} />

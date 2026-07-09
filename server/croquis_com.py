@@ -249,31 +249,24 @@ def _hijos_ventana(hwnd_main, top=6):
 
 
 def _capturar_pantalla(acad, salida_png):
-    """Captura SOLO el lienzo de dibujo (ventana hija mas grande), no todo Civil 3D.
-    ponytail: heuristica 'hija mas grande' excluye ribbon, paleta de referencias y
-    barra de estado. Si el lienzo no es el mayor, afinar por nombre de clase."""
+    """Captura el area cliente de Civil 3D. De usarse tras CLEANSCREENON y
+    maximizar, el area cliente es (casi todo) el lienzo de dibujo."""
     hwnd = int(acad.HWND)
     try:
         win32gui.SetForegroundWindow(hwnd)
         time.sleep(0.3)
     except Exception:
         pass
-    candidatos = _hijos_ventana(hwnd)
-    for area, ch, cls, r in candidatos:
-        print(f"  hijo hwnd={ch} cls={cls!r} area={area} rect={r}", flush=True)
-    # Lienzo de render DirectX = area pura de dibujo (sin ribbon ni paletas).
-    canvas = None
-    for _area, ch, cls, _r in candidatos:
-        if "VIEW" in cls.upper() or "DXGI" in cls.upper():
-            canvas = ch
-            break
-    if canvas is None:
-        canvas = candidatos[0][1] if candidatos else hwnd
-    print(f"  lienzo elegido: {canvas}", flush=True)
-    r = win32gui.GetWindowRect(canvas)
-    bbox = (r[0], r[1], r[2], r[3])
+    cl = win32gui.GetClientRect(hwnd)
+    p1 = win32gui.ClientToScreen(hwnd, (0, 0))
+    p2 = win32gui.ClientToScreen(hwnd, (cl[2], cl[3]))
+    bbox = (p1[0], p1[1], p2[0], p2[1])
     img = ImageGrab.grab(bbox, all_screens=True)
-    print(f"  imagen {img.size} {img.mode}", flush=True)
+    # Recortar la franja superior (menu/barra de herramientas que CleanScreen no oculta).
+    crop_top = int(os.environ.get("CROQUIS_CROP_TOP", "60"))
+    if crop_top > 0:
+        img = img.crop((0, crop_top, img.width, img.height))
+    print(f"  imagen {img.size} {img.mode} bbox={bbox} crop_top={crop_top}", flush=True)
     out = os.path.abspath(salida_png)
     img.save(out)
     return os.path.getsize(out) // 1024
@@ -351,6 +344,12 @@ def capturar_croquis(
             print("  FILEDIA=0 via SendCommand", flush=True)
         # Maximizar ANTES del ZoomWindow (maximizar despues reajusta la vista).
         _maximizar(acad)
+        # CleanScreen: oculta ribbon y paletas (incluida Referencias externas).
+        try:
+            _com(lambda: doc.SendCommand('_.CLEANSCREENON\n'))
+            time.sleep(0.5)
+        except Exception:
+            pass
         # Ventana cuadrada centrada en (x, y), plano Z=0.
         _com(lambda: acad.ZoomWindow(_pto(x - half, y - half), _pto(x + half, y + half)))
         print("  ZoomWindow OK", flush=True)
@@ -362,6 +361,10 @@ def capturar_croquis(
     finally:
         try:
             if doc is not None:
+                try:
+                    _com(lambda: doc.SendCommand('_.CLEANSCREENOFF\n'), intentos=10)
+                except Exception:
+                    pass
                 if filedia_prev is not None:
                     _com(lambda: doc.SetVariable("FILEDIA", filedia_prev), intentos=10)
                 if not os.environ.get("CROQUIS_KEEP_OPEN"):

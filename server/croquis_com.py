@@ -17,6 +17,7 @@ Config (env):  SUPABASE_URL, SUPABASE_ANON_KEY, CROQUIS_SIZE_CM (def 200),
 import json
 import os
 import re
+import csv
 import sys
 import time
 import urllib.request
@@ -430,16 +431,136 @@ def _demo():
     return 0
 
 
+def _leer_centro_csv(carpeta_punto):
+    """Centro (x, y) del punto: primera fila de datos del CSV en la carpeta.
+    Formato esperado: numero,X,Y,Z,codigo (decimal con punto)."""
+    csvs = sorted(f for f in os.listdir(carpeta_punto) if f.lower().endswith(".csv"))
+    if not csvs:
+        return None
+    p = os.path.join(carpeta_punto, csvs[0])
+    with open(p, newline="", encoding="utf-8-sig", errors="replace") as f:
+        for row in csv.reader(f):
+            if len(row) >= 3:
+                try:
+                    return float(row[1]), float(row[2])
+                except ValueError:
+                    continue
+    return None
+
+
+def _elegir_puntos(raiz):
+    """Lista de subcarpetas de punto elegidas (multi-seleccion)."""
+    import tkinter as tk
+
+    subdirs = sorted(
+        d for d in os.listdir(raiz)
+        if os.path.isdir(os.path.join(raiz, d)) and not d.startswith(".")
+    )
+    if not subdirs:
+        return []
+    top = tk.Tk()
+    top.title("3/3 Selecciona carpeta(s) de punto")
+    tk.Label(top, text=f"Subcarpetas de:\n{raiz}").pack(anchor="w", padx=8, pady=4)
+    lb = tk.Listbox(top, selectmode="multiple", width=64, height=min(24, len(subdirs)))
+    for d in subdirs:
+        lb.insert("end", d)
+    lb.pack(fill="x", padx=8)
+    ok = {"v": False}
+
+    def _ok():
+        ok["v"] = True
+        top.destroy()
+
+    bb = tk.Frame(top)
+    bb.pack(pady=6)
+    tk.Button(bb, text="Cancelar", command=top.destroy).pack(side="left", padx=4)
+    tk.Button(bb, text="Generar croquis", command=_ok).pack(side="left", padx=4)
+    top.mainloop()
+    if not ok["v"]:
+        return []
+    return [os.path.join(raiz, lb.get(i)) for i in lb.curselection()]
+
+
+def _batch_gui():
+    """Flujo completo con pickers:
+    1) Carpeta RAIZ (con DWG + subcarpetas de puntos)
+    2) DWG (auto si hay uno solo)
+    3) Carpeta(s) de punto (multi-seleccion)
+    Lee el centro (X,Y) del CSV de cada punto, genera el croquis y guarda el PNG
+    en la RAIZ con el nombre del punto."""
+    import tkinter as tk
+    from tkinter import filedialog, messagebox
+
+    tk.Tk().withdraw()
+    raiz = filedialog.askdirectory(
+        title="1/3 Carpeta RAIZ (contiene el DWG y subcarpetas de puntos)"
+    )
+    if not raiz:
+        return 0
+
+    dwgs = sorted(f for f in os.listdir(raiz) if f.lower().endswith(".dwg"))
+    if not dwgs:
+        messagebox.showerror("Error", f"No hay archivo .dwg en:\n{raiz}")
+        return 0
+    if len(dwgs) == 1:
+        dwg = os.path.join(raiz, dwgs[0])
+    else:
+        dwg = filedialog.askopenfilename(
+            title="2/3 Elige el DWG a procesar", initialdir=raiz, filetypes=[("DWG", "*.dwg")]
+        )
+        if not dwg:
+            return 0
+
+    refs = os.path.join(raiz, "Ortomosaico")
+    if not os.path.isdir(refs):
+        refs = None
+
+    puntos = _elegir_puntos(raiz)
+    if not puntos:
+        return 0
+
+    # Mantener el DWG abierto entre puntos (no recargar ECW en cada uno).
+    os.environ["CROQUIS_KEEP_OPEN"] = "1"
+    acad = conectar_autocad()
+    if refs:
+        _anadir_support_path(acad, refs)
+    try:
+        for pp in puntos:
+            xy = _leer_centro_csv(pp)
+            nombre = os.path.basename(pp)
+            if not xy:
+                print(f"[skip] {nombre}: no se encontro CSV con coordenadas", flush=True)
+                continue
+            x, y = xy
+            out = os.path.join(raiz, nombre + ".png")
+            print(f"[batch] {nombre} centro=({x}, {y}) -> {out}", flush=True)
+            try:
+                o, kb = capturar_croquis(dwg, x, y, out, acad=acad, refs_folder=refs)
+                print(f"  OK: {o} ({kb} KB)", flush=True)
+            except Exception as e:
+                print(f"  FAIL: {e}", flush=True)
+    finally:
+        # Cerrar el DWG al terminar el lote.
+        try:
+            _com(lambda: acad.ActiveDocument.Close(False), intentos=10)
+        except Exception:
+            pass
+    return 0
+
+
 def main(argv):
     """Uso:
-      python croquis_com.py                              # GUI: elige DWG + refs + centro
-      python croquis_com.py --gui                        # idem
+      python croquis_com.py --batch                       # pickers: Raiz + DWG + punto(s)
+      python croquis_com.py                               # GUI: elige DWG + refs + centro
+      python croquis_com.py --gui                         # idem
       python croquis_com.py <dwg> --xy <x> <y> [--refs <carpeta>] [salida]
       python croquis_com.py <dwg> <codigo> [--refs <carpeta>] [salida]
+      python croquis_com.py --diag <dwg> [--refs <carpeta>]   # volcar referencias
     """
     pythoncom.CoInitialize()
     gui = False
     diag = False
+    batch = False
     refs = None
     xy = None
     posicionales = []
@@ -448,6 +569,9 @@ def main(argv):
         a = argv[i]
         if a == "--gui":
             gui = True
+            i += 1
+        elif a == "--batch":
+            batch = True
             i += 1
         elif a == "--diag":
             diag = True
@@ -462,6 +586,8 @@ def main(argv):
             posicionales.append(a)
             i += 1
 
+    if batch:
+        return _batch_gui()
     if not argv:
         print(__doc__)
         return _demo()

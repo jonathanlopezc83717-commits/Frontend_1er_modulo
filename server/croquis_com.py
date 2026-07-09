@@ -24,6 +24,30 @@ from pathlib import Path
 
 import pythoncom
 import win32com.client
+import win32con
+import win32gui
+import pywintypes
+from PIL import ImageGrab
+
+# hresult que indican "Civil 3D ocupado" -> reintentar.
+_BUSY = {-2147418111, -2147418102}  # RPC_E_CALL_REJECTED, RPC_E_SERVERCALL_RETRYLATER
+
+
+def _com(fn, intentos=240, espera=1.0):
+    """Ejecuta una llamada COM reintentando si Civil 3D esta ocupado
+    (arranque en frio / carga de ECW de minutos). Budget ~4 min por defecto."""
+    for k in range(intentos):
+        try:
+            return fn()
+        except pywintypes.com_error as e:
+            if getattr(e, "hresult", None) in _BUSY and k + 1 < intentos:
+                time.sleep(espera)
+                continue
+            raise
+    raise RuntimeError(
+        "Civil 3D esta bloqueado por un dialogo modal (probablemente la ventana "
+        "del ortomosaico). Cancela/cierra ese cuadro en Civil 3D y vuelve a ejecutar."
+    )
 
 
 def _pto(x: float, y: float, z: float = 0.0):
@@ -31,15 +55,257 @@ def _pto(x: float, y: float, z: float = 0.0):
     return win32com.client.VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_R8, (x, y, z))
 
 
-def conectar_autocad(prog_id: str | None = None):
-    """Se adhiere a la instancia de AutoCAD abierta; si no hay, lanza una nueva."""
-    pid = prog_id or os.environ.get("CROQUIS_PROGID", "AutoCAD.Application")
+def _asegurar_visible(acad):
+    """Fuerza visible la ventana principal. ZoomWindow la exige.
+    ponytail: el setter acad.Visible falla en despacho dinamico de Civil 3D 2026;
+    mostramos via HWND (API Win32) que no depende de la type-lib."""
     try:
-        acad = win32com.client.GetActiveObject(pid)
+        if acad.Visible:
+            return
     except Exception:
-        acad = win32com.client.Dispatch(pid)
-    acad.Visible = True
+        pass
+    try:
+        hwnd = int(acad.HWND)
+        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+        win32gui.SetForegroundWindow(hwnd)
+        time.sleep(0.5)
+    except Exception:
+        pass
+
+
+def conectar_autocad(prog_id: str | None = None):
+    """Se adhiere a la instancia de AutoCAD/Civil 3D abierta (early-bound).
+    Early binding resuelve Open/Count/Item/GetVariable que el despacho dinamico rompe.
+    Envuelto en _com: si Civil 3D esta ocupado al conectar, reintenta."""
+    pid = prog_id or os.environ.get("CROQUIS_PROGID", "AutoCAD.Application")
+    from win32com.client import gencache
+
+    def _ensure():
+        try:
+            return gencache.EnsureDispatch(pid)
+        except pywintypes.com_error:
+            raise  # dejar que _com reintente si es busy
+        except Exception:
+            return win32com.client.Dispatch(pid)
+
+    acad = _com(_ensure)
+    _asegurar_visible(acad)
     return acad
+
+
+def _maximizar(acad):
+    """Maximiza la ventana de Civil 3D. Llamar ANTES del ZoomWindow: maximizar
+    despues hace que Civil 3D reajuste la vista a la extension completa."""
+    try:
+        hwnd = int(acad.HWND)
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+        win32gui.SetForegroundWindow(hwnd)
+        time.sleep(0.5)
+    except Exception:
+        pass
+
+
+def _esperar_idle(acad, budget_s=300):
+    """Espera a que Civil 3D deje de estar ocupado (carga de ECW completada).
+    Durante la carga las llamadas COM devuelven CALL_REJECTED; sondeamos hasta
+    que una llamada barata (Version) ceda. Devuelve True si quedo idle."""
+    deadline = time.time() + budget_s
+    while time.time() < deadline:
+        try:
+            _ = acad.Version
+            return True
+        except pywintypes.com_error as e:
+            if getattr(e, "hresult", None) in _BUSY:
+                time.sleep(1.0)
+                continue
+            return True
+    return False
+
+
+def _obtener_doc(acad, path: str):
+    """Activa el DWG si ya esta abierto; si no, lo abre ReadOnly.
+    Reabrir un doc abierto dispara un dialogo modal que cuelga el COM."""
+    nombre = os.path.basename(path).lower()
+    docs = acad.Documents
+    try:
+        for i in range(_com(lambda: docs.Count)):
+            d = _com(lambda: docs.Item(i))
+            if os.path.basename(str(d.FullName)).lower() == nombre:
+                _com(lambda: d.Activate())
+                return d
+    except Exception:
+        pass
+    _com(lambda: docs.Open(os.path.abspath(path), True))  # ReadOnly
+    return acad.ActiveDocument
+
+
+def _anadir_support_path(acad, carpeta):
+    """Anade la carpeta de referencias al Support File Search Path.
+
+    AutoCAD resuelve XREFs/imagenes cuyo path guardado no existe buscando en el
+    support path; esto evita el dialogo 'referencia no resuelta' que cuelga el Open.
+    """
+    if not carpeta:
+        return False
+    try:
+        files = acad.Preferences.Files
+        actual = str(files.SupportPath or "")
+        partes = [p for p in actual.split(";") if p]
+        carpeta_abs = os.path.abspath(carpeta)
+        if carpeta_abs not in partes:
+            partes.append(carpeta_abs)
+            files.SupportPath = ";".join(partes)
+        return True
+    except Exception as e:
+        print(f"  (SupportPath no seteable: {e})", flush=True)
+        return False
+
+
+def _interact_gui():
+    """Popups para elegir DWG + carpeta de referencias + centro (x,y).
+    Devuelve (dwg, refs, x, y, salida) o None si el usuario cancela."""
+    import tkinter as tk
+    from tkinter import filedialog, simpledialog
+
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    dwg = filedialog.askopenfilename(
+        title="Selecciona el DWG",
+        filetypes=[("DWG", "*.dwg"), ("DXF", "*.dxf"), ("Todos", "*.*")],
+    )
+    if not dwg:
+        return None
+    refs = filedialog.askdirectory(
+        title="Carpeta de referencias (Ortomosaico) - Cancelar si no aplica"
+    )
+    x = simpledialog.askfloat("Centro X", "Coordenada X del centro del croquis:")
+    if x is None:
+        return None
+    y = simpledialog.askfloat("Centro Y", "Coordenada Y del centro del croquis:")
+    if y is None:
+        return None
+    salida = filedialog.asksaveasfilename(
+        title="Guardar PNG como",
+        defaultextension=".png",
+        filetypes=[("PNG", "*.png")],
+        initialfile=str(Path(dwg).with_suffix(".png").name),
+    ) or str(Path(dwg).with_suffix(".png"))
+    root.destroy()
+    return dwg, (refs or None), x, y, salida
+
+
+def _repath_imagenes(doc, carpeta):
+    """Re-path de las definiciones de imagen (ortomosaicos) a `carpeta`,
+    emparejando por nombre de archivo. Evita el dialogo de 'referencia no resuelta'
+    que bloquea el render/PNGOUT."""
+    fldr = os.path.abspath(carpeta).replace("\\", "/").rstrip("/") + "/"
+    lisp = (
+        "(vl-load-com)"
+        "(progn"
+        '(setq de (cdr (assoc -1 (dictsearch (namedobjdict) "ACAD_IMAGE_DICT"))))'
+        "(if de (progn"
+        "(setq e (dictnext de T))"
+        "(while e"
+        "(setq en (cdr (assoc -1 e)))"
+        "(setq d (entget en))"
+        '(setq old (cdr (assoc 1 d)))'
+        '(setq ext (vl-filename-extension old))'
+        '(setq np (strcat "' + fldr + '" (vl-filename-base old) (if ext ext "")))'
+        "(entmod (subst (cons 1 np) (assoc 1 d) d))"
+        "(setq e (dictnext de))"
+        ")))"
+        '(command "_.REGEN")'
+        ")"
+    )
+    print(f"  repath imagenes -> {fldr}", flush=True)
+    _com(lambda: doc.SendCommand(lisp + "\n"))
+    time.sleep(1.5)
+
+
+def _hijos_ventana(hwnd_main, top=6):
+    """Enumerar ventanas hijas visibles por area (para hallar el lienzo de dibujo)."""
+    items = []
+
+    def cb(hwnd, _):
+        try:
+            if not win32gui.IsWindowVisible(hwnd):
+                return True
+            r = win32gui.GetWindowRect(hwnd)
+            w, h = r[2] - r[0], r[3] - r[1]
+            if w <= 1 or h <= 1:
+                return True
+            cls = win32gui.GetClassName(hwnd)
+            items.append((w * h, hwnd, cls, r))
+        except Exception:
+            pass
+        return True
+
+    win32gui.EnumChildWindows(hwnd_main, cb, None)
+    items.sort(reverse=True)
+    return items[:top]
+
+
+def _capturar_pantalla(acad, salida_png):
+    """Captura SOLO el lienzo de dibujo (ventana hija mas grande), no todo Civil 3D.
+    ponytail: heuristica 'hija mas grande' excluye ribbon, paleta de referencias y
+    barra de estado. Si el lienzo no es el mayor, afinar por nombre de clase."""
+    hwnd = int(acad.HWND)
+    try:
+        win32gui.SetForegroundWindow(hwnd)
+        time.sleep(0.3)
+    except Exception:
+        pass
+    candidatos = _hijos_ventana(hwnd)
+    for area, ch, cls, r in candidatos:
+        print(f"  hijo hwnd={ch} cls={cls!r} area={area} rect={r}", flush=True)
+    # Lienzo de render DirectX = area pura de dibujo (sin ribbon ni paletas).
+    canvas = None
+    for _area, ch, cls, _r in candidatos:
+        if "VIEW" in cls.upper() or "DXGI" in cls.upper():
+            canvas = ch
+            break
+    if canvas is None:
+        canvas = candidatos[0][1] if candidatos else hwnd
+    print(f"  lienzo elegido: {canvas}", flush=True)
+    r = win32gui.GetWindowRect(canvas)
+    bbox = (r[0], r[1], r[2], r[3])
+    img = ImageGrab.grab(bbox, all_screens=True)
+    print(f"  imagen {img.size} {img.mode}", flush=True)
+    out = os.path.abspath(salida_png)
+    img.save(out)
+    return os.path.getsize(out) // 1024
+
+
+def _volcar_rutas_imagenes(doc, archivo_salida):
+    """Diagnostico: vuelca referencias externas del DWG.
+    1) imagenes (ACAD_IMAGE_DICT)  2) XREFs (tabla BLOCK con path)."""
+    out = os.path.abspath(archivo_salida).replace("\\", "/")
+    lisp = (
+        "(progn"
+        '(setq f (open "' + out + '" "w"))'
+        '(write-line "=== IMAGENES (ACAD_IMAGE_DICT) ===" f)'
+        '(setq de (cdr (assoc -1 (dictsearch (namedobjdict) "ACAD_IMAGE_DICT"))))'
+        "(if de (progn"
+        "(setq e (dictnext de T))"
+        "(while e"
+        "(setq p (cdr (assoc 1 (entget (cdr (assoc -1 e))))))"
+        '(write-line p f)'
+        "(setq e (dictnext de))"
+        ")))"
+        '(write-line "=== XREFS (tabla BLOCK) ===" f)'
+        "(setq b (tblnext \"BLOCK\" T))"
+        "(while b"
+        "(if (assoc 1 b) (write-line (strcat (cdr (assoc 2 b)) \" => \" (cdr (assoc 1 b))) f))"
+        "(setq b (tblnext \"BLOCK\"))"
+        ")"
+        "(close f)"
+        ")"
+    )
+    _com(lambda: doc.SendCommand(lisp + "\n"))
+    time.sleep(0.6)
 
 
 def capturar_croquis(
@@ -49,6 +315,7 @@ def capturar_croquis(
     salida_png: str,
     size_cm: float | None = None,
     acad=None,
+    refs_folder: str | None = None,
 ) -> tuple[str, int]:
     """Abre el DWG, recorta size_cm x size_cm centrado en (x,y) y exporta PNG.
 
@@ -60,39 +327,47 @@ def capturar_croquis(
     half = size / 2.0
     propio = acad is None
     acad = acad or conectar_autocad()
+    if refs_folder:
+        _anadir_support_path(acad, refs_folder)
     doc = None
-    filedia_prev = 0
+    filedia_prev = None
     try:
-        doc = acad.Documents.Open(os.path.abspath(archivo_dwg))
+        doc = _obtener_doc(acad, archivo_dwg)
+        print(f"  doc: {doc.Name}", flush=True)
+        # Esperar a que termine la carga de referencias/ECW (sino capturamos el modal).
+        print("  esperando idle (carga ECW)...", flush=True)
+        _esperar_idle(acad)
+        if os.environ.get("CROQUIS_REPATH") and refs_folder:
+            _repath_imagenes(doc, refs_folder)
+            _esperar_idle(acad)
+        # FILEDIA=0 antes de cualquier comando (evita dialogos que cuelgan COM).
+        try:
+            filedia_prev = _com(lambda: doc.GetVariable("FILEDIA"))
+            _com(lambda: doc.SetVariable("FILEDIA", 0))
+            print("  FILEDIA=0 via API", flush=True)
+        except Exception:
+            _com(lambda: doc.SendCommand('(setvar "FILEDIA" 0)\n'))
+            time.sleep(0.3)
+            print("  FILEDIA=0 via SendCommand", flush=True)
+        # Maximizar ANTES del ZoomWindow (maximizar despues reajusta la vista).
+        _maximizar(acad)
         # Ventana cuadrada centrada en (x, y), plano Z=0.
-        acad.ZoomWindow(_pto(x - half, y - half), _pto(x + half, y + half))
-        # PNGOUT sin dialogo: ruta por linea de comandos.
-        filedia_prev = doc.GetVariable("FILEDIA")
-        doc.SetVariable("FILEDIA", 0)
-        out = os.path.abspath(salida_png).replace("\\", "/")
-        # ponytail: SendCommand via LISP; comillas dobles y '/' evitan escapes.
-        doc.SendCommand(f'(command "_.PNGOUT" "{out}")\n')
-        # Esperar a que AutoCAD escriba el archivo (export es async).
-        limite = time.time() + 15
-        while time.time() < limite and not os.path.exists(out):
-            time.sleep(0.2)
-        if not os.path.exists(out):
-            raise RuntimeError("AutoCAD no genero el PNG (¿version sin PNGOUT?)")
-        kb = os.path.getsize(out) // 1024
-        return out, kb
+        _com(lambda: acad.ZoomWindow(_pto(x - half, y - half), _pto(x + half, y + half)))
+        print("  ZoomWindow OK", flush=True)
+        # Esperar a que carguen los tiles del ECW de la nueva vista + pintado final.
+        _esperar_idle(acad)
+        time.sleep(3)
+        kb = _capturar_pantalla(acad, salida_png)
+        return os.path.abspath(salida_png), kb
     finally:
         try:
             if doc is not None:
                 if filedia_prev is not None:
-                    doc.SetVariable("FILEDIA", filedia_prev)
-                doc.Close(False)
+                    _com(lambda: doc.SetVariable("FILEDIA", filedia_prev), intentos=10)
+                if not os.environ.get("CROQUIS_KEEP_OPEN"):
+                    _com(lambda: doc.Close(False), intentos=10)
         except Exception:
             pass
-        if propio:
-            try:
-                acad.Quit()
-            except Exception:
-                pass
 
 
 def resolver_coords(supabase_url: str, supabase_key: str, codigo: int):
@@ -134,6 +409,7 @@ def extraer_codigo(ruta: str) -> int | None:
 
 def _demo():
     """Self-check: conecta a AutoCAD (reporta version) y resuelve coords si hay env."""
+    pythoncom.CoInitialize()
     print("[demo] Conectando a AutoCAD...")
     try:
         acad = conectar_autocad()
@@ -153,23 +429,78 @@ def _demo():
 
 def main(argv):
     """Uso:
-      python croquis_com.py                              # self-check (conecta AutoCAD)
-      python croquis_com.py <dwg> --xy <x> <y> [salida]  # coords directas (calibracion)
-      python croquis_com.py <dwg> <codigo> [salida]      # resuelve coords por Supabase
+      python croquis_com.py                              # GUI: elige DWG + refs + centro
+      python croquis_com.py --gui                        # idem
+      python croquis_com.py <dwg> --xy <x> <y> [--refs <carpeta>] [salida]
+      python croquis_com.py <dwg> <codigo> [--refs <carpeta>] [salida]
     """
+    pythoncom.CoInitialize()
+    gui = False
+    diag = False
+    refs = None
+    xy = None
+    posicionales = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--gui":
+            gui = True
+            i += 1
+        elif a == "--diag":
+            diag = True
+            i += 1
+        elif a == "--refs" and i + 1 < len(argv):
+            refs = argv[i + 1]
+            i += 2
+        elif a == "--xy" and i + 2 < len(argv):
+            xy = (float(argv[i + 1]), float(argv[i + 2]))
+            i += 3
+        else:
+            posicionales.append(a)
+            i += 1
+
     if not argv:
         print(__doc__)
         return _demo()
-    dwg = argv[0]
-    if len(argv) >= 4 and argv[1] == "--xy":
-        x, y = float(argv[2]), float(argv[3])
-        salida = argv[4] if len(argv) > 4 else str(Path(dwg).with_suffix(".png"))
-        print(f"[calibracion] Capturando {dwg} en ({x}, {y})...")
-        out, kb = capturar_croquis(dwg, x, y, salida)
+    if diag:
+        dwg = posicionales[0] if posicionales else None
+        if not dwg:
+            print("Uso: croquis_com.py --diag <dwg> [--refs <carpeta>]")
+            return 2
+        acad = conectar_autocad()
+        if refs:
+            _anadir_support_path(acad, refs)
+        doc = _obtener_doc(acad, dwg)
+        dump = os.path.abspath(str(Path(dwg).with_suffix(".imgpaths.txt")))
+        _volcar_rutas_imagenes(doc, dump)
+        print(f"Rutas de imagen -> {dump}", flush=True)
+        try:
+            _com(lambda: doc.Close(False), intentos=10)
+        except Exception:
+            pass
+        return 0
+    if gui or not posicionales:
+        elegido = _interact_gui()
+        if not elegido:
+            return 0
+        dwg, refs_gui, x, y, salida = elegido
+        refs = refs or refs_gui
+        print(f"[gui] Capturando {dwg} en ({x}, {y}) refs={refs or '(ninguna)'}...", flush=True)
+        out, kb = capturar_croquis(dwg, x, y, salida, refs_folder=refs)
         print(f"OK: {out} ({kb} KB)")
         return 0
-    codigo = int(argv[1]) if len(argv) > 1 else extraer_codigo(dwg)
-    salida = argv[2] if len(argv) > 2 else str(Path(dwg).with_suffix(".png"))
+
+    dwg = posicionales[0]
+    if xy:
+        x, y = xy
+        salida = posicionales[1] if len(posicionales) > 1 else str(Path(dwg).with_suffix(".png"))
+        print(f"[xy] Capturando {dwg} en ({x}, {y}) refs={refs or '(ninguna)'}...", flush=True)
+        out, kb = capturar_croquis(dwg, x, y, salida, refs_folder=refs)
+        print(f"OK: {out} ({kb} KB)")
+        return 0
+
+    codigo = int(posicionales[1]) if len(posicionales) > 1 else extraer_codigo(dwg)
+    salida = posicionales[2] if len(posicionales) > 2 else str(Path(dwg).with_suffix(".png"))
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_ANON_KEY")
     if not (url and key):
@@ -183,11 +514,15 @@ def main(argv):
         print(f"Punto numero_serie={codigo} sin coordenadas en Supabase.")
         return 3
     x, y = xy
-    print(f"Capturando {dwg} en ({x}, {y})...")
-    out, kb = capturar_croquis(dwg, x, y, salida)
+    print(f"Capturando {dwg} en ({x}, {y}) refs={refs or '(ninguna)'}...", flush=True)
+    out, kb = capturar_croquis(dwg, x, y, salida, refs_folder=refs)
     print(f"OK: {out} ({kb} KB)")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (RuntimeError, pywintypes.com_error) as e:
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)

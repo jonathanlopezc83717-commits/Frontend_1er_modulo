@@ -21,7 +21,7 @@ import {
 } from '@/lib/nas-approval'
 import type { FilaSincronizacion } from '@/lib/excel-sync'
 import { MAX_VERSIONES_PUNTO } from '@/types'
-import { ClipboardCheck, RefreshCw, Check, Undo2, AlertTriangle, FolderSync } from 'lucide-react'
+import { ClipboardCheck, RefreshCw, Check, Undo2, AlertTriangle, FolderSync, Plus, Pencil, Trash2, ArrowRight } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 
@@ -246,34 +246,68 @@ export function ModuloAprobacion() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {cambiosPuntosExistentes.map((c) => (
-                <div key={c.puntoId} className="rounded-md border border-blue-500/30 bg-background p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{c.puntoNombre}</p>
-                      <p className="text-xs text-muted-foreground truncate font-mono">{c.nasPath}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {c.eventos.slice(0, 5).map((ev) => (
-                          <Badge key={ev.eventId} variant="outline" className="text-[10px] font-mono">
-                            {ev.type}: {ev.path.split('/').pop()}
-                          </Badge>
-                        ))}
-                        {c.eventos.length > 5 && (
-                          <Badge variant="outline" className="text-[10px]">+{c.eventos.length - 5} más</Badge>
-                        )}
+              {cambiosPuntosExistentes.map((c) => {
+                const agregados = c.eventos.filter((e) => e.type === 'created')
+                const modificados = c.eventos.filter((e) => e.type === 'modified')
+                const eliminados = c.eventos.filter((e) => e.type === 'deleted')
+                const movidos = c.eventos.filter((e) => e.type === 'moved')
+                return (
+                  <div key={c.puntoId} className="rounded-md border border-blue-500/30 bg-background p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{c.puntoNombre}</p>
+                        <p className="text-xs text-muted-foreground truncate font-mono">{c.nasPath}</p>
                       </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleRecargar(c)}
+                        disabled={procesando}
+                      >
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                        Recargar
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleRecargar(c)}
-                      disabled={procesando}
-                    >
-                      <RefreshCw className="mr-1 h-3 w-3" />
-                      Recargar
-                    </Button>
+                    <div className="space-y-1">
+                      {agregados.length > 0 && (
+                        <div className="flex items-start gap-1.5">
+                          <Plus className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
+                          <span className="text-xs text-green-700">
+                            <span className="font-medium">Agregados ({agregados.length}):</span>{' '}
+                            {agregados.map((e) => e.path.split('/').pop()).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {modificados.length > 0 && (
+                        <div className="flex items-start gap-1.5">
+                          <Pencil className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
+                          <span className="text-xs text-amber-700">
+                            <span className="font-medium">Modificados ({modificados.length}):</span>{' '}
+                            {modificados.map((e) => e.path.split('/').pop()).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {eliminados.length > 0 && (
+                        <div className="flex items-start gap-1.5">
+                          <Trash2 className="w-3 h-3 text-red-600 mt-0.5 shrink-0" />
+                          <span className="text-xs text-red-700">
+                            <span className="font-medium">Eliminados ({eliminados.length}):</span>{' '}
+                            {eliminados.map((e) => e.path.split('/').pop()).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {movidos.length > 0 && (
+                        <div className="flex items-start gap-1.5">
+                          <ArrowRight className="w-3 h-3 text-blue-600 mt-0.5 shrink-0" />
+                          <span className="text-xs text-blue-700">
+                            <span className="font-medium">Movidos/Renombrados ({movidos.length}):</span>{' '}
+                            {movidos.map((e) => e.path.split('/').pop()).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </CardContent>
           </Card>
         )}

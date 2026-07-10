@@ -59,10 +59,14 @@ export interface ResultadoProcesamiento {
 
 function crearPuntoDesdeFila(fila: FilaSincronizacion, sourcePath: string): Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'> {
   const now = new Date().toISOString()
+  const directorioPadre = sourcePath.includes('/')
+    ? sourcePath.split('/').slice(0, -1).join('/')
+    : sourcePath
   return {
     nombre: fila.codigo || fila.numeroPunto || `Punto ${sourcePath}`,
     descripcion: `Importado de ${sourcePath}`,
     cadenamiento: fila.cadenamiento || fila.numeroPunto || undefined,
+    nasPath: directorioPadre,
     estadoAprobacion: 'pendiente',
     moduloData: {
       georeferencia: {
@@ -128,6 +132,108 @@ export async function procesarPendientes(
 }
 
 export type DispatchFn = (action: AppAction) => void
+
+export interface CambioPuntoExistente {
+  puntoId: string
+  puntoNombre: string
+  nasPath: string
+  eventos: NasPendingEvent[]
+}
+
+export function detectarCambiosPuntosExistentes(
+  eventos: NasPendingEvent[],
+  puntos: PuntoFerroviario[]
+): CambioPuntoExistente[] {
+  const resultado: CambioPuntoExistente[] = []
+  for (const punto of puntos) {
+    if (!punto.nasPath) continue
+    const prefijo = punto.nasPath + '/'
+    const eventosPunto = eventos.filter(
+      (ev) => ev.path === punto.nasPath || ev.path.startsWith(prefijo)
+    )
+    if (eventosPunto.length > 0) {
+      resultado.push({
+        puntoId: punto.id,
+        puntoNombre: punto.nombre,
+        nasPath: punto.nasPath,
+        eventos: eventosPunto,
+      })
+    }
+  }
+  return resultado
+}
+
+export async function recargarPuntoDesdeNAS(
+  punto: PuntoFerroviario,
+  eventos: NasPendingEvent[],
+  dispatch: DispatchFn
+): Promise<{ actualizados: number; errores: string[] }> {
+  const errores: string[] = []
+  let actualizados = 0
+  const now = new Date().toISOString()
+  const nuevoModuloData = { ...(punto.moduloData || {}) }
+
+  for (const ev of eventos) {
+    if (ev.type === 'deleted') continue
+    try {
+      const { buffer, nombre } = await descargarArchivoNas(ev.path)
+      const ext = (nombre.split('.').pop() || '').toLowerCase()
+
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+        const { filas } = await procesarArchivoSincronizacion(buffer, nombre)
+        const comparativa = compararSincronizacion(filas, [punto], [])
+        const fila = comparativa.find((r) => r.puntoId === punto.id)?.fila
+        if (fila) {
+          nuevoModuloData.georeferencia = {
+            coordenadas: { x: fila.x, y: fila.y, z: fila.z },
+            notas: `Recargado desde NAS: ${ev.path}`,
+            updatedAt: now,
+          }
+          if (fila.cadenamiento) {
+            dispatch({
+              type: 'ACTUALIZAR_PUNTO',
+              payload: { id: punto.id, data: { cadenamiento: fila.cadenamiento } },
+            })
+          }
+          actualizados++
+        }
+      } else if (ext === 'txt') {
+        const texto = new TextDecoder().decode(buffer)
+        const documentacionActual = (nuevoModuloData.documentacion as { nomenclaturas?: Array<{ id: string; codigo: string; definicion: string }>; notas?: string } | undefined) || {}
+        nuevoModuloData.documentacion = {
+          ...documentacionActual,
+          notas: texto,
+          nombreArchivo: nombre,
+          updatedAt: now,
+        }
+        actualizados++
+      } else if (ext === 'kmz' || ext === 'kml') {
+        // coordenadas KMZ requieren parser zip; se maneja en el flujo de carpeta
+      }
+    } catch (err) {
+      errores.push(`${ev.path}: ${String(err)}`)
+    }
+  }
+
+  if (actualizados > 0) {
+    dispatch({
+      type: 'PUSH_VERSION_PUNTO',
+      payload: punto.id,
+    })
+    dispatch({
+      type: 'ACTUALIZAR_PUNTO',
+      payload: {
+        id: punto.id,
+        data: {
+          moduloData: nuevoModuloData,
+          estadoAprobacion: 'pendiente',
+        },
+      },
+    })
+  }
+
+  return { actualizados, errores }
+}
 
 export function pushVersion(puntoId: string, dispatch: DispatchFn): void {
   dispatch({ type: 'PUSH_VERSION_PUNTO', payload: puntoId })

@@ -141,6 +141,7 @@ export interface PuntoFerroviario {
   bloqueado?: boolean
   estadoAprobacion?: 'pendiente' | 'revisado' | 'aprobado'
   versiones?: Array<{ snapshot: PuntoFerroviario; timestamp: string }>
+  nasPath?: string
   moduloData: Record<string, unknown> & {
     analisis?: {
       results?: ImageAnalysisResult[]

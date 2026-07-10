@@ -12,6 +12,7 @@ interface PuntoFerroviario {
   nombre: string
   descripcion?: string
   carpetaPath?: string
+  cadenamiento?: string
   coordenadas?: { lat: number; lng: number }
   bloqueado?: boolean
   moduloData: Record<string, unknown>
@@ -126,6 +127,17 @@ describe('Ordenamiento de puntos', () => {
   it('ordena por fecha ingreso descendente', () => {
     const ordenados = ordenarPuntos(puntos, 'fecha-ingreso-desc')
     expect(ordenados.map(p => p.nombre)).toEqual(['Central', 'Zona B', 'Zona A'])
+  })
+
+  it('ordena por cadenamiento + coordenada (cad ascendente, resto de X descendente)', () => {
+    const pts = [
+      crearPunto({ nombre: 'A', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 561009.175, y: 0, z: 0 } } } }),
+      crearPunto({ nombre: 'B', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 560500, y: 0, z: 0 } } } }),
+      crearPunto({ nombre: 'C', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 560100, y: 0, z: 0 } } } }),
+      crearPunto({ nombre: 'D', cadenamiento: '57', moduloData: { georeferencia: { coordenadas: { x: 571050, y: 0, z: 0 } } } }),
+    ]
+    const ordenados = ordenarPuntos(pts, 'cadenamiento-coordenada')
+    expect(ordenados.map(p => p.nombre)).toEqual(['A', 'B', 'C', 'D'])
   })
 })
 

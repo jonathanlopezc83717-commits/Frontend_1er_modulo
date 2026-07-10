@@ -13,13 +13,16 @@ import {
   deshacerPunto,
   marcarRevisado,
   confirmarSobrescritura,
+  detectarCambiosPuntosExistentes,
+  recargarPuntoDesdeNAS,
   type NasPendingEvent,
   type ResultadoProcesamiento,
+  type CambioPuntoExistente,
 } from '@/lib/nas-approval'
 import type { FilaSincronizacion } from '@/lib/excel-sync'
 import { MAX_VERSIONES_PUNTO } from '@/types'
-import { ClipboardCheck, RefreshCw, Check, Undo2, AlertTriangle } from 'lucide-react'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { ClipboardCheck, RefreshCw, Check, Undo2, AlertTriangle, FolderSync } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 
 const POLL_MS = 20000
@@ -65,6 +68,31 @@ export function ModuloAprobacion() {
   }, [cargar])
 
   const puntosPendientes = state.puntos.filter((p) => p.estadoAprobacion !== 'aprobado')
+
+  const cambiosPuntosExistentes = useMemo(
+    () => detectarCambiosPuntosExistentes(eventos, state.puntos),
+    [eventos, state.puntos]
+  )
+
+  const handleRecargar = async (cambio: CambioPuntoExistente) => {
+    const punto = state.puntos.find((p) => p.id === cambio.puntoId)
+    if (!punto) return
+    setProcesando(true)
+    try {
+      const res = await recargarPuntoDesdeNAS(punto, cambio.eventos, dispatch)
+      await ackPendientes(cambio.eventos.map((e) => e.eventId))
+      await cargar()
+      if (res.errores.length > 0) {
+        toast.warning(`Recargado con ${res.errores.length} error(es)`)
+      } else {
+        toast.success(`${punto.nombre}: ${res.actualizados} archivo(s) actualizado(s)`)
+      }
+    } catch (e) {
+      toast.error('Error recargando: ' + String(e))
+    } finally {
+      setProcesando(false)
+    }
+  }
 
   const handleProcesar = async () => {
     if (procesando || eventos.length === 0) return
@@ -205,6 +233,47 @@ export function ModuloAprobacion() {
                   </div>
                 )
               })}
+            </CardContent>
+          </Card>
+        )}
+
+        {cambiosPuntosExistentes.length > 0 && (
+          <Card className="border-blue-500/40 bg-blue-500/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <FolderSync className="h-5 w-5 text-blue-600" />
+                <CardTitle>Cambios detectados en puntos existentes ({cambiosPuntosExistentes.length})</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {cambiosPuntosExistentes.map((c) => (
+                <div key={c.puntoId} className="rounded-md border border-blue-500/30 bg-background p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{c.puntoNombre}</p>
+                      <p className="text-xs text-muted-foreground truncate font-mono">{c.nasPath}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {c.eventos.slice(0, 5).map((ev) => (
+                          <Badge key={ev.eventId} variant="outline" className="text-[10px] font-mono">
+                            {ev.type}: {ev.path.split('/').pop()}
+                          </Badge>
+                        ))}
+                        {c.eventos.length > 5 && (
+                          <Badge variant="outline" className="text-[10px]">+{c.eventos.length - 5} más</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleRecargar(c)}
+                      disabled={procesando}
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                      Recargar
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

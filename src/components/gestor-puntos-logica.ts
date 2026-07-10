@@ -1,4 +1,5 @@
 import type { PuntoFerroviario } from '@/types'
+import { separarDigitos } from '@/lib/excel-sync'
 
 export type SortKey =
   | 'manual'
@@ -10,6 +11,7 @@ export type SortKey =
   | 'fecha-ingreso-desc'
   | 'cadenamiento-asc'
   | 'cadenamiento-desc'
+  | 'cadenamiento-coordenada'
 
 /** Compara dos cadenamientos: numérico si ambos son números, sino lexicográfico. Vacíos al final. */
 export function compararCadenamiento(a: string | undefined, b: string | undefined): number {
@@ -22,6 +24,13 @@ export function compararCadenamiento(a: string | undefined, b: string | undefine
   const nb = Number(vb)
   if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb
   return va.localeCompare(vb)
+}
+
+function extraerRestoX(punto: PuntoFerroviario): number {
+  const geo = punto.moduloData?.georeferencia ?? punto.moduloData?.georeferenciacion
+  const x = geo?.coordenadas?.x
+  if (typeof x !== 'number' || !Number.isFinite(x)) return 0
+  return separarDigitos(x, 2).resto
 }
 
 export function ordenarPuntos(puntos: PuntoFerroviario[], sortKey: SortKey): PuntoFerroviario[] {
@@ -43,6 +52,12 @@ export function ordenarPuntos(puntos: PuntoFerroviario[], sortKey: SortKey): Pun
       return copia.sort((a, b) => compararCadenamiento(a.cadenamiento, b.cadenamiento))
     case 'cadenamiento-desc':
       return copia.sort((a, b) => compararCadenamiento(b.cadenamiento, a.cadenamiento))
+    case 'cadenamiento-coordenada':
+      return copia.sort((a, b) => {
+        const cadComp = compararCadenamiento(a.cadenamiento, b.cadenamiento)
+        if (cadComp !== 0) return cadComp
+        return extraerRestoX(b) - extraerRestoX(a)
+      })
     case 'manual':
     default:
       return copia.sort((a, b) => a.numeroSerie - b.numeroSerie)

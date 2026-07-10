@@ -39,7 +39,6 @@ import {
   ChevronRight,
   GripVertical,
   ArrowUpDown,
-  Calendar,
   Type,
   ListOrdered,
   AlertTriangle,
@@ -283,26 +282,6 @@ export function GestorPuntos() {
                         <Type className="w-3 h-3" /> Nombre Z → A
                       </span>
                     </SelectItem>
-                    <SelectItem value="fecha-asignada-desc">
-                      <span className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Fecha asignada: reciente
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="fecha-asignada-asc">
-                      <span className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Fecha asignada: antigua
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="fecha-ingreso-desc">
-                      <span className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Fecha de ingreso: reciente
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="fecha-ingreso-asc">
-                      <span className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Fecha de ingreso: antigua
-                      </span>
-                    </SelectItem>
                     <SelectItem value="cadenamiento-asc">
                       <span className="flex items-center gap-2">
                         <Type className="w-3 h-3" /> Cadenamiento: menor
@@ -311,6 +290,11 @@ export function GestorPuntos() {
                     <SelectItem value="cadenamiento-desc">
                       <span className="flex items-center gap-2">
                         <Type className="w-3 h-3" /> Cadenamiento: mayor
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="cadenamiento-coordenada">
+                      <span className="flex items-center gap-2">
+                        <Type className="w-3 h-3" /> Cadenamiento + coordenada (mayor a menor)
                       </span>
                     </SelectItem>
                   </SelectContent>

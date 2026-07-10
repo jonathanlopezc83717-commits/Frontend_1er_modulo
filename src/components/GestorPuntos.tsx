@@ -120,7 +120,7 @@ export function GestorPuntos() {
   }
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, handleSeleccionarCarpeta, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, handleSeleccionarCarpeta, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   // Handlers mejorados para swipe y drag con umbral de movimiento
   const formatFecha = (iso?: string) => {
@@ -183,6 +183,7 @@ export function GestorPuntos() {
               ref={fileInputRef}
               type="file"
               {...{ webkitdirectory: "true", directory: "true" }}
+              multiple
               onChange={handleSeleccionarCarpeta}
               className="hidden"
             />
@@ -761,118 +762,147 @@ export function GestorPuntos() {
       </Dialog>
 
       {/* Dialog de routing manual */}
-      <Dialog open={mostrarRouting} onOpenChange={() => setMostrarRouting(false)}>
-        <DialogContent className="max-w-sm">
+      <Dialog open={mostrarRouting} onOpenChange={(open) => { setMostrarRouting(open); if (!open) setResumenMultiple(null) }}>
+        <DialogContent className={resumenMultiple ? 'max-w-md' : 'max-w-sm'}>
           <DialogHeader>
-            <DialogTitle>Punto agregado: {state.puntoActivo?.nombre}</DialogTitle>
-            <DialogDescription>
-              Tipos de archivos detectados en la carpeta importada.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <input ref={kmzIndividualRef} type="file" accept=".kmz,.kml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('kmz', f); e.target.value = '' }} />
-            <input ref={txtIndividualRef} type="file" accept=".txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('txt', f); e.target.value = '' }} />
-            <input ref={excelIndividualRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('excel', f); e.target.value = '' }} />
-            <input ref={fotosIndividualRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => { const fs = e.target.files; if (fs && fs.length > 0) cargarFotos(Array.from(fs)); e.target.value = '' }} />
-            {routingActual && (
+            {resumenMultiple ? (
               <>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
-                  {routingActual.kmz ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium">Coordenadas KMZ/KML</p>
-                        <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium">Sin coordenadas</p>
-                        <p className="text-xs text-muted-foreground">No se encontró archivo KMZ/KML</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => kmzIndividualRef.current?.click()}>
-                        <Upload className="w-3 h-3 mr-1" />
-                        Cargar
-                      </Button>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
-                  {routingActual.txt ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium">Documento TXT</p>
-                        <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium">Sin documento</p>
-                        <p className="text-xs text-muted-foreground">No se encontró archivo TXT</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => txtIndividualRef.current?.click()}>
-                        <Upload className="w-3 h-3 mr-1" />
-                        Cargar
-                      </Button>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
-                  {routingActual.excel ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium">Excel de sincronización</p>
-                        <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium">Sin Excel</p>
-                        <p className="text-xs text-muted-foreground">No se encontró archivo Excel</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => excelIndividualRef.current?.click()}>
-                        <Upload className="w-3 h-3 mr-1" />
-                        Cargar
-                      </Button>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
-                  {routingActual.fotos > 0 ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium">{routingActual.fotos} fotos</p>
-                        <p className="text-xs text-muted-foreground">Imágenes cargadas correctamente</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium">Sin fotos</p>
-                        <p className="text-xs text-muted-foreground">No se encontraron imágenes</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => fotosIndividualRef.current?.click()}>
-                        <Upload className="w-3 h-3 mr-1" />
-                        Cargar
-                      </Button>
-                    </>
-                  )}
-                </div>
+                <DialogTitle>{resumenMultiple.length} puntos agregados</DialogTitle>
+                <DialogDescription>Resumen de las carpetas importadas.</DialogDescription>
+              </>
+            ) : (
+              <>
+                <DialogTitle>Punto agregado: {state.puntoActivo?.nombre}</DialogTitle>
+                <DialogDescription>
+                  Tipos de archivos detectados en la carpeta importada.
+                </DialogDescription>
               </>
             )}
-          </div>
+          </DialogHeader>
+
+          {resumenMultiple ? (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-2 py-2 pr-2">
+                {resumenMultiple.map((r, i) => (
+                  <div key={i} className="rounded-md border p-2 space-y-1.5">
+                    <p className="text-sm font-medium">{i + 1}. {r.nombre}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                      <span className={r.kmz ? 'text-green-700' : 'text-muted-foreground'}>{r.kmz ? '✓' : '✗'} KMZ</span>
+                      <span className={r.txt ? 'text-green-700' : 'text-muted-foreground'}>{r.txt ? '✓' : '✗'} TXT</span>
+                      <span className={r.excel ? 'text-green-700' : 'text-muted-foreground'}>{r.excel ? '✓' : '✗'} Excel</span>
+                      <span className={r.fotos > 0 ? 'text-green-700' : 'text-muted-foreground'}>{r.fotos > 0 ? `✓ ${r.fotos} fotos` : '✗ fotos'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="space-y-3 py-2">
+              <input ref={kmzIndividualRef} type="file" accept=".kmz,.kml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('kmz', f); e.target.value = '' }} />
+              <input ref={txtIndividualRef} type="file" accept=".txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('txt', f); e.target.value = '' }} />
+              <input ref={excelIndividualRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('excel', f); e.target.value = '' }} />
+              <input ref={fotosIndividualRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => { const fs = e.target.files; if (fs && fs.length > 0) cargarFotos(Array.from(fs)); e.target.value = '' }} />
+              {routingActual && (
+                <>
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+                    {routingActual.kmz ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium">Coordenadas KMZ/KML</p>
+                          <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium">Sin coordenadas</p>
+                          <p className="text-xs text-muted-foreground">No se encontró archivo KMZ/KML</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => kmzIndividualRef.current?.click()}>
+                          <Upload className="w-3 h-3 mr-1" />
+                          Cargar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+                    {routingActual.txt ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium">Documento TXT</p>
+                          <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium">Sin documento</p>
+                          <p className="text-xs text-muted-foreground">No se encontró archivo TXT</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => txtIndividualRef.current?.click()}>
+                          <Upload className="w-3 h-3 mr-1" />
+                          Cargar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+                    {routingActual.excel ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium">Excel de sincronización</p>
+                          <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium">Sin Excel</p>
+                          <p className="text-xs text-muted-foreground">No se encontró archivo Excel</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => excelIndividualRef.current?.click()}>
+                          <Upload className="w-3 h-3 mr-1" />
+                          Cargar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+                    {routingActual.fotos > 0 ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium">{routingActual.fotos} fotos</p>
+                          <p className="text-xs text-muted-foreground">Imágenes cargadas correctamente</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium">Sin fotos</p>
+                          <p className="text-xs text-muted-foreground">No se encontraron imágenes</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => fotosIndividualRef.current?.click()}>
+                          <Upload className="w-3 h-3 mr-1" />
+                          Cargar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button onClick={() => setMostrarRouting(false)}>
+            <Button onClick={() => { setMostrarRouting(false); setResumenMultiple(null) }}>
               Aceptar
             </Button>
           </DialogFooter>

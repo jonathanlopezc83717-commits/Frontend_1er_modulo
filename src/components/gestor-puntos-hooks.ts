@@ -367,9 +367,25 @@ interface FileRouting {
   fotos: number
 }
 
+interface ResumenCarpeta extends FileRouting {
+  nombre: string
+}
+
+function filtrarPorCarpetaRaiz(files: FileList, raiz: string): FileList {
+  const dt = new DataTransfer()
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i]
+    if ((f.webkitRelativePath || f.name).split('/')[0] === raiz) {
+      dt.items.add(f)
+    }
+  }
+  return dt.files
+}
+
 export function usePuntoCarpeta({
   puntoActivo,
   nomenclaturasGlobales,
+  puntosLength,
   agregarPunto,
   actualizarPunto,
   setNomenclaturasGlobales,
@@ -377,6 +393,7 @@ export function usePuntoCarpeta({
 }: {
   puntoActivo: PuntoFerroviario | null
   nomenclaturasGlobales: NomenclaturaEntry[]
+  puntosLength: number
   agregarPunto: (posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => void
   actualizarPunto: (id: string, data: Partial<PuntoFerroviario>) => void
   setNomenclaturasGlobales: (nomenclaturas: NomenclaturaEntry[]) => void
@@ -386,33 +403,62 @@ export function usePuntoCarpeta({
   const [datosCarpetaPreview, setDatosCarpetaPreview] = useState<DatosPuntoCarpeta | null>(null)
   const [mostrarRouting, setMostrarRouting] = useState(false)
   const [routingActual, setRoutingActual] = useState<FileRouting | null>(null)
+  const [resumenMultiple, setResumenMultiple] = useState<ResumenCarpeta[] | null>(null)
 
   const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
     setProcesandoCarpeta(true)
+    setResumenMultiple(null)
+    e.target.value = ''
+
+    const grupos = new Map<string, File[]>()
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      const raiz = (f.webkitRelativePath || f.name).split('/')[0]
+      if (!grupos.has(raiz)) grupos.set(raiz, [])
+      grupos.get(raiz)!.push(f)
+    }
 
     try {
-      const datos = await procesarCarpetaPunto(files)
+      if (grupos.size <= 1) {
+        const datos = await procesarCarpetaPunto(files)
+        const excelEnRaiz = buscarExcelEnRaiz(files)
+        if (excelEnRaiz) datos.excel = excelEnRaiz
 
-      const excelEnRaiz = buscarExcelEnRaiz(files)
-      if (excelEnRaiz) {
-        datos.excel = excelEnRaiz
+        setDatosCarpetaPreview(datos)
+        setRoutingActual({
+          kmz: !!datos.coordenadas,
+          txt: !!datos.textoDocumento,
+          excel: !!datos.excel,
+          fotos: datos.fotos.length,
+        })
+
+        await agregarDesdeDatos(datos)
+        setMostrarRouting(true)
+      } else {
+        const resumen: ResumenCarpeta[] = []
+        let i = 0
+        for (const [nombreRaiz] of grupos) {
+          const fileListFiltrada = filtrarPorCarpetaRaiz(files, nombreRaiz)
+          const datos = await procesarCarpetaPunto(fileListFiltrada)
+          const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
+          if (excelEnRaiz) datos.excel = excelEnRaiz
+          await agregarDesdeDatos(datos, puntosLength + 1 + i)
+          resumen.push({
+            nombre: datos.nombreCarpeta,
+            kmz: !!datos.coordenadas,
+            txt: !!datos.textoDocumento,
+            excel: !!datos.excel,
+            fotos: datos.fotos.length,
+          })
+          i++
+        }
+        setRoutingActual(null)
+        setResumenMultiple(resumen)
+        setMostrarRouting(true)
       }
-
-      setDatosCarpetaPreview(datos)
-
-      setRoutingActual({
-        kmz: !!datos.coordenadas,
-        txt: !!datos.textoDocumento,
-        excel: !!datos.excel,
-        fotos: datos.fotos.length,
-      })
-
-      await agregarDesdeDatos(datos)
-
-      setMostrarRouting(true)
     } catch (error) {
       console.error('Error procesando carpeta:', error)
       alert('Error al procesar la carpeta')
@@ -523,7 +569,7 @@ export function usePuntoCarpeta({
     }
   }
 
-  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta) => {
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1) => {
     const moduloData: Record<string, unknown> = {}
 
     if (datos.coordenadas) {
@@ -574,7 +620,7 @@ export function usePuntoCarpeta({
       }
     }
 
-    agregarPunto(1, {
+    agregarPunto(posicion, {
       nombre: datos.nombreCarpeta,
       descripcion: undefined,
       carpetaPath: datos.nombreCarpeta,
@@ -696,6 +742,8 @@ export function usePuntoCarpeta({
     setMostrarRouting,
     routingActual,
     setRoutingActual,
+    resumenMultiple,
+    setResumenMultiple,
     handleSeleccionarCarpeta,
     handleRoutingManual,
     cargarArchivoIndividual,

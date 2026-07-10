@@ -37,6 +37,7 @@ export function ModuloAprobacion() {
   const [procesando, setProcesando] = useState(false)
   const [resultado, setResultado] = useState<ResultadoProcesamiento | null>(null)
   const [conflictos, setConflictos] = useState<ConflictoPendiente[]>([])
+  const [draftsCadenamiento, setDraftsCadenamiento] = useState<Record<string, string>>({})
   const abortRef = useRef<AbortController | null>(null)
 
   const cargar = useCallback(async () => {
@@ -95,6 +96,21 @@ export function ModuloAprobacion() {
   const handleEditar = (id: string, campo: 'nombre' | 'descripcion' | 'cadenamiento', valor: string) => {
     dispatch({ type: 'ACTUALIZAR_PUNTO', payload: { id, data: { [campo]: valor } } })
     marcarRevisado(id, dispatch)
+  }
+
+  const handleGuardarCadenamiento = (id: string, valorActual: string | undefined) => {
+    const draft = draftsCadenamiento[id] ?? valorActual ?? ''
+    if (draft === (valorActual ?? '')) {
+      toast.info('Cadenamiento sin cambios')
+      return
+    }
+    handleEditar(id, 'cadenamiento', draft)
+    setDraftsCadenamiento((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    toast.success('Cadenamiento guardado. Revisa el orden en el Gestor de Puntos.')
   }
 
   const handleAprobar = (id: string) => {
@@ -234,26 +250,39 @@ export function ModuloAprobacion() {
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <label className="text-xs space-y-1">
-                    <span className="text-muted-foreground">Nombre</span>
+                <label className="text-xs space-y-1 block">
+                  <span className="text-muted-foreground">Nombre</span>
+                  <Input
+                    defaultValue={p.nombre}
+                    onBlur={(e) => {
+                      if (e.target.value !== p.nombre) handleEditar(p.id, 'nombre', e.target.value)
+                    }}
+                  />
+                </label>
+                <label className="text-xs space-y-1 block">
+                  <span className="text-muted-foreground">Cadenamiento (afecta el orden en Gestor de Puntos)</span>
+                  <div className="flex gap-2">
                     <Input
-                      defaultValue={p.nombre}
-                      onBlur={(e) => {
-                        if (e.target.value !== p.nombre) handleEditar(p.id, 'nombre', e.target.value)
+                      value={draftsCadenamiento[p.id] ?? p.cadenamiento ?? ''}
+                      onChange={(e) => setDraftsCadenamiento((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleGuardarCadenamiento(p.id, p.cadenamiento)
+                        }
                       }}
+                      className="flex-1"
                     />
-                  </label>
-                  <label className="text-xs space-y-1">
-                    <span className="text-muted-foreground">Cadenamiento</span>
-                    <Input
-                      defaultValue={p.cadenamiento ?? ''}
-                      onBlur={(e) => {
-                        if (e.target.value !== (p.cadenamiento ?? '')) handleEditar(p.id, 'cadenamiento', e.target.value)
-                      }}
-                    />
-                  </label>
-                </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleGuardarCadenamiento(p.id, p.cadenamiento)}
+                      disabled={(draftsCadenamiento[p.id] ?? p.cadenamiento ?? '') === (p.cadenamiento ?? '')}
+                    >
+                      Guardar
+                    </Button>
+                  </div>
+                </label>
                 <label className="text-xs space-y-1 block">
                   <span className="text-muted-foreground">Descripción</span>
                   <Textarea

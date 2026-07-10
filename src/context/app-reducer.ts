@@ -34,10 +34,10 @@ function puntosSlice(state: AppState, action: AppAction): AppState | undefined {
     }
 
     case 'AGREGAR_PUNTO': {
-      const { posicion, punto } = action.payload
+      const { posicion, punto, id: idExplicito } = action.payload
       const nuevoPunto: PuntoFerroviario = {
         ...punto,
-        id: generarId(),
+        id: idExplicito || generarId(),
         numeroSerie: posicion,
         moduloData: punto.moduloData || {},
         createdAt: new Date().toISOString(),
@@ -146,8 +146,9 @@ function puntosSlice(state: AppState, action: AppAction): AppState | undefined {
       const now = new Date().toISOString()
       const puntosActualizados = state.puntos.map(p => {
         if (p.id !== action.payload) return p
-        const { versiones: _omit, ...rest } = p
-        const versiones = [...(p.versiones || []), { snapshot: rest, timestamp: now }]
+        const snapshotPunto = { ...p }
+        delete snapshotPunto.versiones
+        const versiones = [...(p.versiones || []), { snapshot: snapshotPunto, timestamp: now }]
           .slice(-MAX_VERSIONES_PUNTO)
         return { ...p, versiones }
       })

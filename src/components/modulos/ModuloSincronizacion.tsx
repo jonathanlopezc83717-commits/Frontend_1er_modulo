@@ -97,10 +97,6 @@ export function ModuloSincronizacion() {
     return conteo
   }, [resultados])
 
-  const haySepX = filas.some(f => f.sepX !== undefined)
-  const haySepY = filas.some(f => f.sepY !== undefined)
-  const haySepZ = filas.some(f => f.sepZ !== undefined)
-
   useEffect(() => {
     if (filas.length === 0) {
       setResultados([])
@@ -572,11 +568,9 @@ export function ModuloSincronizacion() {
                       <tr>
                         <th className="px-2 py-2 text-left font-medium w-24">No. Punto</th>
                         <th className="px-2 py-2 text-left font-medium">X</th>
-                        {haySepX && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
+                        <th className="px-2 py-2 text-left font-medium w-28">Cadenamiento</th>
                         <th className="px-2 py-2 text-left font-medium">Y</th>
-                        {haySepY && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
                         <th className="px-2 py-2 text-left font-medium">Z</th>
-                        {haySepZ && <th className="px-2 py-2 text-left font-medium">Cadenamiento</th>}
                         <th className="px-2 py-2 text-left font-medium">Código</th>
                         <th className="px-2 py-2 text-left font-medium">Punto</th>
                         <th className="px-2 py-2 text-left font-medium">Nomenclatura</th>
@@ -604,7 +598,7 @@ export function ModuloSincronizacion() {
                                 onChange={(e) => editarFila(item.filaIndex, 'x', e.target.value)}
                               />
                             </td>
-                            {haySepX && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepX ?? '—'}</td>}
+                            <td className="px-2 py-2 font-mono text-muted-foreground">{item.fila.cadenamiento || '—'}</td>
                             <td className="px-2 py-1">
                               <input
                                 type="number"
@@ -614,7 +608,6 @@ export function ModuloSincronizacion() {
                                 onChange={(e) => editarFila(item.filaIndex, 'y', e.target.value)}
                               />
                             </td>
-                            {haySepY && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepY ?? '—'}</td>}
                             <td className="px-2 py-1">
                               <input
                                 type="number"
@@ -624,7 +617,6 @@ export function ModuloSincronizacion() {
                                 onChange={(e) => editarFila(item.filaIndex, 'z', e.target.value)}
                               />
                             </td>
-                            {haySepZ && <td className="px-2 py-2 text-muted-foreground">{item.fila.sepZ ?? '—'}</td>}
                             <td className="px-2 py-1">
                               <input
                                 className="w-24 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"

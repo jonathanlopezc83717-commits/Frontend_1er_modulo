@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
 import { ordenarPuntos, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
@@ -60,6 +60,9 @@ export function GestorPuntos() {
   const [expandido, setExpandido] = useState(false)
   const [dialogoEliminar, setDialogoEliminar] = useState<string | null>(null)
   const [dialogoEliminarSeleccionados, setDialogoEliminarSeleccionados] = useState(false)
+  const [seleccionadasSubcarpetas, setSeleccionadasSubcarpetas] = useState<Set<string>>(new Set())
+  const [modoSerado, setModoSerado] = useState<'auto' | 'manual'>('auto')
+  const [numerosManuales, setNumerosManuales] = useState<Record<string, number>>({})
 
   const [dialogoBloquear, setDialogoBloquear] = useState<string | null>(null)
   const { puntoEditando, nombreEditado, setNombreEditado, handleDobleClic, handleGuardarEdicion, handleKeyDownEdicion } = useEdicionInline(actualizarPunto)
@@ -68,6 +71,7 @@ export function GestorPuntos() {
   const [dialogoReasignar, setDialogoReasignar] = useState(false)
   const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(state.puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const raizMultipuntoRef = useRef<HTMLInputElement>(null)
   const routingInputRef = useRef<HTMLInputElement>(null)
   const kmzIndividualRef = useRef<HTMLInputElement>(null)
   const txtIndividualRef = useRef<HTMLInputElement>(null)
@@ -120,7 +124,17 @@ export function GestorPuntos() {
   }
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, handleSeleccionarCarpeta, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+
+  useEffect(() => {
+    if (previewsSubcarpetas) {
+      setSeleccionadasSubcarpetas(new Set(previewsSubcarpetas.map(p => p.id)))
+      setModoSerado('auto')
+      const iniciales: Record<string, number> = {}
+      previewsSubcarpetas.forEach((p, i) => { iniciales[p.id] = i + 1 })
+      setNumerosManuales(iniciales)
+    }
+  }, [previewsSubcarpetas])
 
   // Handlers mejorados para swipe y drag con umbral de movimiento
   const formatFecha = (iso?: string) => {
@@ -183,8 +197,14 @@ export function GestorPuntos() {
               ref={fileInputRef}
               type="file"
               {...{ webkitdirectory: "true", directory: "true" }}
-              multiple
               onChange={handleSeleccionarCarpeta}
+              className="hidden"
+            />
+            <input
+              ref={raizMultipuntoRef}
+              type="file"
+              {...{ webkitdirectory: "true", directory: "true" }}
+              onChange={handleSeleccionarRaizMultipunto}
               className="hidden"
             />
             <input
@@ -205,6 +225,17 @@ export function GestorPuntos() {
               >
                 <FolderInput className="w-4 h-4 mr-2" />
                 {procesandoCarpeta ? 'Procesando...' : 'Importar Carpeta'}
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => raizMultipuntoRef.current?.click()}
+                disabled={procesandoCarpeta}
+                size="sm"
+              >
+                <FolderOpen className="w-4 h-4 mr-2" />
+                {procesandoCarpeta ? 'Procesando...' : 'Importar varios puntos (carpeta raíz)'}
               </Button>
 
               {state.puntoActivo && (
@@ -762,10 +793,15 @@ export function GestorPuntos() {
       </Dialog>
 
       {/* Dialog de routing manual */}
-      <Dialog open={mostrarRouting} onOpenChange={(open) => { setMostrarRouting(open); if (!open) setResumenMultiple(null) }}>
-        <DialogContent className={resumenMultiple ? 'max-w-md' : 'max-w-sm'}>
+      <Dialog open={mostrarRouting} onOpenChange={(open) => { setMostrarRouting(open); if (!open) { setResumenMultiple(null); setPreviewsSubcarpetas(null) } }}>
+        <DialogContent className={(resumenMultiple || previewsSubcarpetas) ? 'max-w-md' : 'max-w-sm'}>
           <DialogHeader>
-            {resumenMultiple ? (
+            {previewsSubcarpetas ? (
+              <>
+                <DialogTitle>{previewsSubcarpetas.length} carpetas detectadas</DialogTitle>
+                <DialogDescription>Marca las que quieres agregar como puntos.</DialogDescription>
+              </>
+            ) : resumenMultiple ? (
               <>
                 <DialogTitle>{resumenMultiple.length} puntos agregados</DialogTitle>
                 <DialogDescription>Resumen de las carpetas importadas.</DialogDescription>
@@ -780,7 +816,95 @@ export function GestorPuntos() {
             )}
           </DialogHeader>
 
-          {resumenMultiple ? (
+          {previewsSubcarpetas ? (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-2 py-2 pr-2">
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (seleccionadasSubcarpetas.size === previewsSubcarpetas.length) {
+                          setSeleccionadasSubcarpetas(new Set())
+                        } else {
+                          setSeleccionadasSubcarpetas(new Set(previewsSubcarpetas.map(p => p.id)))
+                        }
+                      }}
+                    >
+                      {seleccionadasSubcarpetas.size === previewsSubcarpetas.length ? 'Quitar todas' : 'Seleccionar todas'}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mr-1">Seriado:</span>
+                    <Button
+                      size="sm"
+                      variant={modoSerado === 'auto' ? 'default' : 'outline'}
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setModoSerado('auto')}
+                    >
+                      Auto
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={modoSerado === 'manual' ? 'default' : 'outline'}
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setModoSerado('manual')}
+                    >
+                      Manual
+                    </Button>
+                    <span className="text-xs text-muted-foreground ml-2">{seleccionadasSubcarpetas.size}/{previewsSubcarpetas.length}</span>
+                  </div>
+                </div>
+                {previewsSubcarpetas.map((p) => (
+                  <label
+                    key={p.id}
+                    className={`flex items-start gap-3 rounded-md border p-2 cursor-pointer ${seleccionadasSubcarpetas.has(p.id) ? 'border-primary bg-primary/5' : ''}`}
+                  >
+                    <Checkbox
+                      checked={seleccionadasSubcarpetas.has(p.id)}
+                      onCheckedChange={() => {
+                        setSeleccionadasSubcarpetas(prev => {
+                          const next = new Set(prev)
+                          if (next.has(p.id)) next.delete(p.id)
+                          else next.add(p.id)
+                          return next
+                        })
+                      }}
+                    />
+                    {modoSerado === 'manual' && (
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-14 h-8 text-sm text-center rounded border bg-background outline-none focus:border-primary"
+                        value={numerosManuales[p.id] ?? ''}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          if (Number.isFinite(v) && v > 0) {
+                            setNumerosManuales(prev => ({ ...prev, [p.id]: v }))
+                          }
+                        }}
+                        onClick={(e) => e.preventDefault()}
+                      />
+                    )}
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium">{p.nombre}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        {p.cadenamiento && (
+                          <span className="font-mono text-blue-700 font-medium">Cad: {p.cadenamiento}</span>
+                        )}
+                        <span className={p.routing.kmz ? 'text-green-700' : 'text-muted-foreground'}>{p.routing.kmz ? '✓' : '✗'} KMZ</span>
+                        <span className={p.routing.txt ? 'text-green-700' : 'text-muted-foreground'}>{p.routing.txt ? '✓' : '✗'} TXT</span>
+                        <span className={p.routing.excel ? 'text-green-700' : 'text-muted-foreground'}>{p.routing.excel ? '✓' : '✗'} Excel</span>
+                        <span className={p.routing.fotos > 0 ? 'text-green-700' : 'text-muted-foreground'}>{p.routing.fotos > 0 ? `✓ ${p.routing.fotos} fotos` : '✗ fotos'}</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : resumenMultiple ? (
             <ScrollArea className="max-h-[60vh]">
               <div className="space-y-2 py-2 pr-2">
                 {resumenMultiple.map((r, i) => (
@@ -902,9 +1026,26 @@ export function GestorPuntos() {
           )}
 
           <DialogFooter>
-            <Button onClick={() => { setMostrarRouting(false); setResumenMultiple(null) }}>
-              Aceptar
-            </Button>
+            {previewsSubcarpetas ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => { setMostrarRouting(false); setPreviewsSubcarpetas(null) }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={seleccionadasSubcarpetas.size === 0 || procesandoCarpeta}
+                  onClick={() => confirmarAgregarSeleccion(seleccionadasSubcarpetas, modoSerado === 'manual' ? numerosManuales : undefined)}
+                >
+                  {procesandoCarpeta ? 'Procesando...' : `Agregar ${seleccionadasSubcarpetas.size} seleccionada(s)`}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => { setMostrarRouting(false); setResumenMultiple(null) }}>
+                Aceptar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

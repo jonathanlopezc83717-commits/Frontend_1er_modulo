@@ -305,7 +305,7 @@ export type AppAction =
   | { type: 'SET_ESTADOS_GUARDADOS'; payload: EstadoGuardado[] }
   | { type: 'AGREGAR_ESTADO_GUARDADO'; payload: EstadoGuardado }
   | { type: 'RESTAURAR_ESTADO_GUARDADO'; payload: EstadoGuardado['snapshot'] }
-  | { type: 'AGREGAR_PUNTO'; payload: { posicion: number; punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'> } }
+  | { type: 'AGREGAR_PUNTO'; payload: { posicion: number; punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>; id?: string } }
   | { type: 'ELIMINAR_PUNTO'; payload: string }
   | { type: 'SET_PUNTO_ACTIVO'; payload: PuntoFerroviario | null }
   | { type: 'SET_MODULO_ACTIVO'; payload: string }

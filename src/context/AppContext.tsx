@@ -35,7 +35,7 @@ const BACKUP_INTERVAL_MS = 2 * 60 * 60 * 1000
 interface AppContextType {
   state: AppState
   dispatch: React.Dispatch<AppAction>
-  agregarPunto: (posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => void
+  agregarPunto: (posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>, id?: string) => void
   eliminarPunto: (id: string) => Promise<void>
   setPuntoActivo: (punto: PuntoFerroviario | null) => void
   setModuloActivo: (modulo: string) => void
@@ -210,8 +210,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
   }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados, estadoRestaurado])
 
-  const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => {
-    dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto } })
+  const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>, id?: string) => {
+    dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto, id } })
   }, [])
 
   const eliminarPunto = useCallback(async (id: string) => {

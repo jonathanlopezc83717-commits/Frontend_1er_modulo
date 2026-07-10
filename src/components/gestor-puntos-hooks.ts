@@ -3,6 +3,7 @@ import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
 import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
+import { separarDigitos } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
 import {
   consolidarNomenclaturas,
@@ -371,6 +372,15 @@ interface ResumenCarpeta extends FileRouting {
   nombre: string
 }
 
+interface PreviewSubcarpeta {
+  id: string
+  nombre: string
+  files: File[]
+  routing: FileRouting
+  coordenadas?: { x: number; y: number; z: number }
+  cadenamiento?: string
+}
+
 function filtrarPorCarpetaRaiz(files: FileList, raiz: string): FileList {
   const dt = new DataTransfer()
   for (let i = 0; i < files.length; i++) {
@@ -380,6 +390,20 @@ function filtrarPorCarpetaRaiz(files: FileList, raiz: string): FileList {
     }
   }
   return dt.files
+}
+
+const EXTS_IMG = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'])
+
+function detectarRouting(files: File[]): FileRouting {
+  let kmz = false, txt = false, excel = false, fotos = 0
+  for (const f of files) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase()
+    if (ext === 'kmz' || ext === 'kml') kmz = true
+    else if (ext === 'txt') txt = true
+    else if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'xlsm' || ext === 'xlsb' || ext === 'ods') excel = true
+    else if (EXTS_IMG.has(ext)) fotos++
+  }
+  return { kmz, txt, excel, fotos }
 }
 
 export function usePuntoCarpeta({
@@ -394,7 +418,7 @@ export function usePuntoCarpeta({
   puntoActivo: PuntoFerroviario | null
   nomenclaturasGlobales: NomenclaturaEntry[]
   puntosLength: number
-  agregarPunto: (posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>) => void
+  agregarPunto: (posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>, id?: string) => void
   actualizarPunto: (id: string, data: Partial<PuntoFerroviario>) => void
   setNomenclaturasGlobales: (nomenclaturas: NomenclaturaEntry[]) => void
   setEditarPuntoCreado: (valor: boolean) => void
@@ -404,6 +428,7 @@ export function usePuntoCarpeta({
   const [mostrarRouting, setMostrarRouting] = useState(false)
   const [routingActual, setRoutingActual] = useState<FileRouting | null>(null)
   const [resumenMultiple, setResumenMultiple] = useState<ResumenCarpeta[] | null>(null)
+  const [previewsSubcarpetas, setPreviewsSubcarpetas] = useState<PreviewSubcarpeta[] | null>(null)
 
   const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -411,7 +436,6 @@ export function usePuntoCarpeta({
 
     setProcesandoCarpeta(true)
     setResumenMultiple(null)
-    e.target.value = ''
 
     const grupos = new Map<string, File[]>()
     for (let i = 0; i < files.length; i++) {
@@ -462,6 +486,128 @@ export function usePuntoCarpeta({
     } catch (error) {
       console.error('Error procesando carpeta:', error)
       alert('Error al procesar la carpeta')
+    } finally {
+      setProcesandoCarpeta(false)
+    }
+  }
+
+  const handleSeleccionarRaizMultipunto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setProcesandoCarpeta(true)
+    setResumenMultiple(null)
+    setRoutingActual(null)
+    setPreviewsSubcarpetas(null)
+
+    try {
+      const grupos = new Map<string, File[]>()
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i]
+        const parts = (f.webkitRelativePath || f.name).split('/')
+        if (parts.length < 2) continue
+        const sub = parts[1]
+        if (!grupos.has(sub)) grupos.set(sub, [])
+        grupos.get(sub)!.push(f)
+      }
+
+      if (grupos.size === 0) {
+        alert('No se detectaron subcarpetas. Si quieres importar un único punto, usa "Importar Carpeta".')
+        return
+      }
+
+      const previews: PreviewSubcarpeta[] = []
+      for (const [nombre, filesArr] of grupos) {
+        const routing = detectarRouting(filesArr)
+        let coordenadas: { x: number; y: number; z: number } | undefined
+        if (routing.kmz) {
+          const kmzFile = filesArr.find((f) => {
+            const ext = (f.name.split('.').pop() || '').toLowerCase()
+            return ext === 'kmz' || ext === 'kml'
+          })
+          if (kmzFile) {
+            const coords = await extraerCoordenadasKMZ(kmzFile)
+            if (coords) coordenadas = coords
+          }
+        }
+        previews.push({
+          id: generarUUID(),
+          nombre,
+          files: filesArr,
+          routing,
+          coordenadas,
+          cadenamiento: coordenadas ? separarDigitos(coordenadas.x, 2).separado : undefined,
+        })
+      }
+      previews.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }))
+      setPreviewsSubcarpetas(previews)
+      setMostrarRouting(true)
+    } catch (error) {
+      console.error('Error procesando carpeta raíz:', error)
+      alert('Error al procesar la carpeta raíz')
+    } finally {
+      setProcesandoCarpeta(false)
+    }
+  }
+
+  const confirmarAgregarSeleccion = async (ids: Set<string>, numerosManuales?: Record<string, number>) => {
+    if (!previewsSubcarpetas) return
+    const seleccionadas = previewsSubcarpetas.filter((p) => ids.has(p.id))
+    if (seleccionadas.length === 0) {
+      setPreviewsSubcarpetas(null)
+      setMostrarRouting(false)
+      return
+    }
+
+    setProcesandoCarpeta(true)
+    try {
+      const items = seleccionadas.map((preview, idx) => ({
+        preview,
+        numero: numerosManuales && numerosManuales[preview.id] != null ? numerosManuales[preview.id] : puntosLength + 1 + idx,
+      }))
+      if (numerosManuales) {
+        items.sort((a, b) => a.numero - b.numero)
+      }
+
+      const resumen: ResumenCarpeta[] = []
+      for (const item of items) {
+        const preview = item.preview
+        const dt = new DataTransfer()
+        for (const f of preview.files) {
+          const parts = (f.webkitRelativePath || f.name).split('/')
+          const nuevoPath = parts.slice(1).join('/')
+          const clon = new File([f], f.name, { type: f.type, lastModified: f.lastModified })
+          try {
+            Object.defineProperty(clon, 'webkitRelativePath', {
+              value: nuevoPath,
+              configurable: true,
+            })
+          } catch {
+            // si no se puede definir, fallback al original
+          }
+          dt.items.add(clon)
+        }
+        const fileList = dt.files
+        const datos = await procesarCarpetaPunto(fileList)
+        const excelEnRaiz = buscarExcelEnRaiz(fileList)
+        if (excelEnRaiz) datos.excel = excelEnRaiz
+        const nuevoId = generarUUID()
+        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId)
+        resumen.push({
+          nombre: datos.nombreCarpeta,
+          kmz: !!datos.coordenadas,
+          txt: !!datos.textoDocumento,
+          excel: !!datos.excel,
+          fotos: datos.fotos.length,
+        })
+      }
+
+      setPreviewsSubcarpetas(null)
+      setResumenMultiple(resumen)
+      setMostrarRouting(true)
+    } catch (error) {
+      console.error('Error agregando selección:', error)
+      alert('Error al agregar los puntos seleccionados')
     } finally {
       setProcesandoCarpeta(false)
     }
@@ -569,7 +715,7 @@ export function usePuntoCarpeta({
     }
   }
 
-  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1) => {
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string) => {
     const moduloData: Record<string, unknown> = {}
 
     if (datos.coordenadas) {
@@ -624,12 +770,13 @@ export function usePuntoCarpeta({
       nombre: datos.nombreCarpeta,
       descripcion: undefined,
       carpetaPath: datos.nombreCarpeta,
+      cadenamiento: datos.coordenadas ? separarDigitos(datos.coordenadas.x, 2).separado : undefined,
       coordenadas: datos.coordenadas ? {
         lat: datos.coordenadas.y,
         lng: datos.coordenadas.x,
       } : undefined,
       moduloData,
-    })
+    }, id)
 
     setDatosCarpetaPreview(null)
     setEditarPuntoCreado(true)
@@ -744,7 +891,11 @@ export function usePuntoCarpeta({
     setRoutingActual,
     resumenMultiple,
     setResumenMultiple,
+    previewsSubcarpetas,
+    setPreviewsSubcarpetas,
     handleSeleccionarCarpeta,
+    handleSeleccionarRaizMultipunto,
+    confirmarAgregarSeleccion,
     handleRoutingManual,
     cargarArchivoIndividual,
     cargarFotos,

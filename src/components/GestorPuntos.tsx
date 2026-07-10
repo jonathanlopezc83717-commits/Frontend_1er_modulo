@@ -1,10 +1,8 @@
 import { useState, useRef, useMemo } from 'react'
 import { useApp } from '@/context/AppContext'
-import { formatearNombreFoto } from '@/lib/folder-parser'
 import { ordenarPuntos, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
-import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -32,11 +30,6 @@ import {
   MapPin,
   FolderInput,
   FileText,
-  FileSpreadsheet,
-  Image,
-  MapPinned,
-  Folder,
-  Camera,
   Trash2,
   Route,
   CheckCircle2,
@@ -50,6 +43,7 @@ import {
   Type,
   ListOrdered,
   AlertTriangle,
+  Upload,
 } from 'lucide-react'
 
 export function GestorPuntos() {
@@ -75,6 +69,10 @@ export function GestorPuntos() {
   const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(state.puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const routingInputRef = useRef<HTMLInputElement>(null)
+  const kmzIndividualRef = useRef<HTMLInputElement>(null)
+  const txtIndividualRef = useRef<HTMLInputElement>(null)
+  const excelIndividualRef = useRef<HTMLInputElement>(null)
+  const fotosIndividualRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Puntos ordenados según el filtro activo
@@ -122,7 +120,7 @@ export function GestorPuntos() {
   }
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { mostrarFormulario, setMostrarFormulario, nuevaPosicion, setNuevaPosicion, nombrePunto, setNombrePunto, descripcionPunto, setDescripcionPunto, carpetaPath, setCarpetaPath, procesandoCarpeta, datosCarpetaPreview, setDatosCarpetaPreview, mostrarRouting, setMostrarRouting, routingActual, setRoutingActual, handleSeleccionarCarpeta, handleRoutingManual, handleAgregarPunto } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, handleSeleccionarCarpeta, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   // Handlers mejorados para swipe y drag con umbral de movimiento
   const formatFecha = (iso?: string) => {
@@ -221,184 +219,6 @@ export function GestorPuntos() {
                 </Button>
               )}
             </div>
-
-            {/* Formulario de punto */}
-            {mostrarFormulario && (
-              <ScrollArea className="max-h-[300px] overflow-y-auto">
-                <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-                  {routingActual && (
-                    <div className="space-y-1.5 mb-3">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Archivos detectados:</p>
-                      <div className="flex items-center gap-2 text-sm">
-                        {routingActual.kmz ? (
-                          <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">KMZ/KML</span></>
-                        ) : (
-                          <><AlertCircle className="w-4 h-4 text-gray-400" /><span className="text-gray-500">Sin KMZ</span></>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {routingActual.txt ? (
-                          <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">Documento TXT</span></>
-                        ) : (
-                          <><AlertCircle className="w-4 h-4 text-gray-400" /><span className="text-gray-500">Sin TXT</span></>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {routingActual.excel ? (
-                          <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">Excel de sincronización</span></>
-                        ) : (
-                          <><AlertCircle className="w-4 h-4 text-gray-400" /><span className="text-gray-500">Sin Excel</span></>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {routingActual.fotos > 0 ? (
-                          <><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="text-green-700">{routingActual.fotos} fotos</span></>
-                        ) : (
-                          <><AlertCircle className="w-4 h-4 text-gray-400" /><span className="text-gray-500">Sin fotos</span></>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {procesandoCarpeta && (
-                    <ThinkingLoader
-                      variant="compact"
-                      rotatingMessages={['Leyendo carpeta...', 'Indexando fotos...', 'Extrayendo coordenadas y documento...']}
-                    />
-                  )}
-
-                  {datosCarpetaPreview && (
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <FolderOpen className="w-4 h-4" />
-                        <span>Datos detectados en carpeta:</span>
-                      </div>
-
-                      {datosCarpetaPreview.coordenadas && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPinned className="w-4 h-4 text-green-600" />
-                          <span>
-                            Coordenadas: {datosCarpetaPreview.coordenadas.x.toFixed(6)},
-                            {datosCarpetaPreview.coordenadas.y.toFixed(6)}
-                          </span>
-                        </div>
-                      )}
-
-                      {datosCarpetaPreview.textoDocumento && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <FileText className="w-4 h-4 text-blue-600" />
-                          <span>Documento: {datosCarpetaPreview.textoDocumento.substring(0, 50)}...</span>
-                        </div>
-                      )}
-
-                      {datosCarpetaPreview.excel && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                          <span>Excel: {datosCarpetaPreview.excel.name}</span>
-                        </div>
-                      )}
-
-                      {datosCarpetaPreview.fotos.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Camera className="w-4 h-4 text-purple-600" />
-                            <span>{datosCarpetaPreview.fotos.length} fotos encontradas:</span>
-                          </div>
-                          <div className="pl-6 space-y-1">
-                            {(() => {
-                              const grupos = new Map<string, typeof datosCarpetaPreview.fotos>()
-                              for (const foto of datosCarpetaPreview.fotos) {
-                                const key = foto.subcarpeta === 'raiz' ? 'Fotos principales' : foto.subcarpeta
-                                if (!grupos.has(key)) grupos.set(key, [])
-                                grupos.get(key)!.push(foto)
-                              }
-
-                              return Array.from(grupos).map(([subcarpeta, fotos]) => (
-                                <div key={subcarpeta}>
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                                    <Folder className="w-3 h-3" />
-                                    <span>{subcarpeta}</span>
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    {fotos.map((foto) => (
-                                      <div key={foto.id} className="flex items-center gap-2 text-xs">
-                                        <Image className="w-3 h-3 text-muted-foreground" />
-                                        <span className="text-muted-foreground">{formatearNombreFoto(foto.nombre, foto.index)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <Select
-                    value={nuevaPosicion}
-                    onValueChange={setNuevaPosicion}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Posición" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: state.puntos.length + 1 }, (_, i) => (
-                        <SelectItem key={i} value={String(i + 1)}>
-                          {i === 0 ? 'Al inicio' : i === state.puntos.length ? 'Al final' : `Después del ${i}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    placeholder="Nombre del punto"
-                    value={nombrePunto}
-                    onChange={(e) => setNombrePunto(e.target.value)}
-                    className="h-8"
-                  />
-
-                  <Textarea
-                    placeholder="Descripción (opcional)"
-                    value={descripcionPunto}
-                    onChange={(e) => setDescripcionPunto(e.target.value)}
-                    rows={2}
-                    className="min-h-[60px]"
-                  />
-
-                  <Input
-                    placeholder="Ruta de carpeta"
-                    value={carpetaPath}
-                    onChange={(e) => setCarpetaPath(e.target.value)}
-                    className="h-8"
-                  />
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setMostrarFormulario(false)
-                        setDatosCarpetaPreview(null)
-                        setRoutingActual(null)
-                      }}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleAgregarPunto}
-                      disabled={!nombrePunto.trim()}
-                      className="flex-1"
-                    >
-                      Agregar en pos. {nuevaPosicion}
-                    </Button>
-                  </div>
-                </div>
-              </ScrollArea>
-            )}
 
             <Separator />
 
@@ -944,12 +764,16 @@ export function GestorPuntos() {
       <Dialog open={mostrarRouting} onOpenChange={() => setMostrarRouting(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Archivos Asignados</DialogTitle>
+            <DialogTitle>Punto agregado: {state.puntoActivo?.nombre}</DialogTitle>
             <DialogDescription>
-              Estado de los archivos asignados al punto {state.puntoActivo?.nombre}
+              Tipos de archivos detectados en la carpeta importada.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <input ref={kmzIndividualRef} type="file" accept=".kmz,.kml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('kmz', f); e.target.value = '' }} />
+            <input ref={txtIndividualRef} type="file" accept=".txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('txt', f); e.target.value = '' }} />
+            <input ref={excelIndividualRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarArchivoIndividual('excel', f); e.target.value = '' }} />
+            <input ref={fotosIndividualRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => { const fs = e.target.files; if (fs && fs.length > 0) cargarFotos(Array.from(fs)); e.target.value = '' }} />
             {routingActual && (
               <>
                 <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
@@ -968,6 +792,10 @@ export function GestorPuntos() {
                         <p className="text-sm font-medium">Sin coordenadas</p>
                         <p className="text-xs text-muted-foreground">No se encontró archivo KMZ/KML</p>
                       </div>
+                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => kmzIndividualRef.current?.click()}>
+                        <Upload className="w-3 h-3 mr-1" />
+                        Cargar
+                      </Button>
                     </>
                   )}
                 </div>
@@ -987,6 +815,33 @@ export function GestorPuntos() {
                         <p className="text-sm font-medium">Sin documento</p>
                         <p className="text-xs text-muted-foreground">No se encontró archivo TXT</p>
                       </div>
+                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => txtIndividualRef.current?.click()}>
+                        <Upload className="w-3 h-3 mr-1" />
+                        Cargar
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted">
+                  {routingActual.excel ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium">Excel de sincronización</p>
+                        <p className="text-xs text-muted-foreground">Archivo cargado correctamente</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium">Sin Excel</p>
+                        <p className="text-xs text-muted-foreground">No se encontró archivo Excel</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => excelIndividualRef.current?.click()}>
+                        <Upload className="w-3 h-3 mr-1" />
+                        Cargar
+                      </Button>
                     </>
                   )}
                 </div>
@@ -1006,6 +861,10 @@ export function GestorPuntos() {
                         <p className="text-sm font-medium">Sin fotos</p>
                         <p className="text-xs text-muted-foreground">No se encontraron imágenes</p>
                       </div>
+                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs" onClick={() => fotosIndividualRef.current?.click()}>
+                        <Upload className="w-3 h-3 mr-1" />
+                        Cargar
+                      </Button>
                     </>
                   )}
                 </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type TouchEvent, type MouseEvent } from 'react'
 import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
-import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { generarUUID } from '@/lib/utils'
 import {
@@ -382,11 +382,6 @@ export function usePuntoCarpeta({
   setNomenclaturasGlobales: (nomenclaturas: NomenclaturaEntry[]) => void
   setEditarPuntoCreado: (valor: boolean) => void
 }) {
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [nuevaPosicion, setNuevaPosicion] = useState('1')
-  const [nombrePunto, setNombrePunto] = useState('')
-  const [descripcionPunto, setDescripcionPunto] = useState('')
-  const [carpetaPath, setCarpetaPath] = useState('')
   const [procesandoCarpeta, setProcesandoCarpeta] = useState(false)
   const [datosCarpetaPreview, setDatosCarpetaPreview] = useState<DatosPuntoCarpeta | null>(null)
   const [mostrarRouting, setMostrarRouting] = useState(false)
@@ -408,10 +403,6 @@ export function usePuntoCarpeta({
 
       setDatosCarpetaPreview(datos)
 
-      setNombrePunto(datos.nombreCarpeta)
-      setDescripcionPunto('')
-      setCarpetaPath(datos.nombreCarpeta)
-
       setRoutingActual({
         kmz: !!datos.coordenadas,
         txt: !!datos.textoDocumento,
@@ -419,7 +410,9 @@ export function usePuntoCarpeta({
         fotos: datos.fotos.length,
       })
 
-      setMostrarFormulario(true)
+      await agregarDesdeDatos(datos)
+
+      setMostrarRouting(true)
     } catch (error) {
       console.error('Error procesando carpeta:', error)
       alert('Error al procesar la carpeta')
@@ -530,92 +523,172 @@ export function usePuntoCarpeta({
     }
   }
 
-  const handleAgregarPunto = async () => {
-    if (!nombrePunto.trim()) return
-
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta) => {
     const moduloData: Record<string, unknown> = {}
 
-    if (datosCarpetaPreview) {
-      if (datosCarpetaPreview.coordenadas) {
-        moduloData.georeferencia = {
-          coordenadas: datosCarpetaPreview.coordenadas,
-          notas: `Coordenadas extraídas de archivo KMZ/KML`,
-          updatedAt: new Date().toISOString(),
-        }
-      }
-
-      if (datosCarpetaPreview.textoDocumento) {
-        const nomenclaturasActuales = consolidarNomenclaturas([nomenclaturasGlobales])
-        const detectadas = parsearNomenclaturasDesdeTexto(datosCarpetaPreview.textoDocumento)
-        const nomenclaturasActualizadas = fusionarNomenclaturas(nomenclaturasActuales, detectadas)
-        setNomenclaturasGlobales(nomenclaturasActualizadas)
-        moduloData.documentacion = {
-          notas: datosCarpetaPreview.textoDocumento,
-          nombreArchivo: datosCarpetaPreview.nombreCarpeta + '.txt',
-          nomenclaturas: nomenclaturasActualizadas,
-          updatedAt: new Date().toISOString(),
-        }
-      }
-
-      if (datosCarpetaPreview.fotos.length > 0) {
-        moduloData.analisis = {
-          fotosIndexadas: datosCarpetaPreview.fotos.map((f) => ({
-            id: f.id,
-            index: f.index,
-            nombre: f.nombre,
-            nombreFormateado: formatearNombreFoto(f.nombre, f.index),
-            subcarpeta: f.subcarpeta,
-            preview: f.preview,
-          })),
-          fotosCount: datosCarpetaPreview.fotos.length,
-          subcarpetas: datosCarpetaPreview.subcarpetas,
-          updatedAt: new Date().toISOString(),
-        }
-      }
-
-      if (datosCarpetaPreview.excel) {
-        const archivoId = generarUUID()
-        await guardarArchivoSincronizacion(archivoId, datosCarpetaPreview.excel)
-        moduloData.sincronizacion = {
-          archivoNombre: datosCarpetaPreview.excel.name,
-          archivoId,
-          ruta: datosCarpetaPreview.excel.webkitRelativePath || datosCarpetaPreview.excel.name,
-          cargadoEn: new Date().toISOString(),
-        }
+    if (datos.coordenadas) {
+      moduloData.georeferencia = {
+        coordenadas: datos.coordenadas,
+        notas: `Coordenadas extraídas de archivo KMZ/KML`,
+        updatedAt: new Date().toISOString(),
       }
     }
 
-    agregarPunto(Number(nuevaPosicion), {
-      nombre: nombrePunto.trim(),
-      descripcion: descripcionPunto.trim() || undefined,
-      carpetaPath: carpetaPath.trim() || undefined,
-      coordenadas: datosCarpetaPreview?.coordenadas ? {
-        lat: datosCarpetaPreview.coordenadas.y,
-        lng: datosCarpetaPreview.coordenadas.x,
+    if (datos.textoDocumento) {
+      const nomenclaturasActuales = consolidarNomenclaturas([nomenclaturasGlobales])
+      const detectadas = parsearNomenclaturasDesdeTexto(datos.textoDocumento)
+      const nomenclaturasActualizadas = fusionarNomenclaturas(nomenclaturasActuales, detectadas)
+      setNomenclaturasGlobales(nomenclaturasActualizadas)
+      moduloData.documentacion = {
+        notas: datos.textoDocumento,
+        nombreArchivo: datos.nombreCarpeta + '.txt',
+        nomenclaturas: nomenclaturasActualizadas,
+        updatedAt: new Date().toISOString(),
+      }
+    }
+
+    if (datos.fotos.length > 0) {
+      moduloData.analisis = {
+        fotosIndexadas: datos.fotos.map((f) => ({
+          id: f.id,
+          index: f.index,
+          nombre: f.nombre,
+          nombreFormateado: formatearNombreFoto(f.nombre, f.index),
+          subcarpeta: f.subcarpeta,
+          preview: f.preview,
+        })),
+        fotosCount: datos.fotos.length,
+        subcarpetas: datos.subcarpetas,
+        updatedAt: new Date().toISOString(),
+      }
+    }
+
+    if (datos.excel) {
+      const archivoId = generarUUID()
+      await guardarArchivoSincronizacion(archivoId, datos.excel)
+      moduloData.sincronizacion = {
+        archivoNombre: datos.excel.name,
+        archivoId,
+        ruta: datos.excel.webkitRelativePath || datos.excel.name,
+        cargadoEn: new Date().toISOString(),
+      }
+    }
+
+    agregarPunto(1, {
+      nombre: datos.nombreCarpeta,
+      descripcion: undefined,
+      carpetaPath: datos.nombreCarpeta,
+      coordenadas: datos.coordenadas ? {
+        lat: datos.coordenadas.y,
+        lng: datos.coordenadas.x,
       } : undefined,
       moduloData,
     })
 
-    setNombrePunto('')
-    setDescripcionPunto('')
-    setCarpetaPath('')
     setDatosCarpetaPreview(null)
-    setMostrarFormulario(false)
-    setRoutingActual(null)
     setEditarPuntoCreado(true)
   }
 
+  const cargarArchivoIndividual = async (tipo: 'kmz' | 'txt' | 'excel', file: File) => {
+    if (!puntoActivo) return
+    const now = new Date().toISOString()
+    const moduloDataActual = puntoActivo.moduloData || {}
+
+    if (tipo === 'kmz') {
+      const coords = await extraerCoordenadasKMZ(file)
+      if (!coords) return
+      actualizarPunto(puntoActivo.id, {
+        coordenadas: { lat: coords.y, lng: coords.x },
+        moduloData: {
+          ...moduloDataActual,
+          georeferencia: {
+            coordenadas: coords,
+            notas: `Coordenadas cargadas desde ${file.name}`,
+            updatedAt: now,
+          },
+        },
+      })
+      setRoutingActual((prev) => (prev ? { ...prev, kmz: true } : prev))
+    } else if (tipo === 'txt') {
+      const texto = await leerArchivoTXT(file)
+      const detectadas = parsearNomenclaturasDesdeTexto(texto)
+      const documentacionActual = (moduloDataActual.documentacion as { nomenclaturas?: NomenclaturaEntry[] } | undefined) || {}
+      const nomenclaturasActualizadas = fusionarNomenclaturas(
+        consolidarNomenclaturas([nomenclaturasGlobales, documentacionActual.nomenclaturas || []]),
+        detectadas
+      )
+      setNomenclaturasGlobales(nomenclaturasActualizadas)
+      actualizarPunto(puntoActivo.id, {
+        moduloData: {
+          ...moduloDataActual,
+          documentacion: {
+            ...documentacionActual,
+            notas: texto,
+            nombreArchivo: file.name,
+            nomenclaturas: nomenclaturasActualizadas,
+            updatedAt: now,
+          },
+        },
+      })
+      setRoutingActual((prev) => (prev ? { ...prev, txt: true } : prev))
+    } else if (tipo === 'excel') {
+      const archivoId = (moduloDataActual.sincronizacion as { archivoId?: string } | undefined)?.archivoId || generarUUID()
+      await guardarArchivoSincronizacion(archivoId, file)
+      actualizarPunto(puntoActivo.id, {
+        moduloData: {
+          ...moduloDataActual,
+          sincronizacion: {
+            ...(moduloDataActual.sincronizacion as Record<string, unknown> || {}),
+            archivoNombre: file.name,
+            archivoId,
+            ruta: file.name,
+            cargadoEn: now,
+          },
+        },
+      })
+      setRoutingActual((prev) => (prev ? { ...prev, excel: true } : prev))
+    }
+  }
+
+  const cargarFotos = async (files: File[]) => {
+    if (!puntoActivo || files.length === 0) return
+    const now = new Date().toISOString()
+    const moduloDataActual = puntoActivo.moduloData || {}
+    const analisisActual = (moduloDataActual.analisis as { fotosIndexadas?: Array<{ id: string; index: number; nombre: string; nombreFormateado: string; subcarpeta: string; preview: string }>; subcarpetas?: string[] } | undefined) || {}
+    const fotosExistentes = analisisActual.fotosIndexadas || []
+    const nuevas = await Promise.all(files.map(async (file, i) => {
+      const preview = await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => resolve(e.target?.result as string)
+        reader.readAsDataURL(file)
+      })
+      const index = fotosExistentes.length + i + 1
+      return {
+        id: generarUUID(),
+        index,
+        nombre: file.name,
+        nombreFormateado: formatearNombreFoto(file.name, index),
+        subcarpeta: 'raiz',
+        preview,
+      }
+    }))
+    const todas = [...fotosExistentes, ...nuevas]
+    actualizarPunto(puntoActivo.id, {
+      moduloData: {
+        ...moduloDataActual,
+        analisis: {
+          ...(moduloDataActual.analisis as Record<string, unknown> || {}),
+          fotosIndexadas: todas,
+          fotosCount: todas.length,
+          subcarpetas: analisisActual.subcarpetas || [],
+          updatedAt: now,
+        },
+      },
+    })
+    setRoutingActual((prev) => (prev ? { ...prev, fotos: todas.length } : prev))
+  }
+
   return {
-    mostrarFormulario,
-    setMostrarFormulario,
-    nuevaPosicion,
-    setNuevaPosicion,
-    nombrePunto,
-    setNombrePunto,
-    descripcionPunto,
-    setDescripcionPunto,
-    carpetaPath,
-    setCarpetaPath,
     procesandoCarpeta,
     datosCarpetaPreview,
     setDatosCarpetaPreview,
@@ -625,6 +698,7 @@ export function usePuntoCarpeta({
     setRoutingActual,
     handleSeleccionarCarpeta,
     handleRoutingManual,
-    handleAgregarPunto,
+    cargarArchivoIndividual,
+    cargarFotos,
   }
 }

@@ -1,33 +1,34 @@
-"""Croquis de localizacion via AutoCAD COM.
+"""Croquis de localizacion via AutoCAD/Civil 3D COM.
 
-Servicio que captura un area cuadrada centrada en (x, y) del DWG, usando la
-instancia de AutoCAD ya abierta (pywin32). Reemplaza al MCP headless para los
-DWG cuyo render WYSIWYG real importa.
+Captura un area cuadrada centrada en (x, y) del DWG usando la instancia de
+Civil 3D ya abierta (pywin32). Exporta por captura de pantalla (ImageGrab), no
+por PNGOUT (este abre dialogos modales al renderizar ortomosaicos ECW).
 
-Flujo:
-    codigo (en nombre de archivo/carpeta) -> Supabase (numero_serie) -> (x,y)
-    -> AutoCAD: Open DWG -> ZoomWindow -> PNGOUT -> cerrar sin guardar
+Flujo principal (--batch):
+    elegir carpeta RAIZ (con DWG + Ortomosaico + subcarpetas de puntos)
+    -> por cada punto: centro (X,Y) de la 1ª fila de su CSV (numero,X,Y,Z,codigo)
+    -> Civil 3D: abrir DWG -> esperar carga ECW -> CLEANSCREENON -> ZoomWindow
+       -> esperar idle -> capturar area cliente -> recortar -> PNG en la RAIZ
 
-Dependencias:  pywin32  (pip install pywin32)
-Requiere:      AutoCAD (32/64) corriendo en esta maquina (Windows).
-Config (env):  SUPABASE_URL, SUPABASE_ANON_KEY, CROQUIS_SIZE_CM (def 200),
-               CROQUIS_PROGID (def "AutoCAD.Application")
+Dependencias:  pywin32, Pillow  (pip install pywin32 Pillow)
+Requiere:      Civil 3D / AutoCAD corriendo en esta maquina (Windows).
+Config (env):  CROQUIS_SIZE (lado de la ventana en unidades del DWG, def 200),
+               CROQUIS_PROGID (def "AutoCAD.Application"),
+               CROQUIS_CROP_TOP (px a recortar arriba, def 60),
+               CROQUIS_KEEP_OPEN=1 (no cerrar el DWG entre capturas).
 """
 
-import json
-import os
-import re
 import csv
+import os
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
 import pythoncom
+import pywintypes
 import win32com.client
 import win32con
 import win32gui
-import pywintypes
 from PIL import ImageGrab
 
 # hresult que indican "Civil 3D ocupado" -> reintentar.
@@ -198,57 +199,6 @@ def _interact_gui():
     return dwg, (refs or None), x, y, salida
 
 
-def _repath_imagenes(doc, carpeta):
-    """Re-path de las definiciones de imagen (ortomosaicos) a `carpeta`,
-    emparejando por nombre de archivo. Evita el dialogo de 'referencia no resuelta'
-    que bloquea el render/PNGOUT."""
-    fldr = os.path.abspath(carpeta).replace("\\", "/").rstrip("/") + "/"
-    lisp = (
-        "(vl-load-com)"
-        "(progn"
-        '(setq de (cdr (assoc -1 (dictsearch (namedobjdict) "ACAD_IMAGE_DICT"))))'
-        "(if de (progn"
-        "(setq e (dictnext de T))"
-        "(while e"
-        "(setq en (cdr (assoc -1 e)))"
-        "(setq d (entget en))"
-        '(setq old (cdr (assoc 1 d)))'
-        '(setq ext (vl-filename-extension old))'
-        '(setq np (strcat "' + fldr + '" (vl-filename-base old) (if ext ext "")))'
-        "(entmod (subst (cons 1 np) (assoc 1 d) d))"
-        "(setq e (dictnext de))"
-        ")))"
-        '(command "_.REGEN")'
-        ")"
-    )
-    print(f"  repath imagenes -> {fldr}", flush=True)
-    _com(lambda: doc.SendCommand(lisp + "\n"))
-    time.sleep(1.5)
-
-
-def _hijos_ventana(hwnd_main, top=6):
-    """Enumerar ventanas hijas visibles por area (para hallar el lienzo de dibujo)."""
-    items = []
-
-    def cb(hwnd, _):
-        try:
-            if not win32gui.IsWindowVisible(hwnd):
-                return True
-            r = win32gui.GetWindowRect(hwnd)
-            w, h = r[2] - r[0], r[3] - r[1]
-            if w <= 1 or h <= 1:
-                return True
-            cls = win32gui.GetClassName(hwnd)
-            items.append((w * h, hwnd, cls, r))
-        except Exception:
-            pass
-        return True
-
-    win32gui.EnumChildWindows(hwnd_main, cb, None)
-    items.sort(reverse=True)
-    return items[:top]
-
-
 def _capturar_pantalla(acad, salida_png):
     """Captura el area cliente de Civil 3D. De usarse tras CLEANSCREENON y
     maximizar, el area cliente es (casi todo) el lienzo de dibujo."""
@@ -311,15 +261,14 @@ def capturar_croquis(
     acad=None,
     refs_folder: str | None = None,
 ) -> tuple[str, int]:
-    """Abre el DWG, recorta size_cm x size_cm centrado en (x,y) y exporta PNG.
+    """Abre el DWG, recorta size x size centrado en (x,y) y captura PNG (ImageGrab).
 
-    Devuelve (ruta_png, kilobytes). Lanza si AutoCAD reporta error.
-    ponytail: PNGOUT usa la resolucion de pantalla actual; para DPI fijo usar
+    Devuelve (ruta_png, kilobytes). Lanza si Civil 3D reporta error.
+    ponytail: captura de pantalla = resolucion del monitor; para DPI fijo usar
     PLOT a configuracion PNG (mas codigo) si la salida sale borrosa.
     """
-    size = float(size_cm or os.environ.get("CROQUIS_SIZE_CM", 200))
+    size = float(size_cm or os.environ.get("CROQUIS_SIZE", 200))
     half = size / 2.0
-    propio = acad is None
     acad = acad or conectar_autocad()
     if refs_folder:
         _anadir_support_path(acad, refs_folder)
@@ -331,9 +280,6 @@ def capturar_croquis(
         # Esperar a que termine la carga de referencias/ECW (sino capturamos el modal).
         print("  esperando idle (carga ECW)...", flush=True)
         _esperar_idle(acad)
-        if os.environ.get("CROQUIS_REPATH") and refs_folder:
-            _repath_imagenes(doc, refs_folder)
-            _esperar_idle(acad)
         # FILEDIA=0 antes de cualquier comando (evita dialogos que cuelgan COM).
         try:
             filedia_prev = _com(lambda: doc.GetVariable("FILEDIA"))

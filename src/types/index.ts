@@ -139,6 +139,8 @@ export interface PuntoFerroviario {
     lng: number
   }
   bloqueado?: boolean
+  estadoAprobacion?: 'pendiente' | 'revisado' | 'aprobado'
+  versiones?: Array<{ snapshot: PuntoFerroviario; timestamp: string }>
   moduloData: Record<string, unknown> & {
     analisis?: {
       results?: ImageAnalysisResult[]
@@ -312,6 +314,8 @@ export type AppAction =
   | { type: 'REORDENAR_PUNTOS'; payload: PuntoFerroviario[] }
   | { type: 'BLOQUEAR_PUNTO'; payload: string }
   | { type: 'RENUMERAR_PUNTOS'; payload: string[] }
+  | { type: 'PUSH_VERSION_PUNTO'; payload: string }
+  | { type: 'DESHACER_PUNTO'; payload: string }
 
 // Constantes
 export const AVAILABLE_MODELS: AIModel[] = [
@@ -349,3 +353,4 @@ export const MODULOS: ModuloConfig[] = [
 export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o'
 export const MAX_IMAGES = 4
 export const DEBOUNCE_MS = 500
+export const MAX_VERSIONES_PUNTO = 3

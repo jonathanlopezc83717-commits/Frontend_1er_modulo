@@ -1,4 +1,5 @@
 import type { AppState, AppAction, PuntoFerroviario } from '@/types'
+import { MAX_VERSIONES_PUNTO } from '@/types'
 import { generarUUID } from '@/lib/utils'
 import { consolidarNomenclaturas } from '@/lib/nomenclaturas'
 
@@ -138,6 +139,45 @@ function puntosSlice(state: AppState, action: AppAction): AppState | undefined {
         puntoActivo: state.puntoActivo
           ? puntosRenumerados.find(p => p.id === state.puntoActivo!.id) || puntosRenumerados[0] || null
           : puntosRenumerados[0] || null,
+      }
+    }
+
+    case 'PUSH_VERSION_PUNTO': {
+      const now = new Date().toISOString()
+      const puntosActualizados = state.puntos.map(p => {
+        if (p.id !== action.payload) return p
+        const { versiones: _omit, ...rest } = p
+        const versiones = [...(p.versiones || []), { snapshot: rest, timestamp: now }]
+          .slice(-MAX_VERSIONES_PUNTO)
+        return { ...p, versiones }
+      })
+      return {
+        ...state,
+        puntos: puntosActualizados,
+        puntoActivo: state.puntoActivo?.id === action.payload
+          ? puntosActualizados.find(p => p.id === action.payload) || null
+          : state.puntoActivo,
+      }
+    }
+
+    case 'DESHACER_PUNTO': {
+      const puntosActualizados = state.puntos.map(p => {
+        if (p.id !== action.payload) return p
+        const versiones = p.versiones || []
+        if (versiones.length === 0) return p
+        const ultimo = versiones[versiones.length - 1]
+        return {
+          ...ultimo.snapshot,
+          versiones: versiones.slice(0, -1),
+          updatedAt: new Date().toISOString(),
+        }
+      })
+      return {
+        ...state,
+        puntos: puntosActualizados,
+        puntoActivo: state.puntoActivo?.id === action.payload
+          ? puntosActualizados.find(p => p.id === action.payload) || null
+          : state.puntoActivo,
       }
     }
 

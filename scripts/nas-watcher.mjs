@@ -12,6 +12,8 @@ const statePath = logDir ? join(logDir, 'nas-watcher-state.json') : ''
 const logPath = logDir ? join(logDir, 'nas-events.jsonl') : ''
 
 const ignoredNames = new Set(['.watcher', '@eaDir', '#recycle', '.DS_Store', 'Thumbs.db'])
+const ALLOWED_EXTS = new Set(['.xlsx', '.xls', '.csv', '.jpg', '.jpeg', '.png', '.kmz', '.kml', '.txt'])
+const pendingPath = logDir ? join(logDir, 'pending-approval.json') : ''
 
 function usage() {
   console.log('Configura NAS_WATCH_PATH con la ruta local sincronizada por Synology Drive.')
@@ -173,6 +175,41 @@ function compareSnapshots(previous, current) {
   return events
 }
 
+function updatePending(newEvents) {
+  if (!pendingPath) return
+  const current = readJson(pendingPath, { pending: [] })
+  const existing = new Map(
+    (current.pending || []).map((e) => [`${e.path}|${e.size}:${Math.round(e.mtimeMs || 0)}`, e])
+  )
+  const now = new Date().toISOString()
+  for (const ev of newEvents) {
+    const dot = ev.path.lastIndexOf('.')
+    const ext = dot >= 0 ? ev.path.slice(dot).toLowerCase() : ''
+    if (!ALLOWED_EXTS.has(ext)) continue
+    const after = ev.details && ev.details.after
+    const before = ev.details && ev.details.before
+    const size = (after && after.size) || (before && before.size) || 0
+    const mtimeMs = (after && after.mtimeMs) || (before && before.mtimeMs) || 0
+    const key = `${ev.path}|${size}:${Math.round(mtimeMs)}`
+    if (!existing.has(key)) {
+      existing.set(key, {
+        eventId: randomUUID(),
+        type: ev.type,
+        path: ev.path,
+        ext,
+        size,
+        mtimeMs,
+        detectedAt: now,
+      })
+    }
+  }
+  writeJsonAtomic(pendingPath, {
+    updatedAt: now,
+    watchPath,
+    pending: [...existing.values()],
+  })
+}
+
 function main() {
   ensureReady()
 
@@ -195,6 +232,7 @@ function main() {
 
     writeJsonAtomic(statePath, current)
     previous = current
+    updatePending(events)
   }
 
   tick()

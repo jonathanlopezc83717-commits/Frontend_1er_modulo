@@ -49,28 +49,28 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 572 | 572 | 0 | 1077ms |
-| edit | 538 | 538 | 0 | 47ms |
-| bash | 387 | 387 | 0 | 15033ms |
-| write | 147 | 147 | 0 | 25ms |
-| grep | 104 | 104 | 0 | 362ms |
+| read | 587 | 587 | 0 | 1055ms |
+| edit | 546 | 546 | 0 | 48ms |
+| bash | 388 | 388 | 0 | 14999ms |
+| write | 148 | 148 | 0 | 26ms |
+| grep | 109 | 109 | 0 | 349ms |
 | todowrite | 61 | 61 | 0 | 6ms |
-| glob | 49 | 49 | 0 | 411ms |
+| glob | 53 | 53 | 0 | 394ms |
 | build_check | 33 | 33 | 0 | 18812ms |
-| question | 13 | 13 | 0 | 164105ms |
+| question | 14 | 14 | 0 | 179741ms |
+| codebase-memory-mcp_search_code | 10 | 10 | 0 | 2473ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
+| codebase-memory-mcp_search_graph | 9 | 9 | 0 | 1403ms |
 | codebase-memory-mcp_get_code_snippet | 8 | 8 | 0 | 43ms |
-| codebase-memory-mcp_search_graph | 8 | 8 | 0 | 1576ms |
-| codebase-memory-mcp_search_code | 7 | 7 | 0 | 3121ms |
 | save_plan | 5 | 5 | 0 | 166ms |
 | search | 5 | 5 | 0 | 136229ms |
 | update_task_status | 5 | 5 | 0 | 263ms |
+| codebase-memory-mcp_manage_adr | 5 | 5 | 0 | 73ms |
 | codebase-memory-mcp_query_graph | 5 | 5 | 0 | 51ms |
 | knowledge_add | 5 | 5 | 0 | 59ms |
-| codebase-memory-mcp_manage_adr | 4 | 4 | 0 | 35ms |
+| codebase-memory-mcp_get_architecture | 4 | 4 | 0 | 143ms |
 | set_qa_gates | 3 | 3 | 0 | 15ms |
 | task | 3 | 3 | 0 | 85398ms |
-| codebase-memory-mcp_get_architecture | 3 | 3 | 0 | 104ms |
 | codebase-memory-mcp_trace_path | 3 | 3 | 0 | 40ms |
 | swarm_command | 2 | 2 | 0 | 86ms |
 | pre_check_batch | 2 | 2 | 0 | 1252ms |
@@ -80,6 +80,7 @@ Swarm: default
 | codebase-memory-mcp_list_projects | 2 | 2 | 0 | 28ms |
 | codebase-memory-mcp_index_status | 2 | 2 | 0 | 7ms |
 | knowledge_query | 2 | 2 | 0 | 9ms |
+| batch_symbols | 2 | 2 | 0 | 33ms |
 | spec_write | 1 | 1 | 0 | 33ms |
 | diff | 1 | 1 | 0 | 64ms |
 | write_retro | 1 | 1 | 0 | 10ms |

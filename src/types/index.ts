@@ -345,6 +345,7 @@ export const MODULOS: ModuloConfig[] = [
   { id: 'documentacion', nombre: 'Documentación', descripcion: 'Documentos técnicos y planos', icono: 'FileText', componente: 'ModuloDocumentacion' },
   { id: 'ficha', nombre: 'Ficha', descripcion: 'Ficha editable desde Excel', icono: 'FileSpreadsheet', componente: 'ModuloFicha' },
   { id: 'reportes', nombre: 'Checklist', descripcion: 'Verificación de módulos completados', icono: 'BarChart3', componente: 'ModuloReportes' },
+  { id: 'aprobacion', nombre: 'Aprobación', descripcion: 'Revisar cambios del NAS antes de exportar', icono: 'ClipboardCheck', componente: 'ModuloAprobacion' },
   { id: 'sincronizacion', nombre: 'Sincronización', descripcion: 'Sincronizar puntos desde Excel con nomenclaturas', icono: 'RefreshCw', componente: 'ModuloSincronizacion' },
   { id: 'materiales', nombre: 'Formato', descripcion: 'Formato editable desde Excel', icono: 'Package', componente: 'ModuloMateriales' },
   { id: 'nomenclaturas', nombre: 'Nomenclaturas', descripcion: 'Códigos y nomenclaturas registradas', icono: 'Tag', componente: 'ModuloNomenclaturas' },

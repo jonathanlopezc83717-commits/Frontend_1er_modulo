@@ -49,11 +49,11 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| read | 587 | 587 | 0 | 1055ms |
-| edit | 546 | 546 | 0 | 48ms |
-| bash | 388 | 388 | 0 | 14999ms |
-| write | 148 | 148 | 0 | 26ms |
-| grep | 109 | 109 | 0 | 349ms |
+| read | 607 | 607 | 0 | 1030ms |
+| edit | 571 | 571 | 0 | 52ms |
+| bash | 406 | 406 | 0 | 14977ms |
+| write | 150 | 150 | 0 | 26ms |
+| grep | 120 | 120 | 0 | 346ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | glob | 53 | 53 | 0 | 394ms |
 | build_check | 33 | 33 | 0 | 18812ms |
@@ -68,19 +68,19 @@ Swarm: default
 | codebase-memory-mcp_manage_adr | 5 | 5 | 0 | 73ms |
 | codebase-memory-mcp_query_graph | 5 | 5 | 0 | 51ms |
 | knowledge_add | 5 | 5 | 0 | 59ms |
+| test_runner | 4 | 4 | 0 | 4784ms |
 | codebase-memory-mcp_get_architecture | 4 | 4 | 0 | 143ms |
+| batch_symbols | 4 | 4 | 0 | 60ms |
 | set_qa_gates | 3 | 3 | 0 | 15ms |
 | task | 3 | 3 | 0 | 85398ms |
 | codebase-memory-mcp_trace_path | 3 | 3 | 0 | 40ms |
 | swarm_command | 2 | 2 | 0 | 86ms |
 | pre_check_batch | 2 | 2 | 0 | 1252ms |
-| test_runner | 2 | 2 | 0 | 4445ms |
 | lint | 2 | 2 | 0 | 1216ms |
 | syntax_check | 2 | 2 | 0 | 511ms |
 | codebase-memory-mcp_list_projects | 2 | 2 | 0 | 28ms |
 | codebase-memory-mcp_index_status | 2 | 2 | 0 | 7ms |
 | knowledge_query | 2 | 2 | 0 | 9ms |
-| batch_symbols | 2 | 2 | 0 | 33ms |
 | spec_write | 1 | 1 | 0 | 33ms |
 | diff | 1 | 1 | 0 | 64ms |
 | write_retro | 1 | 1 | 0 | 10ms |

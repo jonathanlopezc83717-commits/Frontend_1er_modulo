@@ -32,6 +32,7 @@ import {
   BarChart3,
   Tag,
   RefreshCw,
+  ClipboardCheck,
 } from 'lucide-react'
 import { ModuloAnalisis } from './modulos/ModuloAnalisis'
 import { ModuloGeoreferencia } from './modulos/ModuloGeoreferencia'
@@ -41,6 +42,7 @@ import { ModuloMateriales } from './modulos/ModuloMateriales'
 import { ModuloFicha } from './modulos/ModuloFicha'
 import { ModuloReportes } from './modulos/ModuloReportes'
 import { ModuloSincronizacion } from './modulos/ModuloSincronizacion'
+import { ModuloAprobacion } from './modulos/ModuloAprobacion'
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Wand2,
@@ -51,6 +53,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BarChart3,
   Tag,
   RefreshCw,
+  ClipboardCheck,
 }
 
 const componentMap: Record<string, React.ComponentType> = {
@@ -62,6 +65,7 @@ const componentMap: Record<string, React.ComponentType> = {
   ModuloFicha,
   ModuloReportes,
   ModuloSincronizacion,
+  ModuloAprobacion,
 }
 
 interface ModuleTabsProps {

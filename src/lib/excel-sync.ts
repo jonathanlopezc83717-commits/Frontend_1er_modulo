@@ -19,6 +19,8 @@ export interface FilaSincronizacion {
   z: number
   /** Código de nomenclatura leído de la columna E */
   codigo: string
+  /** Cadenamiento: 2 primeros dígitos del entero de X (calculado al parsear) */
+  cadenamiento?: string
   /** Dígitos separados del entero de X (prefijo) si se aplicó separación */
   sepX?: string
   sepY?: string
@@ -107,6 +109,7 @@ export async function parsearExcelSincronizacion(
       y: y ?? 0,
       z: z ?? 0,
       codigo,
+      cadenamiento: separarDigitos(x ?? 0, 2).separado,
     })
   }
 
@@ -259,8 +262,7 @@ export function aplicarSincronizacion(
 
     let puntoModificado = puntosModificadosMap.get(puntoId) ?? { ...punto, moduloData: { ...punto.moduloData } }
 
-    // Cadenamiento = primer valor separado disponible (X > Y > Z)
-    const cadenamiento = fila.sepX ?? fila.sepY ?? fila.sepZ
+    const cadenamiento = fila.cadenamiento ?? fila.sepX ?? fila.sepY ?? fila.sepZ
     if (cadenamiento) {
       puntoModificado = { ...puntoModificado, cadenamiento }
     }
@@ -309,15 +311,8 @@ export function aplicarSincronizacion(
 }
 
 // =====================================================
-// SEPARACIÓN DE DÍGITOS EN COLUMNAS X / Y / Z
+// SEPARACIÓN DE DÍGITOS
 // =====================================================
-
-export interface ConfigSeparacion {
-  /** Número de dígitos del entero a separar (desde la izquierda) */
-  digitos: number
-  /** Qué columnas aplicar */
-  columnas: { x: boolean; y: boolean; z: boolean }
-}
 
 /**
  * Separa los primeros `digitos` del entero (desde la izquierda) de un valor.
@@ -340,36 +335,6 @@ export function separarDigitos(valor: number, digitos: number): { resto: number;
   const restoEntero = entero.slice(digitos)
   const restoStr = decimal !== undefined ? `${restoEntero}.${decimal}` : restoEntero
   return { resto: Number(`${signo}${restoStr}`), separado: prefijo }
-}
-
-/**
- * Aplica la separación a las filas según la configuración.
- * Devuelve nuevas filas con X/Y/Z reducidas al resto y sepX/sepY/sepZ con el prefijo.
- */
-export function aplicarSeparacion(
-  filas: FilaSincronizacion[],
-  config: ConfigSeparacion
-): FilaSincronizacion[] {
-  if (config.digitos <= 0) return filas
-  return filas.map((fila) => {
-    const nueva = { ...fila }
-    if (config.columnas.x) {
-      const r = separarDigitos(fila.x, config.digitos)
-      nueva.x = r.resto
-      nueva.sepX = r.separado
-    }
-    if (config.columnas.y) {
-      const r = separarDigitos(fila.y, config.digitos)
-      nueva.y = r.resto
-      nueva.sepY = r.separado
-    }
-    if (config.columnas.z) {
-      const r = separarDigitos(fila.z, config.digitos)
-      nueva.z = r.resto
-      nueva.sepZ = r.separado
-    }
-    return nueva
-  })
 }
 
 /**

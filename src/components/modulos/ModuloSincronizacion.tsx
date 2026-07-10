@@ -5,10 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import {
   aplicarSincronizacion,
-  aplicarSeparacion,
   buscarExcelEnCarpeta,
   compararSincronizacion,
   procesarArchivoSincronizacion,
@@ -73,10 +71,6 @@ export function ModuloSincronizacion() {
   const [saltarEncabezado, setSaltarEncabezado] = useState(false)
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
-
-  // Separación de dígitos en columnas X/Y/Z
-  const [sepDigitos, setSepDigitos] = useState(0)
-  const [sepColumnas, setSepColumnas] = useState({ x: false, y: false, z: false })
 
   // Datos crudos del CSV escaneado (para vista previa HTML)
   const [datosCSV, setDatosCSV] = useState<DatosCSV | null>(null)
@@ -304,40 +298,6 @@ export function ModuloSincronizacion() {
     }))
   }
 
-  const handleAplicarSeparacion = () => {
-    if (sepDigitos <= 0) {
-      setMensaje('Indica el número de dígitos a separar')
-      return
-    }
-    if (!sepColumnas.x && !sepColumnas.y && !sepColumnas.z) {
-      setMensaje('Selecciona al menos una columna (X, Y o Z)')
-      return
-    }
-    setFilas(prev => aplicarSeparacion(prev, { digitos: sepDigitos, columnas: sepColumnas }))
-    const cols = [sepColumnas.x && 'X', sepColumnas.y && 'Y', sepColumnas.z && 'Z'].filter(Boolean).join(', ')
-    setMensaje(`Separación aplicada: ${sepDigitos} dígito(s) en ${cols}`)
-  }
-
-  const handleRestaurarDatos = async () => {
-    const archivo = ultimoArchivoRef.current
-    const nombre = ultimoNombreRef.current
-    if (!archivo || !nombre) {
-      setMensaje('No hay archivo original para restaurar')
-      return
-    }
-    setProcesando(true)
-    try {
-      const buffer = archivo instanceof File ? await archivo.arrayBuffer() : archivo
-      const { filas: originales } = await procesarArchivoSincronizacion(buffer, nombre, { saltarEncabezado })
-      setFilas(originales)
-      setMensaje('Datos restaurados al import original')
-    } catch (error) {
-      setMensaje(`Error restaurando: ${String(error)}`)
-    } finally {
-      setProcesando(false)
-    }
-  }
-
   const handleSincronizar = async () => {
     if (resultados.length === 0 || !punto) return
 
@@ -530,53 +490,6 @@ export function ModuloSincronizacion() {
                 message="Procesando archivo"
                 rotatingMessages={['Leyendo archivo', 'Detectando columnas', 'Generando tabla HTML']}
               />
-            )}
-
-            {filas.length > 0 && (
-              <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">Separar cadenamiento</p>
-                  <span className="text-xs text-muted-foreground">
-                    (los primeros N dígitos del entero se apartan como cadenamiento)
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-end gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Nº de dígitos</label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={9}
-                      value={sepDigitos}
-                      onChange={(e) => setSepDigitos(Math.max(0, Number(e.target.value)))}
-                      className="h-8 w-24"
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {(['x', 'y', 'z'] as const).map((col) => (
-                      <div key={col} className="flex items-center gap-1.5">
-                        <Checkbox
-                          id={`sep-${col}`}
-                          checked={sepColumnas[col]}
-                          onCheckedChange={(checked) =>
-                            setSepColumnas(prev => ({ ...prev, [col]: checked === true }))
-                          }
-                        />
-                        <label htmlFor={`sep-${col}`} className="text-sm cursor-pointer">Columna {col.toUpperCase()}</label>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 ml-auto">
-                    <Button variant="outline" size="sm" onClick={handleRestaurarDatos} disabled={procesando}>
-                      Restaurar
-                    </Button>
-                    <Button size="sm" onClick={handleAplicarSeparacion} disabled={procesando}>
-                      Aplicar separación
-                    </Button>
-                  </div>
-                </div>
-              </div>
             )}
 
             {dataGuardada?.ruta && (

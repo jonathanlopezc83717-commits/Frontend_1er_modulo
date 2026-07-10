@@ -3,7 +3,6 @@ import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
 import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
-import { separarDigitos } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
 import {
   consolidarNomenclaturas,
@@ -406,6 +405,16 @@ function detectarRouting(files: File[]): FileRouting {
   return { kmz, txt, excel, fotos }
 }
 
+const cacheCarpetasProcesadas = new Map<string, { datos: DatosPuntoCarpeta; timestamp: number }>()
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+function claveCache(nombreCarpeta: string, files: FileList | File[]): string {
+  let totalSize = 0
+  const arr = files instanceof Array ? files : Array.from(files)
+  for (const f of arr) totalSize += f.size
+  return `${nombreCarpeta}:${totalSize}`
+}
+
 export function usePuntoCarpeta({
   puntoActivo,
   nomenclaturasGlobales,
@@ -518,25 +527,11 @@ export function usePuntoCarpeta({
 
       const previews: PreviewSubcarpeta[] = []
       for (const [nombre, filesArr] of grupos) {
-        const routing = detectarRouting(filesArr)
-        let coordenadas: { x: number; y: number; z: number } | undefined
-        if (routing.kmz) {
-          const kmzFile = filesArr.find((f) => {
-            const ext = (f.name.split('.').pop() || '').toLowerCase()
-            return ext === 'kmz' || ext === 'kml'
-          })
-          if (kmzFile) {
-            const coords = await extraerCoordenadasKMZ(kmzFile)
-            if (coords) coordenadas = coords
-          }
-        }
         previews.push({
           id: generarUUID(),
           nombre,
           files: filesArr,
-          routing,
-          coordenadas,
-          cadenamiento: coordenadas ? separarDigitos(coordenadas.x, 2).separado : undefined,
+          routing: detectarRouting(filesArr),
         })
       }
       previews.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }))
@@ -588,7 +583,15 @@ export function usePuntoCarpeta({
           dt.items.add(clon)
         }
         const fileList = dt.files
-        const datos = await procesarCarpetaPunto(fileList)
+        const clave = claveCache(item.preview.nombre, fileList)
+        const cacheado = cacheCarpetasProcesadas.get(clave)
+        let datos: DatosPuntoCarpeta
+        if (cacheado && Date.now() - cacheado.timestamp < CACHE_TTL_MS) {
+          datos = cacheado.datos
+        } else {
+          datos = await procesarCarpetaPunto(fileList)
+          cacheCarpetasProcesadas.set(clave, { datos, timestamp: Date.now() })
+        }
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
         if (excelEnRaiz) datos.excel = excelEnRaiz
         const nuevoId = generarUUID()
@@ -770,7 +773,6 @@ export function usePuntoCarpeta({
       nombre: datos.nombreCarpeta,
       descripcion: undefined,
       carpetaPath: datos.nombreCarpeta,
-      cadenamiento: datos.coordenadas ? separarDigitos(datos.coordenadas.x, 2).separado : undefined,
       coordenadas: datos.coordenadas ? {
         lat: datos.coordenadas.y,
         lng: datos.coordenadas.x,

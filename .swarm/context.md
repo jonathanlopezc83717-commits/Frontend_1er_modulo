@@ -49,16 +49,16 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| edit | 663 | 663 | 0 | 65ms |
-| read | 647 | 647 | 0 | 976ms |
-| bash | 436 | 436 | 0 | 15387ms |
+| edit | 671 | 671 | 0 | 66ms |
+| read | 650 | 650 | 0 | 973ms |
+| bash | 441 | 441 | 0 | 15428ms |
 | write | 150 | 150 | 0 | 26ms |
-| grep | 145 | 145 | 0 | 329ms |
+| grep | 148 | 148 | 0 | 329ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | glob | 53 | 53 | 0 | 394ms |
 | build_check | 33 | 33 | 0 | 18812ms |
 | question | 19 | 19 | 0 | 147052ms |
-| test_runner | 13 | 13 | 0 | 7629ms |
+| test_runner | 14 | 14 | 0 | 7675ms |
 | codebase-memory-mcp_search_code | 10 | 10 | 0 | 2473ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
 | codebase-memory-mcp_search_graph | 9 | 9 | 0 | 1403ms |

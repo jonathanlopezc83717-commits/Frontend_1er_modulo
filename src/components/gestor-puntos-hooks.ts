@@ -3,6 +3,7 @@ import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
 import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
+import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
 import {
   consolidarNomenclaturas,
@@ -758,9 +759,20 @@ export function usePuntoCarpeta({
       }
     }
 
+    let cadenamientoPunto: string | undefined
+
     if (datos.excel) {
       const archivoId = generarUUID()
       await guardarArchivoSincronizacion(archivoId, datos.excel)
+      try {
+        const buffer = await datos.excel.arrayBuffer()
+        const { filas } = await procesarArchivoSincronizacion(buffer, datos.excel.name)
+        const filaCoincidente = filas.find((f) => f.numeroPunto === datos.nombreCarpeta)
+        const fila = filaCoincidente || filas[0]
+        if (fila?.cadenamiento) cadenamientoPunto = fila.cadenamiento
+      } catch {
+        // si falla el parseo, el punto se crea sin cadenamiento
+      }
       moduloData.sincronizacion = {
         archivoNombre: datos.excel.name,
         archivoId,
@@ -773,6 +785,7 @@ export function usePuntoCarpeta({
       nombre: datos.nombreCarpeta,
       descripcion: undefined,
       carpetaPath: datos.nombreCarpeta,
+      cadenamiento: cadenamientoPunto,
       coordenadas: datos.coordenadas ? {
         lat: datos.coordenadas.y,
         lng: datos.coordenadas.x,

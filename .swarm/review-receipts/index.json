@@ -128,6 +128,14 @@
       "scope_hash": "ddd8f9db1c2cbaeb5d6b5cacb753beefca899ee1540c6e3343108fcec4c3b0ec",
       "agent": "curator",
       "filename": "2026-07-13-54e8907a-dd16-46fa-97e3-f65ded066470.json"
+    },
+    {
+      "id": "d4512f08-7982-4698-8c2e-2ba620582d4e",
+      "verdict": "approved",
+      "reviewed_at": "2026-07-13T22:38:07.107Z",
+      "scope_hash": "01988c0ae75cde1bfc6a7ffe4d669d10e923b31b612009ae654f7f0ea64e7d70",
+      "agent": "curator",
+      "filename": "2026-07-13-d4512f08-7982-4698-8c2e-2ba620582d4e.json"
     }
   ]
 }

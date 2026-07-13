@@ -49,16 +49,16 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| edit | 704 | 704 | 0 | 73ms |
-| read | 679 | 679 | 0 | 937ms |
-| bash | 449 | 449 | 0 | 15437ms |
-| grep | 166 | 166 | 0 | 317ms |
-| write | 151 | 151 | 0 | 26ms |
+| edit | 712 | 712 | 0 | 73ms |
+| read | 687 | 687 | 0 | 928ms |
+| bash | 470 | 470 | 0 | 15219ms |
+| grep | 169 | 169 | 0 | 321ms |
+| write | 154 | 154 | 0 | 26ms |
 | todowrite | 61 | 61 | 0 | 6ms |
-| glob | 56 | 56 | 0 | 379ms |
+| glob | 61 | 61 | 0 | 630ms |
 | build_check | 33 | 33 | 0 | 18812ms |
-| question | 20 | 20 | 0 | 140685ms |
-| codebase-memory-mcp_search_code | 15 | 15 | 0 | 2517ms |
+| question | 21 | 21 | 0 | 143148ms |
+| codebase-memory-mcp_search_code | 17 | 17 | 0 | 2560ms |
 | test_runner | 14 | 14 | 0 | 7675ms |
 | codebase-memory-mcp_search_graph | 13 | 13 | 0 | 1683ms |
 | codebase-memory-mcp_get_code_snippet | 10 | 10 | 0 | 277ms |
@@ -92,3 +92,5 @@ Swarm: default
 | codebase-memory-mcp_get_graph_schema | 1 | 1 | 0 | 46ms |
 | knowledge_recall | 1 | 1 | 0 | 459ms |
 | symbols | 1 | 1 | 0 | 33ms |
+| list_mcp_resources | 1 | 1 | 0 | 48ms |
+| list_mcp_resource_templates | 1 | 1 | 0 | 20ms |

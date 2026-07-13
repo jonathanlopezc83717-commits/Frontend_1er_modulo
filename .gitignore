@@ -8,3 +8,7 @@ server/.croquis_index.json
 server/.croquis_cache/
 __pycache__/
 *.pyc
+
+# PyInstaller (CroquisBatch.exe)
+/build
+/*.spec

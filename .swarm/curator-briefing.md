@@ -53,20 +53,20 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| edit | 671 | 671 | 0 | 66ms |
-| read | 650 | 650 | 0 | 973ms |
-| bash | 441 | 441 | 0 | 15428ms |
-| write | 150 | 150 | 0 | 26ms |
-| grep | 148 | 148 | 0 | 329ms |
+| edit | 704 | 704 | 0 | 73ms |
+| read | 679 | 679 | 0 | 937ms |
+| bash | 449 | 449 | 0 | 15437ms |
+| grep | 166 | 166 | 0 | 317ms |
+| write | 151 | 151 | 0 | 26ms |
 | todowrite | 61 | 61 | 0 | 6ms |
-| glob | 53 | 53 | 0 | 394ms |
+| glob | 56 | 56 | 0 | 379ms |
 | build_check | 33 | 33 | 0 | 18812ms |
-| question | 19 | 19 | 0 | 147052ms |
+| question | 20 | 20 | 0 | 140685ms |
+| codebase-memory-mcp_search_code | 15 | 15 | 0 | 2517ms |
 | test_runner | 14 | 14 | 0 | 7675ms |
-| codebase-memory-mcp_search_code | 10 | 10 | 0 | 2473ms |
+| codebase-memory-mcp_search_graph | 13 | 13 | 0 | 1683ms |
+| codebase-memory-mcp_get_code_snippet | 10 | 10 | 0 | 277ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
-| codebase-memory-mcp_search_graph | 9 | 9 | 0 | 1403ms |
-| codebase-memory-mcp_get_code_snippet | 8 | 8 | 0 | 43ms |
 | save_plan | 5 | 5 | 0 | 166ms |
 | search | 5 | 5 | 0 | 136229ms |
 | update_task_status | 5 | 5 | 0 | 263ms |

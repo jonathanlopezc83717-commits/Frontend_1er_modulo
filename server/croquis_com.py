@@ -6,9 +6,11 @@ por PNGOUT (este abre dialogos modales al renderizar ortomosaicos ECW).
 
 Flujo principal (--batch):
     elegir carpeta RAIZ (con DWG + Ortomosaico + subcarpetas de puntos)
-    -> por cada punto: centro (X,Y) de la 1ª fila de su CSV (numero,X,Y,Z,codigo)
+    -> por cada punto: centro (X,Y) de B1 y C1 del primer .xlsx de su carpeta
+       (formato #_nombre_fecha.xlsx, sin encabezado)
     -> Civil 3D: abrir DWG -> esperar carga ECW -> CLEANSCREENON -> ZoomWindow
-       -> esperar idle -> capturar area cliente -> recortar -> PNG en la RAIZ
+       -> esperar idle -> capturar area cliente -> recortar -> PNG en la
+       carpeta del punto (mismo nombre que la subcarpeta)
 
 Dependencias:  pywin32, Pillow  (pip install pywin32 Pillow)
 Requiere:      Civil 3D / AutoCAD corriendo en esta maquina (Windows).
@@ -24,6 +26,7 @@ import sys
 import time
 from pathlib import Path
 
+import openpyxl
 import pythoncom
 import pywintypes
 import win32com.client
@@ -377,21 +380,27 @@ def _demo():
     return 0
 
 
-def _leer_centro_csv(carpeta_punto):
-    """Centro (x, y) del punto: primera fila de datos del CSV en la carpeta.
-    Formato esperado: numero,X,Y,Z,codigo (decimal con punto)."""
-    csvs = sorted(f for f in os.listdir(carpeta_punto) if f.lower().endswith(".csv"))
-    if not csvs:
+def _leer_centro(carpeta_punto):
+    """Centro (x, y) del punto: B1 y C1 del primer .xlsx de la carpeta.
+    Formato esperado: #_nombre_fecha.xlsx, sin encabezado (fila 1 = datos),
+    con X en columna B e Y en columna C."""
+    xlsxs = sorted(f for f in os.listdir(carpeta_punto) if f.lower().endswith(".xlsx"))
+    if not xlsxs:
         return None
-    p = os.path.join(carpeta_punto, csvs[0])
-    with open(p, newline="", encoding="utf-8-sig", errors="replace") as f:
-        for row in csv.reader(f):
-            if len(row) >= 3:
-                try:
-                    return float(row[1]), float(row[2])
-                except ValueError:
-                    continue
-    return None
+    p = os.path.join(carpeta_punto, xlsxs[0])
+    wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
+    try:
+        ws = wb.active
+        x = ws["B1"].value
+        y = ws["C1"].value
+    finally:
+        wb.close()
+    if x is None or y is None:
+        return None
+    try:
+        return float(x), float(y)
+    except (TypeError, ValueError):
+        return None
 
 
 def _elegir_puntos(raiz):
@@ -427,13 +436,26 @@ def _elegir_puntos(raiz):
     return [os.path.join(raiz, lb.get(i)) for i in lb.curselection()]
 
 
+def _fmt_dur(s: float) -> str:
+    """Segundos -> 'Xs' / 'Xm Ys' / 'Xh Ym'. Para la barra de tiempo restante."""
+    s = int(s)
+    if s < 60:
+        return f"{s}s"
+    m, sec = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {sec}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m"
+
+
 def _batch_gui():
     """Flujo completo con pickers:
     1) Carpeta RAIZ (con DWG + subcarpetas de puntos)
     2) DWG (auto si hay uno solo)
     3) Carpeta(s) de punto (multi-seleccion)
-    Lee el centro (X,Y) del CSV de cada punto, genera el croquis y guarda el PNG
-    en la RAIZ con el nombre del punto."""
+    4) Ventana de progreso: estado actual + barra + tiempo restante + log en vivo.
+    Lee el centro (X,Y) de B1/C1 del .xlsx de cada punto, genera el croquis y
+    guarda el PNG en la carpeta del punto (mismo nombre que la subcarpeta)."""
     import tkinter as tk
     from tkinter import filedialog, messagebox
 
@@ -465,28 +487,119 @@ def _batch_gui():
     if not puntos:
         return 0
 
-    # Mantener el DWG abierto entre puntos (no recargar ECW en cada uno).
+    return _procesar_batch_gui(dwg, refs, puntos)
+
+
+def _procesar_batch_gui(dwg, refs, puntos):
+    """Crea la ventana de progreso y procesa los puntos actualizandola.
+
+    Redirige sys.stdout al log widget para que los print(...) del flujo (conectar,
+    abrir DWG, leer xlsx, capturar, etc.) aparezcan en vivo sin tocar las
+    funciones internas. La barra muestra puntos completados y se estima el tiempo
+    restante con el promedio por punto."""
+    import time as _time
+    import tkinter as tk
+    from tkinter import ttk, scrolledtext
+
+    total = len(puntos)
+    top = tk.Tk()
+    top.title(f"Croquis batch - {total} punto(s)")
+    top.geometry("760x480")
+
+    estado_var = tk.StringVar(value="Iniciando...")
+    tk.Label(top, textvariable=estado_var, font=("Segoe UI", 10, "bold"),
+             anchor="w").pack(fill="x", padx=10, pady=(10, 2))
+
+    pb = ttk.Progressbar(top, maximum=total, mode="determinate")
+    pb.pack(fill="x", padx=10, pady=2)
+
+    cuenta_var = tk.StringVar(value=f"0 / {total} completados")
+    tk.Label(top, textvariable=cuenta_var, anchor="w").pack(fill="x", padx=10)
+    eta_var = tk.StringVar(value="Tiempo restante: (tras el 1er punto)")
+    tk.Label(top, textvariable=eta_var, anchor="w", fg="#555555").pack(
+        fill="x", padx=10, pady=(0, 6))
+
+    log = scrolledtext.ScrolledText(top, width=96, height=22, state="disabled",
+                                    font=("Consolas", 9))
+    log.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+
+    class _Tee:
+        """stdout que escribe al log widget y a la consola real."""
+        def __init__(self, consola):
+            self.cons = consola
+
+        def write(self, s):
+            if s and s.strip():
+                log.config(state="normal")
+                log.insert("end", s if s.endswith("\n") else s + "\n")
+                log.see("end")
+                log.config(state="disabled")
+            if self.cons:
+                try:
+                    self.cons.write(s)
+                    self.cons.flush()
+                except Exception:
+                    pass
+            top.update_idletasks()
+
+        def flush(self):
+            if self.cons:
+                try:
+                    self.cons.flush()
+                except Exception:
+                    pass
+
+    consola_real = sys.stdout
+    sys.stdout = _Tee(consola_real)
+    top.update()
+
     os.environ["CROQUIS_KEEP_OPEN"] = "1"
-    acad = conectar_autocad()
-    if refs:
-        _anadir_support_path(acad, refs)
+    t0 = _time.time()
+    hechos = 0
+    acad = None
     try:
-        for pp in puntos:
-            xy = _leer_centro_csv(pp)
+        estado_var.set("Conectando a AutoCAD...")
+        top.update()
+        acad = conectar_autocad()
+        if refs:
+            _anadir_support_path(acad, refs)
+        for i, pp in enumerate(puntos, 1):
             nombre = os.path.basename(pp)
+            estado_var.set(f"[{i}/{total}] {nombre}: leyendo coordenadas del xlsx...")
+            cuenta_var.set(f"{hechos} / {total} completados")
+            top.update()
+            xy = _leer_centro(pp)
             if not xy:
-                print(f"[skip] {nombre}: no se encontro CSV con coordenadas", flush=True)
-                continue
-            x, y = xy
-            out = os.path.join(raiz, nombre + ".png")
-            print(f"[batch] {nombre} centro=({x}, {y}) -> {out}", flush=True)
-            try:
-                o, kb = capturar_croquis(dwg, x, y, out, acad=acad, refs_folder=refs)
-                print(f"  OK: {o} ({kb} KB)", flush=True)
-            except Exception as e:
-                print(f"  FAIL: {e}", flush=True)
+                print(f"[skip] {nombre}: sin xlsx con coordenadas validas en B1/C1", flush=True)
+            else:
+                x, y = xy
+                out = os.path.join(pp, nombre + ".png")
+                estado_var.set(f"[{i}/{total}] {nombre}: capturando en ({x}, {y})...")
+                top.update()
+                print(f"[batch] {nombre}  centro=({x}, {y})  -> {out}", flush=True)
+                try:
+                    o, kb = capturar_croquis(dwg, x, y, out, acad=acad, refs_folder=refs)
+                    print(f"  OK: {o} ({kb} KB)", flush=True)
+                    hechos += 1
+                except Exception as e:
+                    print(f"  FAIL: {e}", flush=True)
+            pb["value"] = i
+            cuenta_var.set(f"{hechos} / {total} completados")
+            if hechos > 0:
+                avg = (_time.time() - t0) / hechos
+                eta_var.set(f"Tiempo restante aprox.: {_fmt_dur(avg * (total - i))}")
+            top.update()
     finally:
-        # Cerrar el DWG al terminar el lote.
+        sys.stdout = consola_real
+
+    dur = _time.time() - t0
+    estado_var.set(f"Listo. {hechos}/{total} capturas OK.")
+    eta_var.set(f"Tiempo total: {_fmt_dur(dur)}")
+    print(f"\n==== RESUMEN: {hechos}/{total} capturas OK en {_fmt_dur(dur)} ====", flush=True)
+    tk.Button(top, text="Cerrar", command=top.destroy).pack(pady=4)
+    top.mainloop()
+
+    if acad is not None:
         try:
             _com(lambda: acad.ActiveDocument.Close(False), intentos=10)
         except Exception:

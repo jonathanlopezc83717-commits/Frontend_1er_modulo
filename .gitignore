@@ -2,3 +2,9 @@
 /dist
 .env
 *.local
+
+# Backend croquis puente
+server/.croquis_index.json
+server/.croquis_cache/
+__pycache__/
+*.pyc

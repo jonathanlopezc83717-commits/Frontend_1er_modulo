@@ -6,8 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato } from '@/types'
-import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
-import { generarCroquisDesdeDwg, DwgError } from '@/lib/dwg-croquis'
+import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
+import { generarCroquisDesdeDwg, generarCroquisPorClave, DwgError } from '@/lib/dwg-croquis'
 import { CampoCombo, CAMPOS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -48,6 +48,7 @@ export function ModuloFicha() {
   const [mapeoPlantilla, setMapeoPlantilla] = useState<MapeoPlantilla>({ campos: {}, imagenes: {} })
   const [exportandoId, setExportandoId] = useState<string | null>(null)
   const [cargandoCroquisDwg, setCargandoCroquisDwg] = useState(false)
+  const [cargandoCroquisAuto, setCargandoCroquisAuto] = useState(false)
   const excelInputRef = useRef<HTMLInputElement>(null)
 
   // Opciones guardadas (compartidas con ModuloMateriales via localStorage).
@@ -288,6 +289,30 @@ export function ModuloFicha() {
     }
   }
 
+  const cargarCroquisAuto = async () => {
+    if (!punto) {
+      alert('No hay punto activo')
+      return
+    }
+    const x = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "X"')?.valor)
+    const y = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "Y"')?.valor)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      alert('Faltan coordenadas X/Y validas en la ficha para centrar la captura')
+      return
+    }
+    const clave = extraerNombreCarpeta(punto.carpetaPath || punto.nombre)
+    setCargandoCroquisAuto(true)
+    try {
+      const imagen = await generarCroquisPorClave(clave, x, y)
+      actualizarFicha({ croquis: imagen })
+    } catch (error) {
+      const msg = error instanceof DwgError ? error.message : String(error)
+      alert(`No se pudo generar el croquis automatico: ${msg}`)
+    } finally {
+      setCargandoCroquisAuto(false)
+    }
+  }
+
   const cargarImagen = async (tipo: 'croquis' | 'evidencia', file?: File, index = 0) => {
     if (!file) return
     const preview = await leerImagen(file)
@@ -445,6 +470,8 @@ export function ModuloFicha() {
                 onClear={() => limpiarImagen('croquis')}
                 onDwgCargar={cargarCroquisDwg}
                 cargandoDwg={cargandoCroquisDwg}
+                onAutoCargar={cargarCroquisAuto}
+                cargandoAuto={cargandoCroquisAuto}
               />
               <Card>
                 <CardHeader className="pb-2">
@@ -536,6 +563,8 @@ function ImageSlot({
   onClear,
   onDwgCargar,
   cargandoDwg = false,
+  onAutoCargar,
+  cargandoAuto = false,
 }: {
   title: string
   image: string
@@ -543,6 +572,8 @@ function ImageSlot({
   onClear: () => void
   onDwgCargar?: (file?: File) => void
   cargandoDwg?: boolean
+  onAutoCargar?: () => void
+  cargandoAuto?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const dwgInputRef = useRef<HTMLInputElement>(null)
@@ -586,6 +617,22 @@ function ImageSlot({
                   {cargandoDwg ? 'Generando...' : 'DWG'}
                 </Button>
               </>
+            )}
+            {onAutoCargar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAutoCargar}
+                disabled={cargandoAuto || cargandoDwg}
+                title="Generar desde el DWG indexado en la carpeta del punto"
+              >
+                {cargandoAuto ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="mr-2 h-4 w-4" />
+                )}
+                {cargandoAuto ? 'Buscando...' : 'Auto'}
+              </Button>
             )}
             <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => onImage(event.target.files?.[0])} disabled={cargandoDwg} />
             <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={cargandoDwg}>

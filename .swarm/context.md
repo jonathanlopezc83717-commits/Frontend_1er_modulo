@@ -50,19 +50,19 @@ Swarm: default
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
 | edit | 671 | 671 | 0 | 66ms |
-| read | 650 | 650 | 0 | 973ms |
-| bash | 441 | 441 | 0 | 15428ms |
+| read | 655 | 655 | 0 | 966ms |
+| bash | 442 | 442 | 0 | 15443ms |
+| grep | 152 | 152 | 0 | 328ms |
 | write | 150 | 150 | 0 | 26ms |
-| grep | 148 | 148 | 0 | 329ms |
 | todowrite | 61 | 61 | 0 | 6ms |
-| glob | 53 | 53 | 0 | 394ms |
+| glob | 54 | 54 | 0 | 389ms |
 | build_check | 33 | 33 | 0 | 18812ms |
 | question | 19 | 19 | 0 | 147052ms |
+| codebase-memory-mcp_search_code | 15 | 15 | 0 | 2517ms |
 | test_runner | 14 | 14 | 0 | 7675ms |
-| codebase-memory-mcp_search_code | 10 | 10 | 0 | 2473ms |
+| codebase-memory-mcp_search_graph | 13 | 13 | 0 | 1683ms |
+| codebase-memory-mcp_get_code_snippet | 10 | 10 | 0 | 277ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
-| codebase-memory-mcp_search_graph | 9 | 9 | 0 | 1403ms |
-| codebase-memory-mcp_get_code_snippet | 8 | 8 | 0 | 43ms |
 | save_plan | 5 | 5 | 0 | 166ms |
 | search | 5 | 5 | 0 | 136229ms |
 | update_task_status | 5 | 5 | 0 | 263ms |

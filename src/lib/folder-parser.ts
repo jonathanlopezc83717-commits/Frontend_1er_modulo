@@ -58,7 +58,12 @@ function extraerIndice(nombreArchivo: string): number {
  * Lee los archivos de una carpeta seleccionada por el usuario
  * incluyendo subcarpetas con fotos indexadas
  */
-export async function leerCarpeta(files: FileList): Promise<ArchivosCarpeta> {
+export type ProgresoCarga = { actual: number; total: number }
+
+export async function leerCarpeta(
+  files: FileList,
+  onProgress?: (p: ProgresoCarga) => void,
+): Promise<ArchivosCarpeta> {
   const archivos: ArchivosCarpeta = {
     fotos: [],
     nombreCarpeta: '',
@@ -105,6 +110,11 @@ export async function leerCarpeta(files: FileList): Promise<ArchivosCarpeta> {
     }
   }
 
+  // Total de fotos a procesar (para la barra de progreso).
+  let totalFotos = 0
+  for (const arr of fotosPorSubcarpeta.values()) totalFotos += arr.length
+  onProgress?.({ actual: 0, total: totalFotos })
+
   // Procesar y ordenar fotos por índice
   let contadorGlobal = 0
   
@@ -125,6 +135,7 @@ export async function leerCarpeta(files: FileList): Promise<ArchivosCarpeta> {
         file,
         preview,
       })
+      onProgress?.({ actual: contadorGlobal, total: totalFotos })
     }
   }
   
@@ -146,6 +157,7 @@ export async function leerCarpeta(files: FileList): Promise<ArchivosCarpeta> {
         file,
         preview,
       })
+      onProgress?.({ actual: contadorGlobal, total: totalFotos })
     }
   }
 
@@ -318,8 +330,11 @@ export async function leerArchivoTXT(file: File): Promise<string> {
 /**
  * Procesa una carpeta completa y devuelve los datos estructurados
  */
-export async function procesarCarpetaPunto(files: FileList): Promise<DatosPuntoCarpeta> {
-  const archivos = await leerCarpeta(files)
+export async function procesarCarpetaPunto(
+  files: FileList,
+  onProgress?: (p: ProgresoCarga) => void,
+): Promise<DatosPuntoCarpeta> {
+  const archivos = await leerCarpeta(files, onProgress)
   
   const datos: DatosPuntoCarpeta = {
     nombreCarpeta: archivos.nombreCarpeta,

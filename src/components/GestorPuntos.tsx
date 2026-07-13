@@ -123,7 +123,7 @@ export function GestorPuntos() {
   }
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { procesandoCarpeta, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   useEffect(() => {
     if (previewsSubcarpetas) {
@@ -250,6 +250,28 @@ export function GestorPuntos() {
                 </Button>
               )}
             </div>
+
+            {procesandoCarpeta && progreso && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Procesando fotos</span>
+                  <span className="tabular-nums">
+                    {progreso.actual}/{progreso.total || '?'}
+                    {progreso.total > 0 && progreso.actual > 0 && (
+                      <> · {formatearTasa(progreso)}</>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all duration-150 ease-out"
+                    style={{
+                      width: `${progreso.total > 0 ? Math.min(100, (progreso.actual / progreso.total) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -1035,4 +1057,11 @@ export function GestorPuntos() {
       </Dialog>
     </>
   )
+}
+
+function formatearTasa(p: { actual: number; total: number; inicio: number }): string {
+  const seg = (Date.now() - p.inicio) / 1000
+  if (seg <= 0) return ''
+  const tasa = p.actual / seg
+  return `${seg.toFixed(1)}s · ${tasa.toFixed(1)} fotos/s`
 }

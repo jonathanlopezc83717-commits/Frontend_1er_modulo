@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type TouchEvent, type MouseEvent } from 'react'
 import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
-import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta, type ProgresoCarga } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
@@ -434,11 +434,24 @@ export function usePuntoCarpeta({
   setEditarPuntoCreado: (valor: boolean) => void
 }) {
   const [procesandoCarpeta, setProcesandoCarpeta] = useState(false)
+  const [progreso, setProgreso] = useState<{ actual: number; total: number; inicio: number } | null>(null)
   const [datosCarpetaPreview, setDatosCarpetaPreview] = useState<DatosPuntoCarpeta | null>(null)
   const [mostrarRouting, setMostrarRouting] = useState(false)
   const [routingActual, setRoutingActual] = useState<FileRouting | null>(null)
   const [resumenMultiple, setResumenMultiple] = useState<ResumenCarpeta[] | null>(null)
   const [previewsSubcarpetas, setPreviewsSubcarpetas] = useState<PreviewSubcarpeta[] | null>(null)
+
+  const onProgressCarga = (p: ProgresoCarga) =>
+    setProgreso(prev => prev ? { actual: p.actual, total: p.total, inicio: prev.inicio } : { actual: p.actual, total: p.total, inicio: Date.now() })
+
+  const runConProgreso = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    setProgreso({ actual: 0, total: 0, inicio: Date.now() })
+    try {
+      return await fn()
+    } finally {
+      setProgreso(null)
+    }
+  }
 
   const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -457,7 +470,7 @@ export function usePuntoCarpeta({
 
     try {
       if (grupos.size <= 1) {
-        const datos = await procesarCarpetaPunto(files)
+        const datos = await runConProgreso(() => procesarCarpetaPunto(files, onProgressCarga))
         const excelEnRaiz = buscarExcelEnRaiz(files)
         if (excelEnRaiz) datos.excel = excelEnRaiz
 
@@ -476,7 +489,7 @@ export function usePuntoCarpeta({
         let i = 0
         for (const [nombreRaiz] of grupos) {
           const fileListFiltrada = filtrarPorCarpetaRaiz(files, nombreRaiz)
-          const datos = await procesarCarpetaPunto(fileListFiltrada)
+          const datos = await runConProgreso(() => procesarCarpetaPunto(fileListFiltrada, onProgressCarga))
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
           await agregarDesdeDatos(datos, puntosLength + 1 + i)
@@ -590,7 +603,7 @@ export function usePuntoCarpeta({
         if (cacheado && Date.now() - cacheado.timestamp < CACHE_TTL_MS) {
           datos = cacheado.datos
         } else {
-          datos = await procesarCarpetaPunto(fileList)
+          datos = await runConProgreso(() => procesarCarpetaPunto(fileList, onProgressCarga))
           cacheCarpetasProcesadas.set(clave, { datos, timestamp: Date.now() })
         }
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
@@ -624,7 +637,7 @@ export function usePuntoCarpeta({
     setProcesandoCarpeta(true)
 
     try {
-      const datos = await procesarCarpetaPunto(files)
+      const datos = await runConProgreso(() => procesarCarpetaPunto(files, onProgressCarga))
 
       if (!puntoActivo) {
         alert('Selecciona un punto primero para asignarle los archivos')
@@ -898,6 +911,7 @@ export function usePuntoCarpeta({
 
   return {
     procesandoCarpeta,
+    progreso,
     datosCarpetaPreview,
     setDatosCarpetaPreview,
     mostrarRouting,

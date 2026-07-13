@@ -19,11 +19,6 @@
 
 const DWG_API_URL = import.meta.env.VITE_DWG_API_URL
 
-if (!DWG_API_URL) {
-  // Aviso en runtime si falta la config; no rompe el build.
-  console.warn('[dwg-croquis] VITE_DWG_API_URL no esta definida. El boton DWG fallara hasta configurarla.')
-}
-
 export interface CapturaDwgParams {
   x: number
   y: number

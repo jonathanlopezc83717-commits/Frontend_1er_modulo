@@ -42,8 +42,11 @@ export function ModuloAprobacion() {
   const [conflictos, setConflictos] = useState<ConflictoPendiente[]>([])
   const [draftsCadenamiento, setDraftsCadenamiento] = useState<Record<string, string>>({})
   const abortRef = useRef<AbortController | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const endpointMuertoRef = useRef(false)
 
   const cargar = useCallback(async () => {
+    if (endpointMuertoRef.current) return
     abortRef.current?.abort()
     const ac = new AbortController()
     abortRef.current = ac
@@ -53,19 +56,27 @@ export function ModuloAprobacion() {
       setUpdatedAt(r.updatedAt)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        // silencioso: endpoint puede no estar disponible
+        // Endpoint NAS no disponible (404 en Vercel, servidor caido, etc.).
+        // Detener el polling para esta sesion en vez de ensuciar la consola.
+        endpointMuertoRef.current = true
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
       }
     }
   }, [])
 
   useEffect(() => {
-    // NAS watcher solo corre en local; en Vercel el endpoint no existe y ensucia
-    // la consola con 404 por cada tick del interval.
+    // NAS watcher solo corre en local; en Vercel el endpoint no existe.
     if (!import.meta.env.DEV) return
     cargar()
-    const id = setInterval(cargar, POLL_MS)
+    intervalRef.current = setInterval(cargar, POLL_MS)
     return () => {
-      clearInterval(id)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
       abortRef.current?.abort()
     }
   }, [cargar])

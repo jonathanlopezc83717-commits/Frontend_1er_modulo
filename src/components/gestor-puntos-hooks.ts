@@ -370,6 +370,7 @@ interface FileRouting {
 
 interface ResumenCarpeta extends FileRouting {
   nombre: string
+  puntoId: string
 }
 
 interface PreviewSubcarpeta {
@@ -492,9 +493,11 @@ export function usePuntoCarpeta({
           const datos = await runConProgreso(() => procesarCarpetaPunto(fileListFiltrada, onProgressCarga))
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
-          await agregarDesdeDatos(datos, puntosLength + 1 + i)
+          const nuevoId = generarUUID()
+          await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId)
           resumen.push({
             nombre: datos.nombreCarpeta,
+            puntoId: nuevoId,
             kmz: !!datos.coordenadas,
             txt: !!datos.textoDocumento,
             excel: !!datos.excel,
@@ -612,6 +615,7 @@ export function usePuntoCarpeta({
         await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId)
         resumen.push({
           nombre: datos.nombreCarpeta,
+          puntoId: nuevoId,
           kmz: !!datos.coordenadas,
           txt: !!datos.textoDocumento,
           excel: !!datos.excel,
@@ -810,15 +814,18 @@ export function usePuntoCarpeta({
     setEditarPuntoCreado(true)
   }
 
-  const cargarArchivoIndividual = async (tipo: 'kmz' | 'txt' | 'excel', file: File) => {
-    if (!puntoActivo) return
+  type DestinoCarga = { id: string; moduloData: PuntoFerroviario['moduloData'] }
+
+  const cargarArchivoIndividual = async (tipo: 'kmz' | 'txt' | 'excel', file: File, destino?: DestinoCarga) => {
+    const pid = destino?.id ?? puntoActivo?.id
+    const moduloDataActual = destino?.moduloData ?? puntoActivo?.moduloData ?? {}
+    if (!pid) return
     const now = new Date().toISOString()
-    const moduloDataActual = puntoActivo.moduloData || {}
 
     if (tipo === 'kmz') {
       const coords = await extraerCoordenadasKMZ(file)
       if (!coords) return
-      actualizarPunto(puntoActivo.id, {
+      actualizarPunto(pid, {
         coordenadas: { lat: coords.y, lng: coords.x },
         moduloData: {
           ...moduloDataActual,
@@ -829,7 +836,6 @@ export function usePuntoCarpeta({
           },
         },
       })
-      setRoutingActual((prev) => (prev ? { ...prev, kmz: true } : prev))
     } else if (tipo === 'txt') {
       const texto = await leerArchivoTXT(file)
       const detectadas = parsearNomenclaturasDesdeTexto(texto)
@@ -839,7 +845,7 @@ export function usePuntoCarpeta({
         detectadas
       )
       setNomenclaturasGlobales(nomenclaturasActualizadas)
-      actualizarPunto(puntoActivo.id, {
+      actualizarPunto(pid, {
         moduloData: {
           ...moduloDataActual,
           documentacion: {
@@ -851,11 +857,10 @@ export function usePuntoCarpeta({
           },
         },
       })
-      setRoutingActual((prev) => (prev ? { ...prev, txt: true } : prev))
     } else if (tipo === 'excel') {
       const archivoId = (moduloDataActual.sincronizacion as { archivoId?: string } | undefined)?.archivoId || generarUUID()
       await guardarArchivoSincronizacion(archivoId, file)
-      actualizarPunto(puntoActivo.id, {
+      actualizarPunto(pid, {
         moduloData: {
           ...moduloDataActual,
           sincronizacion: {
@@ -867,14 +872,20 @@ export function usePuntoCarpeta({
           },
         },
       })
-      setRoutingActual((prev) => (prev ? { ...prev, excel: true } : prev))
+    }
+
+    if (destino) {
+      setResumenMultiple(prev => prev?.map(r => r.puntoId === pid ? { ...r, [tipo]: true } : r) ?? null)
+    } else {
+      setRoutingActual((prev) => (prev ? { ...prev, [tipo]: true } : prev))
     }
   }
 
-  const cargarFotos = async (files: File[]) => {
-    if (!puntoActivo || files.length === 0) return
+  const cargarFotos = async (files: File[], destino?: DestinoCarga) => {
+    const pid = destino?.id ?? puntoActivo?.id
+    const moduloDataActual = destino?.moduloData ?? puntoActivo?.moduloData ?? {}
+    if (!pid || files.length === 0) return
     const now = new Date().toISOString()
-    const moduloDataActual = puntoActivo.moduloData || {}
     const analisisActual = (moduloDataActual.analisis as { fotosIndexadas?: Array<{ id: string; index: number; nombre: string; nombreFormateado: string; subcarpeta: string; preview: string }>; subcarpetas?: string[] } | undefined) || {}
     const fotosExistentes = analisisActual.fotosIndexadas || []
     const nuevas = await Promise.all(files.map(async (file, i) => {
@@ -894,7 +905,7 @@ export function usePuntoCarpeta({
       }
     }))
     const todas = [...fotosExistentes, ...nuevas]
-    actualizarPunto(puntoActivo.id, {
+    actualizarPunto(pid, {
       moduloData: {
         ...moduloDataActual,
         analisis: {
@@ -906,7 +917,11 @@ export function usePuntoCarpeta({
         },
       },
     })
-    setRoutingActual((prev) => (prev ? { ...prev, fotos: todas.length } : prev))
+    if (destino) {
+      setResumenMultiple(prev => prev?.map(r => r.puntoId === pid ? { ...r, fotos: todas.length } : r) ?? null)
+    } else {
+      setRoutingActual((prev) => (prev ? { ...prev, fotos: todas.length } : prev))
+    }
   }
 
   return {

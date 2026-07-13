@@ -62,6 +62,7 @@ export function GestorPuntos() {
   const [seleccionadasSubcarpetas, setSeleccionadasSubcarpetas] = useState<Set<string>>(new Set())
   const [modoSerado, setModoSerado] = useState<'auto' | 'manual'>('auto')
   const [numerosManuales, setNumerosManuales] = useState<Record<string, number>>({})
+  const [cargaPendienteId, setCargaPendienteId] = useState<string | null>(null)
 
   const [dialogoBloquear, setDialogoBloquear] = useState<string | null>(null)
   const { puntoEditando, nombreEditado, setNombreEditado, handleDobleClic, handleGuardarEdicion, handleKeyDownEdicion } = useEdicionInline(actualizarPunto)
@@ -76,6 +77,10 @@ export function GestorPuntos() {
   const txtIndividualRef = useRef<HTMLInputElement>(null)
   const excelIndividualRef = useRef<HTMLInputElement>(null)
   const fotosIndividualRef = useRef<HTMLInputElement>(null)
+  const kmzResumenRef = useRef<HTMLInputElement>(null)
+  const txtResumenRef = useRef<HTMLInputElement>(null)
+  const excelResumenRef = useRef<HTMLInputElement>(null)
+  const fotosResumenRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Puntos ordenados según el filtro activo
@@ -124,6 +129,32 @@ export function GestorPuntos() {
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
   const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+
+  const abrirCargaResumen = (puntoId: string, tipo: 'kmz' | 'txt' | 'excel' | 'fotos') => {
+    setCargaPendienteId(puntoId)
+    const ref = { kmz: kmzResumenRef, txt: txtResumenRef, excel: excelResumenRef, fotos: fotosResumenRef }[tipo]
+    ref.current?.click()
+  }
+
+  const onFileResumen = async (e: React.ChangeEvent<HTMLInputElement>, tipo: 'kmz' | 'txt' | 'excel' | 'fotos') => {
+    const pid = cargaPendienteId
+    setCargaPendienteId(null)
+    if (!pid) { e.target.value = ''; return }
+    const punto = state.puntos.find(p => p.id === pid)
+    if (!punto) { e.target.value = ''; return }
+    const destino = { id: punto.id, moduloData: punto.moduloData }
+    try {
+      if (tipo === 'fotos') {
+        const fs = Array.from(e.target.files ?? [])
+        if (fs.length > 0) await cargarFotos(fs, destino)
+      } else {
+        const f = e.target.files?.[0]
+        if (f) await cargarArchivoIndividual(tipo, f, destino)
+      }
+    } finally {
+      e.target.value = ''
+    }
+  }
 
   useEffect(() => {
     if (previewsSubcarpetas) {
@@ -801,6 +832,10 @@ export function GestorPuntos() {
       {/* Dialog de routing manual */}
       <Dialog open={mostrarRouting} onOpenChange={(open) => { setMostrarRouting(open); if (!open) { setResumenMultiple(null); setPreviewsSubcarpetas(null) } }}>
         <DialogContent className={(resumenMultiple || previewsSubcarpetas) ? 'max-w-md' : 'max-w-sm'}>
+          <input ref={kmzResumenRef} type="file" accept=".kmz,.kml" className="hidden" onChange={(e) => onFileResumen(e, 'kmz')} />
+          <input ref={txtResumenRef} type="file" accept=".txt" className="hidden" onChange={(e) => onFileResumen(e, 'txt')} />
+          <input ref={excelResumenRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => onFileResumen(e, 'excel')} />
+          <input ref={fotosResumenRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => onFileResumen(e, 'fotos')} />
           <DialogHeader>
             {previewsSubcarpetas ? (
               <>
@@ -914,13 +949,41 @@ export function GestorPuntos() {
             <ScrollArea className="max-h-[60vh]">
               <div className="space-y-2 py-2 pr-2">
                 {resumenMultiple.map((r, i) => (
-                  <div key={i} className="rounded-md border p-2 space-y-1.5">
+                  <div key={r.puntoId} className="rounded-md border p-2 space-y-1.5">
                     <p className="text-sm font-medium">{i + 1}. {r.nombre}</p>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                      <span className={r.kmz ? 'text-green-700' : 'text-muted-foreground'}>{r.kmz ? '✓' : '✗'} KMZ</span>
-                      <span className={r.txt ? 'text-green-700' : 'text-muted-foreground'}>{r.txt ? '✓' : '✗'} TXT</span>
-                      <span className={r.excel ? 'text-green-700' : 'text-muted-foreground'}>{r.excel ? '✓' : '✗'} Excel</span>
-                      <span className={r.fotos > 0 ? 'text-green-700' : 'text-muted-foreground'}>{r.fotos > 0 ? `✓ ${r.fotos} fotos` : '✗ fotos'}</span>
+                      <span className={`inline-flex items-center gap-1 ${r.kmz ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {r.kmz ? '✓' : '✗'} KMZ
+                        {!r.kmz && (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]" onClick={() => abrirCargaResumen(r.puntoId, 'kmz')}>
+                            <Upload className="w-2.5 h-2.5 mr-0.5" />Cargar
+                          </Button>
+                        )}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 ${r.txt ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {r.txt ? '✓' : '✗'} TXT
+                        {!r.txt && (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]" onClick={() => abrirCargaResumen(r.puntoId, 'txt')}>
+                            <Upload className="w-2.5 h-2.5 mr-0.5" />Cargar
+                          </Button>
+                        )}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 ${r.excel ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {r.excel ? '✓' : '✗'} Excel
+                        {!r.excel && (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]" onClick={() => abrirCargaResumen(r.puntoId, 'excel')}>
+                            <Upload className="w-2.5 h-2.5 mr-0.5" />Cargar
+                          </Button>
+                        )}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 ${r.fotos > 0 ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {r.fotos > 0 ? `✓ ${r.fotos} fotos` : '✗ fotos'}
+                        {r.fotos === 0 && (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]" onClick={() => abrirCargaResumen(r.puntoId, 'fotos')}>
+                            <Upload className="w-2.5 h-2.5 mr-0.5" />Cargar
+                          </Button>
+                        )}
+                      </span>
                     </div>
                   </div>
                 ))}

@@ -494,7 +494,7 @@ export function usePuntoCarpeta({
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
           const nuevoId = generarUUID()
-          await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId)
+          await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId, false)
           resumen.push({
             nombre: datos.nombreCarpeta,
             puntoId: nuevoId,
@@ -612,7 +612,7 @@ export function usePuntoCarpeta({
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
         if (excelEnRaiz) datos.excel = excelEnRaiz
         const nuevoId = generarUUID()
-        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId)
+        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false)
         resumen.push({
           nombre: datos.nombreCarpeta,
           puntoId: nuevoId,
@@ -736,7 +736,7 @@ export function usePuntoCarpeta({
     }
   }
 
-  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string) => {
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string, dispararEdicion: boolean = true) => {
     const moduloData: Record<string, unknown> = {}
 
     if (datos.coordenadas) {
@@ -811,7 +811,7 @@ export function usePuntoCarpeta({
     }, id)
 
     setDatosCarpetaPreview(null)
-    setEditarPuntoCreado(true)
+    if (dispararEdicion) setEditarPuntoCreado(true)
   }
 
   type DestinoCarga = { id: string; moduloData: PuntoFerroviario['moduloData'] }

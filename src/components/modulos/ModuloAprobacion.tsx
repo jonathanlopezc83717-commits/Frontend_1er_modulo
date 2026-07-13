@@ -59,6 +59,9 @@ export function ModuloAprobacion() {
   }, [])
 
   useEffect(() => {
+    // NAS watcher solo corre en local; en Vercel el endpoint no existe y ensucia
+    // la consola con 404 por cada tick del interval.
+    if (!import.meta.env.DEV) return
     cargar()
     const id = setInterval(cargar, POLL_MS)
     return () => {

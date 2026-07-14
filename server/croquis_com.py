@@ -279,10 +279,11 @@ def capturar_croquis(
     filedia_prev = None
     try:
         doc = _obtener_doc(acad, archivo_dwg)
-        print(f"  doc: {doc.Name}", flush=True)
-        # Esperar a que termine la carga de referencias/ECW (sino capturamos el modal).
-        print("  esperando idle (carga ECW)...", flush=True)
+        # Esperar a que termine la carga del DWG + ortomosaico ANTES de tocar el
+        # doc (sino doc.Name recibe RPC_E_CALL_REJECTED mientras AutoCAD carga).
+        print("  esperando idle (carga del DWG/ortomosaico)...", flush=True)
         _esperar_idle(acad)
+        print(f"  doc: {_com(lambda: doc.Name)}", flush=True)
         # FILEDIA=0 antes de cualquier comando (evita dialogos que cuelgan COM).
         try:
             filedia_prev = _com(lambda: doc.GetVariable("FILEDIA"))
@@ -506,6 +507,9 @@ def _procesar_batch_gui(dwg, refs, puntos):
     top = tk.Tk()
     top.title(f"Croquis batch - {total} punto(s)")
     top.geometry("760x480")
+    # Mantener la ventana SIEMPRE al frente: conectar_autocad/_maximizar hacen
+    # SetForegroundWindow sobre AutoCAD y taparian esta ventana si no es topmost.
+    top.attributes("-topmost", True)
 
     estado_var = tk.StringVar(value="Iniciando...")
     tk.Label(top, textvariable=estado_var, font=("Segoe UI", 10, "bold"),

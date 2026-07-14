@@ -381,9 +381,12 @@ def _demo():
 
 
 def _leer_centro(carpeta_punto):
-    """Centro (x, y) del punto: B1 y C1 del primer .xlsx de la carpeta.
-    Formato esperado: #_nombre_fecha.xlsx, sin encabezado (fila 1 = datos),
-    con X en columna B e Y en columna C."""
+    """Centro (x, y) del PRIMER punto del primer .xlsx de la carpeta.
+
+    Lee B1/C1; si son texto (encabezado) prueba B2/C2. Devuelve el primer
+    punto valido encontrado (no itera mas alla de la fila 2). None si no hay
+    coordenadas numericas en B1/C1 ni B2/C2 (xlsx vacio o plantilla). X en
+    columna B, Y en columna C."""
     xlsxs = sorted(f for f in os.listdir(carpeta_punto) if f.lower().endswith(".xlsx"))
     if not xlsxs:
         return None
@@ -391,16 +394,14 @@ def _leer_centro(carpeta_punto):
     wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
     try:
         ws = wb.active
-        x = ws["B1"].value
-        y = ws["C1"].value
+        for x_ref, y_ref in (("B1", "C1"), ("B2", "C2")):
+            try:
+                return float(ws[x_ref].value), float(ws[y_ref].value)
+            except (TypeError, ValueError):
+                continue
+        return None
     finally:
         wb.close()
-    if x is None or y is None:
-        return None
-    try:
-        return float(x), float(y)
-    except (TypeError, ValueError):
-        return None
 
 
 def _elegir_puntos(raiz):

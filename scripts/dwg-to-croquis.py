@@ -33,6 +33,23 @@ from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 CM_POR_PULGADA = 2.54
 
 
+def _com_busy(fn, intentos=120, espera=1.0):
+    """Reintenta llamadas COM si AutoCAD esta ocupado (RPC_E_CALL_REJECTED /
+    RETRYLATER). Budget ~2 min. Patron de server/croquis_com.py."""
+    import time
+    import pywintypes
+    _BUSY = {-2147418111, -2147418102}
+    for k in range(intentos):
+        try:
+            return fn()
+        except pywintypes.com_error as e:
+            if getattr(e, "hresult", None) in _BUSY and k + 1 < intentos:
+                time.sleep(espera)
+                continue
+            raise
+    raise pywintypes.com_error(-2147418111, "RPC_E_CALL_REJECTED", None, None)
+
+
 def dwg_a_dxf(dwg_path: str) -> str:
     """Convierte DWG->DXF. Preferencia: dwg2dxf (LibreDWG). Si no esta en PATH,
     fallback a la instancia de AutoCAD ya abierta via COM (SaveAs acR12_dxf=1,
@@ -49,19 +66,28 @@ def dwg_a_dxf(dwg_path: str) -> str:
         import win32com.client
         import pythoncom
         pythoncom.CoInitialize()
-        acad = win32com.client.GetActiveObject("AutoCAD.Application")
+        acad = _com_busy(lambda: win32com.client.GetActiveObject("AutoCAD.Application"))
         tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False).name
         docs = acad.Documents
         nombre = os.path.basename(dwg_path).lower()
         doc = None
-        for i in range(docs.Count):
-            d = docs.Item(i)
-            if os.path.basename(str(d.FullName)).lower() == nombre:
+        for i in range(_com_busy(lambda: docs.Count)):
+            d = _com_busy(lambda i=i: docs.Item(i))
+            if os.path.basename(str(_com_busy(lambda d=d: d.FullName))).lower() == nombre:
                 doc = d
                 break
         if doc is None:
-            doc = docs.Open(os.path.abspath(dwg_path), True)  # ReadOnly
-        doc.SaveAs(os.path.abspath(tmp), 1)  # 1 = acR12_dxf
+            doc = _com_busy(lambda: docs.Open(os.path.abspath(dwg_path), True))  # ReadOnly
+        # Silenciar el dialogo "Version Conflict" de AEC/proxy objects antes
+        # del SaveAs a formato antiguo. PROXYGRAPHICS=1 guarda proxy graphics
+        # (los AEC quedan visibles pero no editables, suficiente para croquis).
+        for var, val in (("FILEDIA", 0), ("EXPERT", 5),
+                         ("PROXYGRAPHICS", 1), ("PROXYNOTICE", 0)):
+            try:
+                _com_busy(lambda var=var, val=val: doc.SetVariable(var, val), intentos=20)
+            except Exception:
+                pass
+        _com_busy(lambda: doc.SaveAs(os.path.abspath(tmp), 1))  # 1 = acR12_dxf
         return tmp
     except Exception as e:
         sys.exit(

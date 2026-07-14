@@ -95,21 +95,24 @@ def selftest() -> None:
 
 
 def gui() -> None:
-    """Modo interactivo: dialogo para carpeta raiz + coords X,Y.
+    """Modo interactivo: dialogo para carpeta raiz + Excel con coords X,Y.
 
     Espera en la carpeta raiz un unico .dwg o .dxf. El ortomosaico de fotos
     (si existe como subcarpeta) se ignora: el croquis sale del CAD, no de las
-    fotos. size fijo en 100x100 cm; para otro tamano usar el modo CLI.
+    fotos. Las coordenadas del punto se leen de B1 (X) y C1 (Y) del Excel que
+    el usuario seleccione. size fijo en 100x100 cm; para otro tamano, CLI --size.
     """
     import pathlib
     import tkinter as tk
-    from tkinter import filedialog, simpledialog, messagebox
+    from tkinter import filedialog, messagebox
 
     root = tk.Tk()
     root.withdraw()
+    root.attributes("-topmost", True)
 
     carpeta = filedialog.askdirectory(
-        title="Seleccione la carpeta raiz (con el .dwg/.dxf)")
+        title="Seleccione la carpeta raiz (con el .dwg/.dxf)",
+        parent=root)
     if not carpeta:
         return
 
@@ -125,14 +128,28 @@ def gui() -> None:
         return
     archivo = str(cad[0])
 
-    x = simpledialog.askfloat("Croquis", "Coordenada X del punto (cm):",
-                              parent=root)
-    if x is None:
+    xlsx = filedialog.askopenfilename(
+        title="Seleccione el Excel con las coordenadas (B1=X, C1=Y)",
+        filetypes=[("Excel", "*.xlsx")],
+        parent=root,
+    )
+    if not xlsx:
         return
-    y = simpledialog.askfloat("Croquis", "Coordenada Y del punto (cm):",
-                              parent=root)
-    if y is None:
-        return
+    import openpyxl
+    wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+    try:
+        ws = wb.active
+        try:
+            x = float(ws["B1"].value)
+            y = float(ws["C1"].value)
+        except (TypeError, ValueError):
+            messagebox.showerror(
+                "Croquis",
+                f"B1/C1 de {os.path.basename(xlsx)} no son numericos "
+                f"(B1={ws['B1'].value!r}, C1={ws['C1'].value!r}).")
+            return
+    finally:
+        wb.close()
 
     # ponytail: size 100 fijo (usuario pidio 100x100). Para otro tamano, modo CLI --size.
     SIZE_GUI = 100.0
@@ -196,9 +213,11 @@ def gui_batch() -> None:
 
     root = tk.Tk()
     root.withdraw()
+    root.attributes("-topmost", True)
 
     carpeta = filedialog.askdirectory(
-        title="Carpeta raiz (CAD + subcarpetas de puntos)")
+        title="Carpeta raiz (CAD + subcarpetas de puntos)",
+        parent=root)
     if not carpeta:
         return
 

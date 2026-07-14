@@ -94,6 +94,34 @@ def selftest() -> None:
     print(f"OK self-test: PNG de {kb:.1f} KB generado correctamente.")
 
 
+def _leer_xy(ruta: str) -> tuple[float, float] | tuple[None, None]:
+    """Lee (x, y) de B1/C1 del archivo (xlsx o csv). (None, None) si invalido.
+
+    CSV: B=columna 1, C=columna 2 de la primera fila no vacia (0-indexed).
+    xlsx: B1/C1 de la hoja activa via openpyxl. Mismo contrato que gui_batch.
+    """
+    if ruta.lower().endswith(".csv"):
+        import csv
+        try:
+            with open(ruta, newline="", encoding="utf-8-sig") as f:
+                fila = next(csv.reader(f), None)
+            if not fila or len(fila) < 3:
+                return None, None
+            return float(fila[1]), float(fila[2])
+        except (TypeError, ValueError, OSError):
+            return None, None
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
+        try:
+            ws = wb.active
+            return float(ws["B1"].value), float(ws["C1"].value)
+        finally:
+            wb.close()
+    except (TypeError, ValueError, OSError):
+        return None, None
+
+
 def gui() -> None:
     """Modo interactivo: dialogo para carpeta raiz + Excel con coords X,Y.
 
@@ -129,27 +157,19 @@ def gui() -> None:
     archivo = str(cad[0])
 
     xlsx = filedialog.askopenfilename(
-        title="Seleccione el Excel con las coordenadas (B1=X, C1=Y)",
-        filetypes=[("Excel", "*.xlsx")],
+        title="Seleccione el archivo con las coordenadas (B1=X, C1=Y)",
+        filetypes=[("Excel/CSV", "*.xlsx *.csv"), ("Excel", "*.xlsx"),
+                   ("CSV", "*.csv")],
         parent=root,
     )
     if not xlsx:
         return
-    import openpyxl
-    wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
-    try:
-        ws = wb.active
-        try:
-            x = float(ws["B1"].value)
-            y = float(ws["C1"].value)
-        except (TypeError, ValueError):
-            messagebox.showerror(
-                "Croquis",
-                f"B1/C1 de {os.path.basename(xlsx)} no son numericos "
-                f"(B1={ws['B1'].value!r}, C1={ws['C1'].value!r}).")
-            return
-    finally:
-        wb.close()
+    x, y = _leer_xy(xlsx)
+    if x is None:
+        messagebox.showerror(
+            "Croquis",
+            f"No se pudieron leer B1/C1 como numeros en:\n{xlsx}")
+        return
 
     # ponytail: size 100 fijo (usuario pidio 100x100). Para otro tamano, modo CLI --size.
     SIZE_GUI = 100.0

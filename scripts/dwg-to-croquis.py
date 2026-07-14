@@ -34,20 +34,43 @@ CM_POR_PULGADA = 2.54
 
 
 def dwg_a_dxf(dwg_path: str) -> str:
-    """Convierte DWG->DXF via LibreDWG (dwg2dxf). Aborta con instrucciones
-    claras si no esta instalado: ningun parser DWG puro funciona bien."""
+    """Convierte DWG->DXF. Preferencia: dwg2dxf (LibreDWG). Si no esta en PATH,
+    fallback a la instancia de AutoCAD ya abierta via COM (SaveAs acR12_dxf=1,
+    universalmente legible por ezdxf). Aborta con instrucciones si ambos fallan."""
     exe = shutil.which("dwg2dxf")
-    if not exe:
+    if exe:
+        tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False).name
+        subprocess.run([exe, "-y", "-o", tmp, dwg_path], check=True,
+                       capture_output=True)
+        return tmp
+    # Fallback COM: adhesivo a la instancia abierta de AutoCAD. Reusa pywin32
+    # (ya en el venv por server/croquis_com.py). Si AutoCAD no corre, falla limpio.
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        acad = win32com.client.GetActiveObject("AutoCAD.Application")
+        tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False).name
+        docs = acad.Documents
+        nombre = os.path.basename(dwg_path).lower()
+        doc = None
+        for i in range(docs.Count):
+            d = docs.Item(i)
+            if os.path.basename(str(d.FullName)).lower() == nombre:
+                doc = d
+                break
+        if doc is None:
+            doc = docs.Open(os.path.abspath(dwg_path), True)  # ReadOnly
+        doc.SaveAs(os.path.abspath(tmp), 1)  # 1 = acR12_dxf
+        return tmp
+    except Exception as e:
         sys.exit(
-            "ERROR: dwg2dxf (LibreDWG) no esta en PATH.\n"
+            "ERROR: dwg2dxf (LibreDWG) no esta en PATH y AutoCAD COM fallo:\n"
+            f"  {e}\n"
             "  - Instala LibreDWG: https://www.gnu.org/software/libredwg/\n"
-            "  - O exporta el DXF desde AutoCAD (Archivo > Guardar como > DXF)\n"
-            "    y pasa el .dxf a --input."
+            "  - O abre AutoCAD y reintenta (fallback COM usa la instancia activa)\n"
+            "  - O exporta el DXF desde AutoCAD (Archivo > Guardar como > DXF)"
         )
-    tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False).name
-    subprocess.run([exe, "-y", "-o", tmp, dwg_path], check=True,
-                   capture_output=True)
-    return tmp
 
 
 def renderizar(dxf_path: str, x: float, y: float, size: float,

@@ -382,16 +382,30 @@ def _demo():
 
 
 def _leer_centro(carpeta_punto):
-    """Centro (x, y) del PRIMER punto del primer .xlsx de la carpeta.
+    """Centro (x, y) del PRIMER punto del primer .xlsx o .csv de la carpeta.
 
-    Lee B1/C1; si son texto (encabezado) prueba B2/C2. Devuelve el primer
-    punto valido encontrado (no itera mas alla de la fila 2). None si no hay
-    coordenadas numericas en B1/C1 ni B2/C2 (xlsx vacio o plantilla). X en
-    columna B, Y en columna C."""
-    xlsxs = sorted(f for f in os.listdir(carpeta_punto) if f.lower().endswith(".xlsx"))
-    if not xlsxs:
+    xlsx: B1/C1 (o B2/C2 si la 1 es encabezado). CSV: cols 1,2 de la 1a fila
+    (0-indexed; mismo contrato que _leer_xy de dwg-to-croquis.py). None si no
+    hay coords numericas. X en col B, Y en col C."""
+    archivos = sorted(f for f in os.listdir(carpeta_punto)
+                      if f.lower().endswith((".xlsx", ".csv")))
+    if not archivos:
         return None
-    p = os.path.join(carpeta_punto, xlsxs[0])
+    p = os.path.join(carpeta_punto, archivos[0])
+    if p.lower().endswith(".csv"):
+        import csv
+        try:
+            with open(p, newline="", encoding="utf-8-sig") as f:
+                filas = list(csv.reader(f))
+            for fila in filas[:2]:  # B1/C1 y B2/C2 equivalentes
+                if len(fila) >= 3:
+                    try:
+                        return float(fila[1]), float(fila[2])
+                    except (TypeError, ValueError):
+                        continue
+        except OSError:
+            pass
+        return None
     wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
     try:
         ws = wb.active
@@ -401,6 +415,55 @@ def _leer_centro(carpeta_punto):
             except (TypeError, ValueError):
                 continue
         return None
+    finally:
+        wb.close()
+
+
+def _leer_puntos(carpeta_punto, max_n=0):
+    """Lista de (x, y, etiqueta) del primer .xlsx o .csv de la carpeta.
+
+    Recorre TODAS las filas con coords B/C numericas (no solo la primera).
+    Etiqueta = "p{N}" (1-based). max_n=0 = sin tope. Mismo parseo que
+    _leer_centro pero multiple. Vacio si no hay archivo o no hay filas validas.
+    """
+    archivos = sorted(f for f in os.listdir(carpeta_punto)
+                      if f.lower().endswith((".xlsx", ".csv")))
+    if not archivos:
+        return []
+    p = os.path.join(carpeta_punto, archivos[0])
+    out = []
+    if p.lower().endswith(".csv"):
+        import csv
+        try:
+            with open(p, newline="", encoding="utf-8-sig") as f:
+                filas = list(csv.reader(f))
+        except OSError:
+            return []
+        for i, fila in enumerate(filas, 1):
+            if len(fila) >= 3:
+                try:
+                    out.append((float(fila[1]), float(fila[2]), f"p{i}"))
+                except (TypeError, ValueError):
+                    continue
+            if max_n and len(out) >= max_n:
+                break
+        return out
+    wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
+    try:
+        ws = wb.active
+        r, sin_data = 1, 0
+        while sin_data < 5 and (not max_n or len(out) < max_n):
+            try:
+                x = float(ws[f"B{r}"].value)
+                y = float(ws[f"C{r}"].value)
+                out.append((x, y, f"p{r}"))
+                sin_data = 0
+            except (TypeError, ValueError):
+                sin_data += 1
+            r += 1
+            if r > 1000:
+                break
+        return out
     finally:
         wb.close()
 
@@ -417,6 +480,7 @@ def _elegir_puntos(raiz):
         return []
     top = tk.Tk()
     top.title("3/3 Selecciona carpeta(s) de punto")
+    top.attributes("-topmost", True)
     tk.Label(top, text=f"Subcarpetas de:\n{raiz}").pack(anchor="w", padx=8, pady=4)
     lb = tk.Listbox(top, selectmode="multiple", width=64, height=min(24, len(subdirs)))
     for d in subdirs:
@@ -461,9 +525,12 @@ def _batch_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox
 
-    tk.Tk().withdraw()
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
     raiz = filedialog.askdirectory(
-        title="1/3 Carpeta RAIZ (contiene el DWG y subcarpetas de puntos)"
+        title="1/3 Carpeta RAIZ (contiene el DWG y subcarpetas de puntos)",
+        parent=root,
     )
     if not raiz:
         return 0
@@ -489,23 +556,55 @@ def _batch_gui():
     if not puntos:
         return 0
 
-    return _procesar_batch_gui(dwg, refs, puntos)
+    # Cuantos puntos por subcarpeta (1 = solo B1/C1, 0 = todos los del CSV/xlsx)
+    from tkinter import simpledialog
+    n_por_sub = simpledialog.askinteger(
+        "Puntos por subcarpeta",
+        "Cuantos puntos procesar por subcarpeta?\n(0 = todos los del CSV/xlsx)",
+        initialvalue=1, minvalue=0, maxvalue=1000, parent=root,
+    )
+    if n_por_sub is None:
+        return 0
+
+    # Carpeta de salida (Cancelar = junto a cada subcarpeta, comportamiento por defecto)
+    salida = filedialog.askdirectory(
+        title="Carpeta de SALIDA (Cancelar = junto a cada subcarpeta)",
+        initialdir=raiz,
+        parent=root,
+    )
+    root.destroy()
+    output_dir = salida if salida else None
+
+    return _procesar_batch_gui(dwg, refs, puntos,
+                               n_por_sub=n_por_sub, output_dir=output_dir)
 
 
-def _procesar_batch_gui(dwg, refs, puntos):
+def _procesar_batch_gui(dwg, refs, puntos, n_por_sub=1, output_dir=None):
     """Crea la ventana de progreso y procesa los puntos actualizandola.
 
     Redirige sys.stdout al log widget para que los print(...) del flujo (conectar,
     abrir DWG, leer xlsx, capturar, etc.) aparezcan en vivo sin tocar las
     funciones internas. La barra muestra puntos completados y se estima el tiempo
-    restante con el promedio por punto."""
+    restante con el promedio por punto.
+
+    n_por_sub: cuantos puntos (X,Y) procesar por subcarpeta (0 = todos los del
+    CSV/xlsx). output_dir: carpeta donde dejar los PNG (None = junto a cada sub).
+    Al terminar, abre la carpeta de salida en Explorer."""
     import time as _time
     import tkinter as tk
     from tkinter import ttk, scrolledtext
 
-    total = len(puntos)
+    # Pre-conteo: total de puntos a procesar (sumando N por subcarpeta)
+    plan = []  # [(nombre_sub, [(x, y, label), ...], sub_path), ...]
+    for pp in puntos:
+        pts = _leer_puntos(pp, n_por_sub)
+        plan.append((os.path.basename(pp), pts, pp))
+    total = sum(len(pts) for _, pts, _ in plan)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
     top = tk.Tk()
-    top.title(f"Croquis batch - {total} punto(s)")
+    top.title(f"Croquis batch - {total} punto(s) en {len(plan)} subcarpeta(s)")
     top.geometry("760x480")
     # Mantener la ventana SIEMPRE al frente: conectar_autocad/_maximizar hacen
     # SetForegroundWindow sobre AutoCAD y taparian esta ventana si no es topmost.
@@ -515,7 +614,7 @@ def _procesar_batch_gui(dwg, refs, puntos):
     tk.Label(top, textvariable=estado_var, font=("Segoe UI", 10, "bold"),
              anchor="w").pack(fill="x", padx=10, pady=(10, 2))
 
-    pb = ttk.Progressbar(top, maximum=total, mode="determinate")
+    pb = ttk.Progressbar(top, maximum=max(total, 1), mode="determinate")
     pb.pack(fill="x", padx=10, pady=2)
 
     cuenta_var = tk.StringVar(value=f"0 / {total} completados")
@@ -568,32 +667,31 @@ def _procesar_batch_gui(dwg, refs, puntos):
         acad = conectar_autocad()
         if refs:
             _anadir_support_path(acad, refs)
-        for i, pp in enumerate(puntos, 1):
-            nombre = os.path.basename(pp)
-            estado_var.set(f"[{i}/{total}] {nombre}: leyendo coordenadas del xlsx...")
-            cuenta_var.set(f"{hechos} / {total} completados")
-            top.update()
-            xy = _leer_centro(pp)
-            if not xy:
-                print(f"[skip] {nombre}: sin xlsx con coordenadas validas en B1/C1", flush=True)
-            else:
-                x, y = xy
-                out = os.path.join(pp, nombre + ".png")
-                estado_var.set(f"[{i}/{total}] {nombre}: capturando en ({x}, {y})...")
+        for nombre, pts, pp in plan:
+            if not pts:
+                print(f"[skip] {nombre}: sin puntos validos en CSV/xlsx", flush=True)
+                continue
+            for (x, y, label) in pts:
+                estado_var.set(f"[{hechos+1}/{total}] {nombre} {label}: capturando ({x}, {y})...")
+                cuenta_var.set(f"{hechos} / {total} completados")
                 top.update()
-                print(f"[batch] {nombre}  centro=({x}, {y})  -> {out}", flush=True)
+                if output_dir:
+                    out = os.path.join(output_dir, f"{nombre}_{label}.png")
+                else:
+                    out = os.path.join(pp, f"{nombre}_{label}.png")
+                print(f"[batch] {nombre} {label}  centro=({x}, {y})  -> {out}", flush=True)
                 try:
                     o, kb = capturar_croquis(dwg, x, y, out, acad=acad, refs_folder=refs)
                     print(f"  OK: {o} ({kb} KB)", flush=True)
                     hechos += 1
                 except Exception as e:
                     print(f"  FAIL: {e}", flush=True)
-            pb["value"] = i
-            cuenta_var.set(f"{hechos} / {total} completados")
-            if hechos > 0:
-                avg = (_time.time() - t0) / hechos
-                eta_var.set(f"Tiempo restante aprox.: {_fmt_dur(avg * (total - i))}")
-            top.update()
+                pb["value"] = hechos
+                cuenta_var.set(f"{hechos} / {total} completados")
+                if hechos > 0:
+                    avg = (_time.time() - t0) / hechos
+                    eta_var.set(f"Tiempo restante aprox.: {_fmt_dur(avg * (total - hechos))}")
+                top.update()
     finally:
         sys.stdout = consola_real
 
@@ -601,7 +699,18 @@ def _procesar_batch_gui(dwg, refs, puntos):
     estado_var.set(f"Listo. {hechos}/{total} capturas OK.")
     eta_var.set(f"Tiempo total: {_fmt_dur(dur)}")
     print(f"\n==== RESUMEN: {hechos}/{total} capturas OK en {_fmt_dur(dur)} ====", flush=True)
-    tk.Button(top, text="Cerrar", command=top.destroy).pack(pady=4)
+    salida_final = output_dir or (puntos[0] if puntos else "")
+    if salida_final and os.path.isdir(salida_final):
+        try:
+            os.startfile(salida_final)
+            print(f"Carpeta de salida abierta: {salida_final}", flush=True)
+        except Exception as e:
+            print(f"(no se pudo abrir la carpeta: {e})", flush=True)
+    fr = tk.Frame(top)
+    fr.pack(pady=4)
+    tk.Button(fr, text="Abrir carpeta de salida",
+              command=lambda: os.startfile(salida_final)).pack(side="left", padx=4)
+    tk.Button(fr, text="Cerrar", command=top.destroy).pack(side="left", padx=4)
     top.mainloop()
 
     if acad is not None:
@@ -653,8 +762,9 @@ def main(argv):
     if batch:
         return _batch_gui()
     if not argv:
-        print(__doc__)
-        return _demo()
+        # Doble-clic / Run sin args: arrancar el flujo batch completo
+        # (pickers + Civil 3D), no _demo. Mismo patron que dwg-to-croquis.py:287.
+        return _batch_gui()
     if diag:
         dwg = posicionales[0] if posicionales else None
         if not dwg:

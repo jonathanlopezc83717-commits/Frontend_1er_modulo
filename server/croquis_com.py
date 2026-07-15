@@ -202,28 +202,104 @@ def _interact_gui():
     return dwg, (refs or None), x, y, salida
 
 
+def _minimizar_consola():
+    """Minimiza la ventana de la consola para que no salga en la captura.
+    Devuelve el HWND de la consola (0 si no hay)."""
+    import ctypes
+    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if hwnd:
+        ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+    return hwnd
+
+
+def _restaurar_consola(hwnd):
+    """Restaura la consola minimizada por _minimizar_consola."""
+    if hwnd:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+
+
+def _forzar_frente(hwnd):
+    """Trae el HWND de AutoCAD al frente superando las restricciones de
+    SetForegroundWindow (Windows bloquea el robo de foco entre procesos).
+    Usa AttachThreadInput para sincronizar el hilo foreground con el nuestro.
+    Devuelve True si AutoCAD quedo como ventana foreground."""
+    import ctypes
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    if user32.GetForegroundWindow() == hwnd:
+        return True
+    fg = user32.GetForegroundWindow()
+    fg_tid = user32.GetWindowThreadProcessId(fg, None)
+    our_tid = kernel32.GetCurrentThreadId()
+    attached = user32.AttachThreadInput(our_tid, fg_tid, True)
+    try:
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE (por si esta minimizada)
+        user32.SetForegroundWindow(hwnd)
+        user32.BringWindowToTop(hwnd)
+    finally:
+        if attached:
+            user32.AttachThreadInput(our_tid, fg_tid, False)
+    time.sleep(0.3)
+    return user32.GetForegroundWindow() == hwnd
+
+
+def _ventanas_autocad_visibles():
+    """Lista (hwnd, titulo) de ventanas visibles de AutoCAD/Civil 3D.
+    Para el aviso cuando hay varias instancias o ninguna al frente."""
+    import ctypes
+    user32 = ctypes.windll.user32
+    found = []
+    EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def _cb(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length == 0:
+            return True
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf)
+        titulo = buf.value
+        if any(k in titulo for k in ("AutoCAD", "Civil 3D", "Autodesk")):
+            found.append((int(hwnd), titulo))
+        return True
+    user32.EnumWindows(EnumWindowsProc(_cb), 0)
+    return found
+
+
 def _capturar_pantalla(acad, salida_png):
     """Captura el area cliente de Civil 3D. De usarse tras CLEANSCREENON y
-    maximizar, el area cliente es (casi todo) el lienzo de dibujo."""
-    hwnd = int(acad.HWND)
+    maximizar, el area cliente es (casi todo) el lienzo de dibujo.
+    Minimiza la consola durante la captura para que no aparezca en la imagen."""
+    consola = _minimizar_consola()
     try:
-        win32gui.SetForegroundWindow(hwnd)
-        time.sleep(0.3)
-    except Exception:
-        pass
-    cl = win32gui.GetClientRect(hwnd)
-    p1 = win32gui.ClientToScreen(hwnd, (0, 0))
-    p2 = win32gui.ClientToScreen(hwnd, (cl[2], cl[3]))
-    bbox = (p1[0], p1[1], p2[0], p2[1])
-    img = ImageGrab.grab(bbox, all_screens=True)
-    # Recortar la franja superior (menu/barra de herramientas que CleanScreen no oculta).
-    crop_top = int(os.environ.get("CROQUIS_CROP_TOP", "60"))
-    if crop_top > 0:
-        img = img.crop((0, crop_top, img.width, img.height))
-    print(f"  imagen {img.size} {img.mode} bbox={bbox} crop_top={crop_top}", flush=True)
-    out = os.path.abspath(salida_png)
-    img.save(out)
-    return os.path.getsize(out) // 1024
+        hwnd = int(_com(lambda: acad.HWND, intentos=300))
+        if not _forzar_frente(hwnd):
+            visibles = _ventanas_autocad_visibles()
+            print("  ADVERTENCIA: AutoCAD no quedo al frente; la captura puede no ser de AutoCAD.", flush=True)
+            if visibles:
+                print("  Ventanas de AutoCAD detectadas:", flush=True)
+                for h, t in visibles:
+                    print(f"    - [{h}] {t}", flush=True)
+        if os.environ.get("CROQUIS_CONFIRMAR_VENTANA"):
+            input("  ENTER para capturar (verifica que AutoCAD este al frente)... ")
+        time.sleep(0.5)
+        cl = win32gui.GetClientRect(hwnd)
+        p1 = win32gui.ClientToScreen(hwnd, (0, 0))
+        p2 = win32gui.ClientToScreen(hwnd, (cl[2], cl[3]))
+        bbox = (p1[0], p1[1], p2[0], p2[1])
+        img = ImageGrab.grab(bbox, all_screens=True)
+        # Recortar la franja superior (menu/barra de herramientas que CleanScreen no oculta).
+        crop_top = int(os.environ.get("CROQUIS_CROP_TOP", "60"))
+        if crop_top > 0:
+            img = img.crop((0, crop_top, img.width, img.height))
+        print(f"  imagen {img.size} {img.mode} bbox={bbox} crop_top={crop_top}", flush=True)
+        out = os.path.abspath(salida_png)
+        img.save(out)
+        return os.path.getsize(out) // 1024
+    finally:
+        _restaurar_consola(consola)
 
 
 def _volcar_rutas_imagenes(doc, archivo_salida):
@@ -306,7 +382,7 @@ def capturar_croquis(
         print("  ZoomWindow OK", flush=True)
         # Esperar a que carguen los tiles del ECW de la nueva vista + pintado final.
         _esperar_idle(acad)
-        time.sleep(3)
+        time.sleep(float(os.environ.get("CROQUIS_WAIT_AFTER_ZOOM", "8")))
         kb = _capturar_pantalla(acad, salida_png)
         return os.path.abspath(salida_png), kb
     finally:

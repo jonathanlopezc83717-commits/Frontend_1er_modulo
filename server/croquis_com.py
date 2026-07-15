@@ -131,19 +131,21 @@ def _esperar_idle(acad, budget_s=300):
 
 def _obtener_doc(acad, path: str):
     """Activa el DWG si ya esta abierto; si no, lo abre ReadOnly.
-    Reabrir un doc abierto dispara un dialogo modal que cuelga el COM."""
+    Reabrir un doc abierto dispara un dialogo modal que cuelga el COM.
+    Todas las llamadas COM envueltas en _com: en arranque en frio AutoCAD
+    rechaza llamadas (RPC_E_CALL_REJECTED) hasta terminar de cargar."""
     nombre = os.path.basename(path).lower()
-    docs = acad.Documents
+    docs = _com(lambda: acad.Documents)
     try:
         for i in range(_com(lambda: docs.Count)):
             d = _com(lambda: docs.Item(i))
-            if os.path.basename(str(d.FullName)).lower() == nombre:
+            if os.path.basename(str(_com(lambda: d.FullName))).lower() == nombre:
                 _com(lambda: d.Activate())
                 return d
     except Exception:
         pass
     _com(lambda: docs.Open(os.path.abspath(path), True))  # ReadOnly
-    return acad.ActiveDocument
+    return _com(lambda: acad.ActiveDocument)
 
 
 def _anadir_support_path(acad, carpeta):
@@ -151,17 +153,18 @@ def _anadir_support_path(acad, carpeta):
 
     AutoCAD resuelve XREFs/imagenes cuyo path guardado no existe buscando en el
     support path; esto evita el dialogo 'referencia no resuelta' que cuelga el Open.
+    Llamadas envueltas en _com (en frio AutoCAD rechaza hasta terminar de cargar).
     """
     if not carpeta:
         return False
     try:
-        files = acad.Preferences.Files
-        actual = str(files.SupportPath or "")
+        files = _com(lambda: acad.Preferences.Files)
+        actual = str(_com(lambda: files.SupportPath) or "")
         partes = [p for p in actual.split(";") if p]
         carpeta_abs = os.path.abspath(carpeta)
         if carpeta_abs not in partes:
             partes.append(carpeta_abs)
-            files.SupportPath = ";".join(partes)
+            _com(lambda: setattr(files, "SupportPath", ";".join(partes)))
         return True
     except Exception as e:
         print(f"  (SupportPath no seteable: {e})", flush=True)

@@ -48,9 +48,12 @@ def _seleccionar_puntos(parent, raiz):
     for d in subdirs:
         lb.insert("end", d)
     lb.pack(fill="x", padx=8)
-    ok = {"v": False}
+    ok = {"v": False, "sel": []}
 
     def _ok():
+        # Capturar la seleccion ANTES de destruir el Toplevel (sino el Listbox
+        # queda invalido y curselection() lanza TclError).
+        ok["sel"] = [os.path.join(raiz, subdirs[i]) for i in lb.curselection()]
         ok["v"] = True
         top.destroy()
 
@@ -62,7 +65,7 @@ def _seleccionar_puntos(parent, raiz):
     top.wait_window(top)
     if not ok["v"]:
         return []
-    return [os.path.join(raiz, subdirs[i]) for i in lb.curselection()]
+    return ok["sel"]
 
 
 def _pickers():
@@ -146,6 +149,10 @@ def main():
     hechos = 0
     try:
         acad = conectar_autocad()
+        # En arranque en frio AutoCAD rechaza llamadas COM hasta terminar de
+        # cargar. Esperar a que responda Version (senal de idle) antes de tocar nada.
+        print("[batch] Esperando a que AutoCAD este listo...", flush=True)
+        cc._esperar_idle(acad, 600)
         visibles = cc._ventanas_autocad_visibles()
         if len(visibles) > 1:
             print(f"\n[batch] ADVERTENCIA: hay {len(visibles)} ventanas de AutoCAD abiertas:", flush=True)

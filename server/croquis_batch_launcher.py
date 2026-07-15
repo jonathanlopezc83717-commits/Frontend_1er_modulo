@@ -26,13 +26,49 @@ conectar_autocad = cc.conectar_autocad
 capturar_croquis = cc.capturar_croquis
 _anadir_support_path = cc._anadir_support_path
 _leer_puntos = cc._leer_puntos
-_elegir_puntos = cc._elegir_puntos
 _fmt_dur = cc._fmt_dur
+
+
+def _seleccionar_puntos(parent, raiz):
+    """Multi-seleccion de subcarpetas como Toplevel sobre el root unico.
+    Evita crear un segundo tk.Tk() (antipatron que cuelga el mainloop).
+    Devuelve lista de rutas o [] si se cancela."""
+    import tkinter as tk
+
+    subdirs = sorted(
+        d for d in os.listdir(raiz)
+        if os.path.isdir(os.path.join(raiz, d)) and not d.startswith("."))
+    if not subdirs:
+        return []
+    top = tk.Toplevel(parent)
+    top.title("3/3 Selecciona carpeta(s) de punto")
+    top.attributes("-topmost", True)
+    tk.Label(top, text=f"Subcarpetas de:\n{raiz}").pack(anchor="w", padx=8, pady=4)
+    lb = tk.Listbox(top, selectmode="multiple", width=64, height=min(24, len(subdirs)))
+    for d in subdirs:
+        lb.insert("end", d)
+    lb.pack(fill="x", padx=8)
+    ok = {"v": False}
+
+    def _ok():
+        ok["v"] = True
+        top.destroy()
+
+    bb = tk.Frame(top)
+    bb.pack(pady=6)
+    tk.Button(bb, text="Cancelar", command=top.destroy).pack(side="left", padx=4)
+    tk.Button(bb, text="Generar croquis", command=_ok).pack(side="left", padx=4)
+    top.grab_set()
+    top.wait_window(top)
+    if not ok["v"]:
+        return []
+    return [os.path.join(raiz, subdirs[i]) for i in lb.curselection()]
 
 
 def _pickers():
     """Pickers Tkinter. Devuelve (dwg, refs, puntos, n_por_sub, output_dir) o None.
-    Importante: destruye Tk antes de retornar (COM va despues, sin GUI viva)."""
+    Usa UN SOLO root + Toplevel (crear dos tk.Tk() cuelga el mainloop).
+    Destruye el root antes de retornar (COM va despues, sin GUI viva)."""
     import tkinter as tk
     from tkinter import filedialog, messagebox, simpledialog
 
@@ -48,7 +84,7 @@ def _pickers():
 
     dwgs = sorted(f for f in os.listdir(raiz) if f.lower().endswith(".dwg"))
     if not dwgs:
-        messagebox.showerror("Error", f"No hay archivo .dwg en:\n{raiz}")
+        messagebox.showerror("Error", f"No hay archivo .dwg en:\n{raiz}", parent=root)
         root.destroy()
         return None
     if len(dwgs) == 1:
@@ -65,7 +101,7 @@ def _pickers():
     if not os.path.isdir(refs):
         refs = None
 
-    puntos = _elegir_puntos(raiz)
+    puntos = _seleccionar_puntos(root, raiz)
     if not puntos:
         root.destroy()
         return None

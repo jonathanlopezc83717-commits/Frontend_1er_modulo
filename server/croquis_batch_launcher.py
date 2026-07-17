@@ -109,11 +109,15 @@ def _pickers():
         root.destroy()
         return None
 
-    n_por_sub = simpledialog.askinteger(
-        "Puntos por subcarpeta",
-        "Cuantos puntos procesar por subcarpeta?\n(0 = todos los del CSV/xlsx)",
-        initialvalue=1, minvalue=0, maxvalue=1000, parent=root)
-    if n_por_sub is None:
+    n_por_sub = 1  # estatico: 1 punto por subcarpeta
+
+    size = simpledialog.askfloat(
+        "Rango de la foto (ventana)",
+        "Lado de la ventana de captura en unidades del DWG (cm).\n"
+        "200 = +-100 cm por lado (defecto).\n"
+        "Mas grande = mas contexto, mas chico = mas zoom.",
+        initialvalue=200.0, minvalue=1.0, maxvalue=100000.0, parent=root)
+    if size is None:
         root.destroy()
         return None
 
@@ -121,7 +125,7 @@ def _pickers():
         title="Carpeta de SALIDA (Cancelar = junto a cada subcarpeta)",
         initialdir=raiz, parent=root)
     root.destroy()  # CERRAR Tk antes de COM
-    return dwg, refs, puntos, n_por_sub, (salida or None)
+    return dwg, refs, puntos, n_por_sub, size, (salida or None)
 
 
 def main():
@@ -129,7 +133,7 @@ def main():
     sel = _pickers()
     if not sel:
         return 0
-    dwg, refs, puntos, n_por_sub, output_dir = sel
+    dwg, refs, puntos, n_por_sub, size, output_dir = sel
 
     plan = []
     for pp in puntos:
@@ -143,6 +147,7 @@ def main():
     print(f"[batch] DWG: {dwg}", flush=True)
     print(f"[batch] refs: {refs or '(ninguna)'}", flush=True)
     print(f"[batch] salida: {output_dir or '(junto a cada subcarpeta)'}", flush=True)
+    print(f"[batch] rango foto: {size} unidades ({size/2:.1f} por lado)", flush=True)
     print("[batch] Conectando a AutoCAD (arranque en frio si hace falta)...", flush=True)
 
     t0 = time.time()
@@ -178,7 +183,7 @@ def main():
                 print(f"\n[{hechos+1}/{total}] {nombre} {label}  centro=({x}, {y})", flush=True)
                 print(f"       -> {out}", flush=True)
                 try:
-                    o, kb = capturar_croquis(dwg, x, y, out, acad=acad, refs_folder=refs)
+                    o, kb = capturar_croquis(dwg, x, y, out, size_cm=size, acad=acad, refs_folder=refs)
                     print(f"  OK: {kb} KB", flush=True)
                     hechos += 1
                 except Exception as e:

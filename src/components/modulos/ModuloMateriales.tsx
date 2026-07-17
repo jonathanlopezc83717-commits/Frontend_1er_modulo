@@ -1379,10 +1379,6 @@ export function ModuloMateriales() {
   }
 
   const handleExportarTodo = async () => {
-    if (punto?.estadoAprobacion !== 'aprobado') {
-      toast.error('El punto debe estar aprobado en la pestaña Aprobación antes de exportar.')
-      return
-    }
     setExportando(true)
     const nombre = `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`
     try {
@@ -1481,7 +1477,7 @@ export function ModuloMateriales() {
                   <Eraser className="h-4 w-4" />
                   <span>Quitar fondo</span>
                 </label>
-                <Button size="sm" onClick={handleExportarTodo} disabled={exportando || punto?.estadoAprobacion !== 'aprobado'} title={punto?.estadoAprobacion !== 'aprobado' ? 'Aprueba el punto en la pestaña Aprobación' : undefined}>
+                <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
                   <FileText className="mr-2 h-4 w-4" />
                   {exportando ? 'Exportando...' : 'PDF + Excel'}
                 </Button>

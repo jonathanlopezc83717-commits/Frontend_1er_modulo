@@ -49,17 +49,17 @@ Swarm: default
 
 | Tool | Calls | Success | Failed | Avg Duration |
 |------|-------|---------|--------|--------------|
-| edit | 757 | 757 | 0 | 71ms |
-| read | 739 | 739 | 0 | 1289ms |
-| bash | 585 | 585 | 0 | 21624ms |
+| edit | 765 | 765 | 0 | 72ms |
+| read | 755 | 755 | 0 | 1265ms |
+| bash | 589 | 589 | 0 | 21663ms |
+| grep | 182 | 182 | 0 | 347ms |
 | write | 179 | 179 | 0 | 28ms |
-| grep | 173 | 173 | 0 | 333ms |
-| glob | 79 | 79 | 0 | 592ms |
+| glob | 80 | 80 | 0 | 587ms |
 | todowrite | 61 | 61 | 0 | 6ms |
 | build_check | 33 | 33 | 0 | 18812ms |
-| question | 32 | 32 | 0 | 272916ms |
-| codebase-memory-mcp_search_code | 23 | 23 | 0 | 2623ms |
-| codebase-memory-mcp_search_graph | 19 | 19 | 0 | 1592ms |
+| question | 33 | 33 | 0 | 269763ms |
+| codebase-memory-mcp_search_code | 26 | 26 | 0 | 2988ms |
+| codebase-memory-mcp_search_graph | 20 | 20 | 0 | 1517ms |
 | test_runner | 14 | 14 | 0 | 7675ms |
 | codebase-memory-mcp_get_code_snippet | 12 | 12 | 0 | 245ms |
 | declare_scope | 9 | 9 | 0 | 13ms |
@@ -74,12 +74,12 @@ Swarm: default
 | batch_symbols | 4 | 4 | 0 | 60ms |
 | set_qa_gates | 3 | 3 | 0 | 15ms |
 | task | 3 | 3 | 0 | 85398ms |
+| syntax_check | 3 | 3 | 0 | 446ms |
 | codebase-memory-mcp_list_projects | 3 | 3 | 0 | 47ms |
 | codebase-memory-mcp_index_status | 3 | 3 | 0 | 34ms |
 | swarm_command | 2 | 2 | 0 | 86ms |
 | pre_check_batch | 2 | 2 | 0 | 1252ms |
 | lint | 2 | 2 | 0 | 1216ms |
-| syntax_check | 2 | 2 | 0 | 511ms |
 | knowledge_query | 2 | 2 | 0 | 9ms |
 | spec_write | 1 | 1 | 0 | 33ms |
 | diff | 1 | 1 | 0 | 64ms |

@@ -38,7 +38,6 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
-import { dxfACroquis } from '@/lib/dxf-render'
 
 // =====================================================
 // TIPOS
@@ -294,6 +293,31 @@ function obtenerImagenesDeReconocimiento(punto: unknown): string[] {
   const urls = (analisis?.imageUrls || []) as string[]
   const fotos = (analisis?.fotosIndexadas || []) as Array<{ preview?: string }>
   return [...urls, ...fotos.map(f => f.preview || '')].filter(Boolean)
+}
+
+/**
+ * Busca el croquis de localización entre las fotos ya importadas del punto.
+ * El batch genera el PNG como `{nombrePunto}_{label}.png`, así que coincide
+ * por prefijo: nombre de archivo (sin extensión) igual al punto o que empiece
+ * con `{nombrePunto}_`. Preferencia PNG. Devuelve el dataURL/preview o ''.
+ */
+function buscarCroquisEnFotos(punto: unknown): string {
+  if (!punto || typeof punto !== 'object') return ''
+  const p = punto as Record<string, unknown>
+  const nombre = typeof p.nombre === 'string' ? p.nombre.trim() : ''
+  if (!nombre) return ''
+  const fotos = ((p.moduloData as Record<string, unknown> | undefined)?.analisis as
+    Record<string, unknown> | undefined)?.fotosIndexadas as
+    Array<{ nombre?: string; preview?: string }> | undefined
+  if (!Array.isArray(fotos)) return ''
+  const sinExt = (n: string) => n.replace(/\.[^/.]+$/, '')
+  const coincide = (f: { nombre?: string }) => {
+    const base = f.nombre ? sinExt(f.nombre) : ''
+    return base === nombre || base.startsWith(nombre + '_')
+  }
+  const png = fotos.find(f => coincide(f) && f.nombre?.toLowerCase().endsWith('.png'))
+  const cualquiera = fotos.find(f => coincide(f))
+  return (png || cualquiera || {}).preview || ''
 }
 
 async function leerImagen(file: File): Promise<string> {
@@ -1129,6 +1153,13 @@ export function ModuloMateriales() {
       }
     }
 
+    // Croquis de localización: se busca entre las fotos importadas del punto
+    // (el batch lo deja como {nombrePunto}_{label}.png en la carpeta).
+    if (!imagenesIniciales['croquis']) {
+      const croquis = buscarCroquisEnFotos(punto)
+      if (croquis) imagenesIniciales['croquis'] = croquis
+    }
+
     setValores(data?.valores || {})
     setImagenes(imagenesIniciales)
     setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
@@ -1378,25 +1409,6 @@ export function ModuloMateriales() {
     if (!file) return
     const preview = await leerImagen(file)
     setImagenes(prev => ({ ...prev, [key]: preview }))
-  }
-
-  const importarCroquisDesdeDxf = async (file?: File) => {
-    if (!file || !punto) return
-    try {
-      const texto = await file.text()
-      const geo = punto.moduloData?.georeferencia ?? punto.moduloData?.georeferenciacion
-      const x = Number(valores['6-B'] ?? geo?.coordenadas?.x ?? '')
-      const y = Number(valores['6-D'] ?? geo?.coordenadas?.y ?? '')
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        toast.error('Faltan coordenadas X/Y del punto. Pulsa "Autocompletar" o rellena 6-B/6-D.')
-        return
-      }
-      const dataUrl = dxfACroquis(texto, { x, y, size: 200 })
-      setImagenes(prev => ({ ...prev, croquis: dataUrl }))
-      toast.success('Croquis generado desde DXF (200×200 cm, ±100 cm del punto)')
-    } catch (err) {
-      toast.error('No se pudo procesar el DXF: ' + String(err))
-    }
   }
 
   const limpiarImagen = (key: string) => {
@@ -1684,11 +1696,7 @@ export function ModuloMateriales() {
                   <label className="text-xs font-medium text-muted-foreground">
                     Croquis de localización <span className="font-mono text-[10px] text-emerald-600">img-croquis</span>
                   </label>
-                  <label className="flex cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent"                     title="Genera el croquis recortando ±100 cm (200×200) del DXF en las coordenadas X/Y del punto">
-                    <FileText className="h-3 w-3" />
-                    Importar DXF
-                    <input type="file" accept=".dxf" className="hidden" onChange={e => importarCroquisDesdeDxf(e.target.files?.[0])} />
-                  </label>
+                  <span className="text-[10px] text-muted-foreground">Auto: {punto.nombre}_*.png</span>
                 </div>
                 <ImagePreview
                   image={imagenes.croquis || ''}

@@ -45,6 +45,18 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
     }
   }
 
+  // ponytail: toggle por carpeta. Reusa fotosSeleccionadas + onSeleccionChange,
+  // sin tocar ModuloAnalisis. Union al seleccionar, diferencia al quitar.
+  const toggleSeleccionCarpeta = (fotosGrupo: FotoIndexada[]) => {
+    const idsGrupo = fotosGrupo.map(f => f.id)
+    const todasSeleccionadas = idsGrupo.every(id => fotosSeleccionadas.includes(id))
+    if (todasSeleccionadas) {
+      onSeleccionChange(fotosSeleccionadas.filter(id => !idsGrupo.includes(id)))
+    } else {
+      onSeleccionChange(Array.from(new Set([...fotosSeleccionadas, ...idsGrupo])))
+    }
+  }
+
   const abrirImagen = (foto: FotoIndexada, index: number) => {
     setImagenAmpliada(foto)
     setIndiceActual(index)
@@ -174,10 +186,9 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
             return (
               <div key={subcarpeta} className="border border-border rounded-lg overflow-hidden">
                 {/* Header clicable de la carpeta */}
-                <button
-                  type="button"
+                <div
                   onClick={() => toggleCarpeta(subcarpeta)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-muted/40 hover:bg-muted/70 transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {abierta ? (
@@ -193,7 +204,28 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
                     <span className="text-sm font-medium text-foreground truncate">{subcarpeta}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {seleccionadasEnGrupo > 0 && (
+                    <Button
+                      variant={seleccionadasEnGrupo === fotosGrupo.length && fotosGrupo.length > 0 ? "default" : "outline"}
+                      size="sm"
+                      className="h-6 px-2 text-xs gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleSeleccionCarpeta(fotosGrupo)
+                      }}
+                      title={
+                        seleccionadasEnGrupo === fotosGrupo.length
+                          ? 'Quitar esta carpeta de la selección'
+                          : 'Seleccionar toda la carpeta'
+                      }
+                    >
+                      {seleccionadasEnGrupo === fotosGrupo.length && fotosGrupo.length > 0 ? (
+                        <CheckSquare className="w-3.5 h-3.5" />
+                      ) : (
+                        <Square className="w-3.5 h-3.5" />
+                      )}
+                      {seleccionadasEnGrupo === fotosGrupo.length ? 'Quitar' : 'Carpeta'}
+                    </Button>
+                    {seleccionadasEnGrupo > 0 && seleccionadasEnGrupo < fotosGrupo.length && (
                       <Badge variant="secondary" className="text-[10px]">
                         {seleccionadasEnGrupo}/{fotosGrupo.length}
                       </Badge>
@@ -204,7 +236,7 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
                       </Badge>
                     )}
                   </div>
-                </button>
+                </div>
 
                 {/* Contenido de la carpeta (solo cuando está abierta) */}
                 {abierta && (

@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
+import { separarDigitos } from '@/lib/excel-sync'
 
 // =====================================================
 // TIPOS
@@ -261,6 +262,28 @@ function extraerValor(punto: unknown, campo: string): string {
     }
     default:
       return buscarValorEnFicha(punto, campo) || ''
+  }
+}
+
+async function leerRangoCadenamiento(punto: unknown): Promise<{ inicio: string; fin: string } | null> {
+  // ponytail: backend safeJoin rejects paths outside watchPath; absolute paths → 404 → null, no client-side normalization needed
+  const p = (punto || {}) as { nasPath?: string; carpetaPath?: string }
+  const rel = String(p.nasPath || p.carpetaPath || '').replace(/^[/\\]+|[/\\]+$/g, '')
+  if (!rel) return null
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), 5000)
+  try {
+    const res = await fetch(`/api/nas-csv-rango?folder=${encodeURIComponent(rel)}`, { signal: ctrl.signal })
+    if (!res.ok) return null
+    const data = (await res.json()) as { inicio?: number; fin?: number }
+    return {
+      inicio: separarDigitos(Number(data.inicio), 2).separado,
+      fin: separarDigitos(Number(data.fin), 2).separado,
+    }
+  } catch {
+    return null
+  } finally {
+    clearTimeout(t)
   }
 }
 
@@ -1278,25 +1301,37 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const autocompletarDesdeModulos = () => {
+  const autocompletarDesdeModulos = async () => {
     if (!punto) return
-    const nuevosValores = { ...valores }
-    for (const [coord, campo] of Object.entries(COORD_A_CAMPO)) {
-      if (!nuevosValores[coord]) {
-        const val = extraerValor(punto, campo)
-        if (val) nuevosValores[coord] = val
+    try {
+      const rango = await leerRangoCadenamiento(punto)
+      const nuevosValores = { ...valores }
+      for (const [coord, campo] of Object.entries(COORD_A_CAMPO)) {
+        if (!nuevosValores[coord]) {
+          let val: string
+          if (campo === 'cadenamiento_inicio' && rango?.inicio) {
+            val = rango.inicio
+          } else if (campo === 'cadenamiento_fin' && rango?.fin) {
+            val = rango.fin
+          } else {
+            val = extraerValor(punto, campo)
+          }
+          if (val) nuevosValores[coord] = val
+        }
       }
-    }
-    const nuevasImagenes = { ...imagenes }
-    for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
-      if (!nuevasImagenes[key]) {
-        const val = extraerImagen(punto, campo)
-        if (val) nuevasImagenes[key] = val
+      const nuevasImagenes = { ...imagenes }
+      for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
+        if (!nuevasImagenes[key]) {
+          const val = extraerImagen(punto, campo)
+          if (val) nuevasImagenes[key] = val
+        }
       }
+      setValores(nuevosValores)
+      setImagenes(nuevasImagenes)
+      toast.success('Datos autocompletados desde otros módulos')
+    } catch (e) {
+      toast.error('No se pudo autocompletar cadenamiento: ' + String(e))
     }
-    setValores(nuevosValores)
-    setImagenes(nuevasImagenes)
-    toast.success('Datos autocompletados desde otros módulos')
   }
 
   const limpiarFicha = () => {

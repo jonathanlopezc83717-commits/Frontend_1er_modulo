@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, statSync, writeFileSync, renameSync } from 'node:fs'
+import { readFileSync, existsSync, statSync, writeFileSync, renameSync, readdirSync } from 'node:fs'
 import { join, resolve, normalize } from 'node:path'
 
 const ACK_BODY_LIMIT = 64 * 1024
@@ -86,6 +86,38 @@ export function nasBridgePlugin() {
           const stat = statSync(abs)
           res.setHeader('Content-Length', stat.size)
           res.end(readFileSync(abs))
+          return
+        }
+
+        if (url.pathname === '/api/nas-csv-rango' && req.method === 'GET') {
+          const rel = url.searchParams.get('folder') || ''
+          const abs = safeJoin(watchPath, rel)
+          if (!abs || !existsSync(abs) || !statSync(abs).isDirectory()) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'folder not found' }))
+            return
+          }
+          const csvName = readdirSync(abs).filter((n) => n.toLowerCase().endsWith('.csv')).sort()[0]
+          if (!csvName) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'no csv in folder' }))
+            return
+          }
+          const rows = readFileSync(join(abs, csvName), 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).map((l) => l.split(','))
+          let primeraX = null
+          for (const r of rows) { const n = Number(r[1]); if (Number.isFinite(n)) { primeraX = n; break } }
+          let ultimaX = null
+          for (let i = rows.length - 1; i >= 0; i--) { const n = Number(rows[i][1]); if (Number.isFinite(n)) { ultimaX = n; break } }
+          if (primeraX === null || ultimaX === null) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'no numeric rows' }))
+            return
+          }
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ inicio: primeraX, fin: ultimaX, archivo: csvName }))
           return
         }
 

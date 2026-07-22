@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
+import { toast } from 'sonner'
+import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
 
 import {
   Dialog,
@@ -43,7 +45,16 @@ import {
   ListOrdered,
   AlertTriangle,
   Upload,
+  Loader2,
+  FileDown,
 } from 'lucide-react'
+
+interface DatosFicha {
+  valores: Record<string, string>
+  imagenes?: Record<string, string>
+  numEvidencias?: number
+  quitarFondoLogos?: boolean
+}
 
 export function GestorPuntos() {
   const {
@@ -69,6 +80,7 @@ export function GestorPuntos() {
   const [sortKey, setSortKey] = useState<SortKey>('manual')
   const [barraBloqueada, setBarraBloqueada] = useState(false)
   const [dialogoReasignar, setDialogoReasignar] = useState(false)
+  const [generando, setGenerando] = useState(false)
   const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(state.puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const raizMultipuntoRef = useRef<HTMLInputElement>(null)
@@ -93,6 +105,52 @@ export function GestorPuntos() {
 
   const handleToggleSeleccionPunto = togglePunto
   const handleToggleSeleccionTodos = (checked: boolean) => toggleTodos(puntosOrdenados.map(p => p.id), checked)
+
+  // ponytail: lote de fichas reutilizando ordenarPuntos('cadenamiento-asc') +
+  // las funciones puras exportarPdfFicha/exportarExcelFicha. Lee moduloData.materiales.
+  const generarTodasLasFichas = async () => {
+    const conFicha = ordenarPuntos(
+      state.puntos.filter((p) => {
+        const m = (p.moduloData as Record<string, unknown> | undefined)?.materiales as DatosFicha | undefined
+        return !!m && !!m.valores
+      }),
+      'cadenamiento-asc'
+    )
+    if (conFicha.length === 0) {
+      toast.info('No hay puntos con datos de ficha para exportar')
+      return
+    }
+    setGenerando(true)
+    let ok = 0
+    const errores: string[] = []
+    try {
+      for (const p of conFicha) {
+        const m = (p.moduloData as Record<string, unknown>).materiales as DatosFicha
+        const safeNombre = (p.nombre || 'punto').replace(/[\\/:*?"<>|]/g, '')
+        const base = `Ficha_${p.cadenamiento ?? p.numeroSerie}_${safeNombre}`
+        try {
+          await exportarPdfFicha(m.valores, m.imagenes || {}, base, {
+            numEvidencias: m.numEvidencias,
+            quitarFondoLogos: m.quitarFondoLogos,
+          })
+          await exportarExcelFicha(m.valores, m.imagenes || {}, base, {
+            numEvidencias: m.numEvidencias,
+            quitarFondoLogos: m.quitarFondoLogos,
+          })
+          ok++
+        } catch (err) {
+          errores.push(`${p.nombre || p.id}: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      }
+      if (errores.length === 0) {
+        toast.success(`${ok} fichas (PDF+Excel) generadas`)
+      } else {
+        toast.error(`${ok} OK \u00b7 ${errores.length} con error`, { description: errores.slice(0, 5).join('\n') })
+      }
+    } finally {
+      setGenerando(false)
+    }
+  }
 
   const handleReasignarNumeros = () => {
     if (state.puntos.length === 0) return
@@ -280,6 +338,17 @@ export function GestorPuntos() {
                   Asignar archivos
                 </Button>
               )}
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={generarTodasLasFichas}
+                disabled={generando || state.puntos.length === 0}
+                size="sm"
+              >
+                {generando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+                {generando ? 'Generando...' : 'Generar todas las fichas'}
+              </Button>
             </div>
 
             {procesandoCarpeta && progreso && (

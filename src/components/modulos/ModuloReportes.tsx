@@ -1,12 +1,9 @@
-import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { BarChart3, Download, Printer, Loader2 } from 'lucide-react'
+import { BarChart3, Download, Printer } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { toast } from 'sonner'
-import { exportarPdfFicha, exportarExcelFicha } from './ModuloMateriales'
 
 const CHECKLIST_MODULOS = [
   { id: 'analisis', label: 'Analisis de Imagenes', aliases: ['analisis'] },
@@ -16,70 +13,9 @@ const CHECKLIST_MODULOS = [
   { id: 'ficha', label: 'Ficha', aliases: ['ficha'] },
 ]
 
-interface DatosFicha {
-  valores: Record<string, string>
-  imagenes?: Record<string, string>
-  numEvidencias?: number
-  quitarFondoLogos?: boolean
-}
-
-// ponytail: orden por cadenamiento. Parse del entero inicial del string
-// ("56", "16+200"). Sin cadenamiento -> al final. Sin parser pesado.
-function ordenCadenamiento(c?: string): number {
-  if (!c) return Number.MAX_SAFE_INTEGER
-  const m = c.match(/\d+/)
-  return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER
-}
-
 export function ModuloReportes() {
   const { state } = useApp()
   const punto = state.puntoActivo
-  const [generando, setGenerando] = useState(false)
-
-  const generarTodasLasFichas = async () => {
-    const conFicha = state.puntos
-      .filter((p) => {
-        const m = (p.moduloData as Record<string, unknown> | undefined)?.materiales as DatosFicha | undefined
-        return !!m && !!m.valores
-      })
-      .sort((a, b) => ordenCadenamiento(a.cadenamiento) - ordenCadenamiento(b.cadenamiento))
-
-    if (conFicha.length === 0) {
-      toast.info('No hay puntos con datos de ficha para exportar')
-      return
-    }
-
-    setGenerando(true)
-    let ok = 0
-    const errores: string[] = []
-    try {
-      for (const p of conFicha) {
-        const m = (p.moduloData as Record<string, unknown>).materiales as DatosFicha
-        const safeNombre = (p.nombre || 'punto').replace(/[\\/:*?"<>|]/g, '')
-        const base = `Ficha_${p.cadenamiento ?? p.numeroSerie}_${safeNombre}`
-        try {
-          await exportarPdfFicha(m.valores, m.imagenes || {}, base, {
-            numEvidencias: m.numEvidencias,
-            quitarFondoLogos: m.quitarFondoLogos,
-          })
-          await exportarExcelFicha(m.valores, m.imagenes || {}, base, {
-            numEvidencias: m.numEvidencias,
-            quitarFondoLogos: m.quitarFondoLogos,
-          })
-          ok++
-        } catch (err) {
-          errores.push(`${p.nombre || p.id}: ${err instanceof Error ? err.message : String(err)}`)
-        }
-      }
-      if (errores.length === 0) {
-        toast.success(`${ok} fichas (PDF+Excel) generadas`)
-      } else {
-        toast.error(`${ok} OK \u00b7 ${errores.length} con error`, { description: errores.slice(0, 5).join('\n') })
-      }
-    } finally {
-      setGenerando(false)
-    }
-  }
 
   const generarResumen = () => {
     if (!punto) return null
@@ -134,9 +70,9 @@ export function ModuloReportes() {
                 <CardTitle>Checklist del Punto</CardTitle>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={generarTodasLasFichas} disabled={generando}>
-                  {generando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-                  {generando ? 'Generando...' : 'Generar todas'}
+                <Button variant="outline" size="sm">
+                  <Download className="mr-1 h-4 w-4" />
+                  Exportar
                 </Button>
                 <Button variant="outline" size="sm">
                   <Printer className="mr-1 h-4 w-4" />

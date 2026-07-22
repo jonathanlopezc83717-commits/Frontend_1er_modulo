@@ -157,8 +157,14 @@ export function GestorPuntos() {
     const idsEnOrdenVisual = puntosOrdenados.map(p => p.id)
     idsEnOrdenVisual.forEach((id, idx) => {
       const punto = state.puntos.find(p => p.id === id)
-      if (punto && punto.numeroSerie !== idx + 1) {
-        actualizarPunto(id, { numeroSerie: idx + 1 })
+      if (!punto) return
+      const nuevaSeq = idx + 1
+      // ponytail: quita el número+separador inicial del nombre ("1. ", "01_ ", "3 - ")
+      // y antepone la secuencia nueva. Idempotente: reasignar no duplica prefijo.
+      const limpio = (punto.nombre || '').replace(/^\s*\d+[\s._:,)\-]+/, '').trim()
+      const nuevoNombre = `${nuevaSeq}. ${limpio}`
+      if (punto.numeroSerie !== nuevaSeq || punto.nombre !== nuevoNombre) {
+        actualizarPunto(id, { numeroSerie: nuevaSeq, nombre: nuevoNombre })
       }
     })
     setSortKey('manual')

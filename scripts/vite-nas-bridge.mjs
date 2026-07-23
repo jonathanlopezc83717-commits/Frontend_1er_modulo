@@ -98,18 +98,31 @@ export function nasBridgePlugin() {
             res.end(JSON.stringify({ error: 'folder not found' }))
             return
           }
-          const csvName = readdirSync(abs).filter((n) => n.toLowerCase().endsWith('.csv')).sort()[0]
-          if (!csvName) {
+          const entries = readdirSync(abs)
+          const csvName = entries.filter((n) => n.toLowerCase().endsWith('.csv')).sort()[0]
+          const xlsName = entries.filter((n) => /\.(xlsx|xls)$/i.test(n)).sort()[0]
+          let rows = null
+          let archivoUsado = null
+          if (csvName) {
+            rows = readFileSync(join(abs, csvName), 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).map((l) => l.split(','))
+            archivoUsado = csvName
+          } else if (xlsName) {
+            const XLSX = await import('xlsx')
+            const wb = XLSX.read(readFileSync(join(abs, xlsName)), { type: 'buffer' })
+            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' })
+            archivoUsado = xlsName
+          }
+          if (!rows) {
             res.statusCode = 404
             res.setHeader('Content-Type', 'application/json')
-            res.end(JSON.stringify({ error: 'no csv in folder' }))
+            res.end(JSON.stringify({ error: 'no csv/xlsx in folder' }))
             return
           }
-          const rows = readFileSync(join(abs, csvName), 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).map((l) => l.split(','))
+          const primerCoordUtm = (r) => { for (let c = 0; c < r.length; c++) { const n = Number(r[c]); if (Number.isFinite(n) && n > 100000) return n } return null }
           let primeraX = null
-          for (const r of rows) { const n = Number(r[1]); if (Number.isFinite(n)) { primeraX = n; break } }
+          for (const r of rows) { primeraX = primerCoordUtm(r); if (primeraX !== null) break }
           let ultimaX = null
-          for (let i = rows.length - 1; i >= 0; i--) { const n = Number(rows[i][1]); if (Number.isFinite(n)) { ultimaX = n; break } }
+          for (let i = rows.length - 1; i >= 0; i--) { ultimaX = primerCoordUtm(rows[i]); if (ultimaX !== null) break }
           if (primeraX === null || ultimaX === null) {
             res.statusCode = 404
             res.setHeader('Content-Type', 'application/json')
@@ -117,7 +130,7 @@ export function nasBridgePlugin() {
             return
           }
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ inicio: primeraX, fin: ultimaX, archivo: csvName }))
+          res.end(JSON.stringify({ inicio: primeraX, fin: ultimaX, archivo: archivoUsado }))
           return
         }
 

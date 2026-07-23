@@ -1315,10 +1315,10 @@ export function ModuloMateriales() {
       for (const [coord, campo] of Object.entries(COORD_A_CAMPO)) {
         if (!nuevosValores[coord]) {
           let val: string
-          if (campo === 'cadenamiento_inicio' && rango?.inicio) {
-            val = rango.inicio
-          } else if (campo === 'cadenamiento_fin' && rango?.fin) {
-            val = rango.fin
+          if (campo === 'cadenamiento_inicio') {
+            val = punto.cadenamiento || rango?.inicio || ''
+          } else if (campo === 'cadenamiento_fin') {
+            val = rango?.fin || ''
           } else {
             val = extraerValor(punto, campo)
           }

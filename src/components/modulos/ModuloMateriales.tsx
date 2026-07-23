@@ -1190,6 +1190,12 @@ export function ModuloMateriales() {
     setCargado(true)
   }, [punto?.id])
 
+  useEffect(() => {
+    if (!cargado || !punto) return
+    autocompletarDesdeModulos({ silencioso: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargado, punto?.id])
+
   // Persistir el logo derecho (logo 2) en localStorage como respaldo ante recargas.
   useEffect(() => {
     if (!cargado || !punto) return
@@ -1301,7 +1307,7 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const autocompletarDesdeModulos = async () => {
+  const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
     if (!punto) return
     try {
       const rango = await leerRangoCadenamiento(punto)
@@ -1328,9 +1334,9 @@ export function ModuloMateriales() {
       }
       setValores(nuevosValores)
       setImagenes(nuevasImagenes)
-      toast.success('Datos autocompletados desde otros módulos')
+      if (!opciones?.silencioso) toast.success('Datos autocompletados desde otros módulos')
     } catch (e) {
-      toast.error('No se pudo autocompletar cadenamiento: ' + String(e))
+      if (!opciones?.silencioso) toast.error('No se pudo autocompletar cadenamiento: ' + String(e))
     }
   }
 
@@ -1494,7 +1500,7 @@ export function ModuloMateriales() {
                 <CardTitle>Formato LMT-T11-02</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={autocompletarDesdeModulos}>
+                <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos()}>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Autocompletar
                 </Button>

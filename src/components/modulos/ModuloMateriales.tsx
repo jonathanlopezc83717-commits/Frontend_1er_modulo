@@ -266,6 +266,10 @@ function extraerValor(punto: unknown, campo: string): string {
 }
 
 async function leerRangoCadenamiento(punto: unknown): Promise<{ inicio: string; fin: string } | null> {
+  // ponytail: /api/nas-csv-rango solo existe en el dev server (vite-nas-bridge); en producción
+  // (Vercel serverless) no existe y bombardearlo generaba una cascada de 404 que congelaba la app.
+  // En prod se usa el cadenamiento ya guardado en el punto (fallback más abajo).
+  if (!import.meta.env.DEV) return null
   // ponytail: backend safeJoin rejects paths outside watchPath; absolute paths → 404 → null, no client-side normalization needed
   const p = (punto || {}) as { nasPath?: string; carpetaPath?: string }
   const rel = String(p.nasPath || p.carpetaPath || '').replace(/^[/\\]+|[/\\]+$/g, '')

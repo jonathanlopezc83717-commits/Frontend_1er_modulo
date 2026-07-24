@@ -41,7 +41,6 @@ if (!rootElement) {
 }
 
 try {
-  const tBoot = performance.now()
   createRoot(rootElement).render(
     <StrictMode>
       <AppProvider>
@@ -50,7 +49,6 @@ try {
       </AppProvider>
     </StrictMode>,
   )
-  console.log('[startup] bootstrap (render iniciado):', `${(performance.now() - tBoot).toFixed(0)}ms`)
   console.log('✅ Aplicación iniciada correctamente')
 } catch (error) {
   console.error('❌ Error al iniciar la aplicación:', error)

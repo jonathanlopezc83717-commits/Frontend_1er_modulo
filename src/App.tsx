@@ -123,11 +123,6 @@ function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [handleSincronizar, setModuloActivo])
 
-  // [diagnóstico arranque] marca cuándo React terminó de montar el árbol (incluye 9 módulos forceMount)
-  useEffect(() => {
-    console.log('[startup] first-paint-ready (árbol montado):', `${performance.now().toFixed(0)}ms`)
-  }, [])
-
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Header */}

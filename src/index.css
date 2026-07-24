@@ -59,7 +59,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: Arial, system-ui, -apple-system, sans-serif;
-    font-size: 14px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 100%;
   }
 }

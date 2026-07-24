@@ -105,7 +105,7 @@ export function ModuloReportes() {
                   key={modulo.id}
                   className={`flex items-center gap-2 rounded-lg border p-3 ${
                     modulo.completado
-                      ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30'
+                      ? 'border-green-200 bg-green-50'
                       : 'border-border bg-muted/50'
                   }`}
                 >

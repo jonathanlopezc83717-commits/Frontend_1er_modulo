@@ -92,6 +92,14 @@ interface SortableTabProps {
   tieneDatos: boolean
 }
 
+// [diagnóstico arranque] mide cuándo termina de montarse cada módulo (forceMount)
+function TimedModule({ name, children }: { name: string; children: React.ReactNode }) {
+  useEffect(() => {
+    console.log(`[startup] módulo montado "${name}":`, `${performance.now().toFixed(0)}ms`)
+  }, [name])
+  return <>{children}</>
+}
+
 function TabContent({ modulo, isActive, tieneDatos }: SortableTabProps) {
   const Icon = iconMap[modulo.icono]
   return (
@@ -266,7 +274,9 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
                   className="mt-0 h-full data-[state=inactive]:hidden"
                 >
                   <div className="p-4 h-full">
-                    <ModuloComponent />
+                    <TimedModule name={modulo.id}>
+                      <ModuloComponent />
+                    </TimedModule>
                   </div>
                 </TabsContent>
               )

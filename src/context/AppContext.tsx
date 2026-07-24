@@ -92,7 +92,12 @@ function getInitialState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, getInitialState())
+  const [state, dispatch] = useReducer(appReducer, undefined, () => {
+    const t = performance.now()
+    const s = getInitialState()
+    console.log(`[startup] getInitialState (localStorage): ${(performance.now() - t).toFixed(0)}ms`)
+    return s
+  })
   const [cargadoDesdeDB, setCargadoDesdeDB] = useState(false)
   const [estadoRestaurado, setEstadoRestaurado] = useState(false)
 
@@ -379,6 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [crearCopiaSeguridad, state.puntos])
 
   const cargarDesdeSupabase = useCallback(async () => {
+    const t0 = performance.now()
     try {
       const [ultimoEstado, estadosNube] = await Promise.all([
         obtenerUltimoEstadoAppDesdeNube(),
@@ -389,12 +395,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: ultimoEstado.snapshot })
         dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
         console.log(`Estado completo cargado desde Supabase: ${ultimoEstado.snapshot.puntos.length} puntos`)
+        console.log(`[startup] cloud-load (snapshot restaurado): ${(performance.now() - t0).toFixed(0)}ms`)
         return
       }
 
       const puntos = await cargarPuntosDesdeDB()
       dispatch({ type: 'SET_PUNTOS', payload: puntos })
         console.log(`📂 ${puntos.length} puntos cargados desde Supabase`)
+        console.log(`[startup] cloud-load (puntos desde DB): ${(performance.now() - t0).toFixed(0)}ms`)
     } catch (error) {
       console.error('Error cargando desde Supabase:', error)
       throw error

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube } from '@/lib/supabase-service'
-import type { EstadoGuardado } from '@/types'
+import { MODULOS, type EstadoGuardado } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 
@@ -103,11 +103,31 @@ function App() {
     setTituloEstado('')
   }
 
+  // Atajos de teclado desktop: Ctrl/Cmd+S guarda, Ctrl/Cmd+1..9 salta a cada módulo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const conMod = e.metaKey || e.ctrlKey
+      if (!conMod) return
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault()
+        handleSincronizar()
+        return
+      }
+      const n = parseInt(e.key, 10)
+      if (n >= 1 && n <= MODULOS.length) {
+        e.preventDefault()
+        setModuloActivo(MODULOS[n - 1].id)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleSincronizar, setModuloActivo])
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <header className="border-b bg-card shadow-sm shrink-0">
-        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between">
+        <div className="w-full px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-primary/10 rounded-lg">
               <LayoutDashboard className="w-5 h-5 text-primary" />
@@ -127,31 +147,31 @@ function App() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+              className="h-9 px-2 md:gap-1.5 shrink-0"
               onClick={handleSincronizar}
               disabled={sincronizando}
-              title="Guardar en la nube"
+              title="Guardar en la nube (Ctrl+S)"
             >
               <Save className={`w-4 h-4 ${sincronizando ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline text-xs">Guardar</span>
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+              className="h-9 px-2 md:gap-1.5 shrink-0"
               onClick={handleRecargarClick}
               disabled={estadoNubeCargando}
               title="Recargar desde la nube"
             >
               <Cloud className="w-4 h-4" />
+              <span className="hidden md:inline text-xs">Recargar</span>
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-9 w-9 shrink-0"
               onClick={() => setMostrarHistorial(true)}
               title="Historial de Obras"
             >
@@ -160,20 +180,20 @@ function App() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-primary hover:text-primary/80"
+              className="h-9 w-9 text-primary hover:text-primary/80 shrink-0"
               onClick={() => {
                 setMostrarNomenclaturas(true)
                 setMostrarFicha(true)
                 setModuloActivo('nomenclaturas')
               }}
-              title="Obras Ferroviarias"
+              title="Panel de obra: módulos y ficha"
             >
               <HardHat className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-9 w-9 shrink-0"
               onClick={() => setMostrarConfig(true)}
               title="Configuración"
             >
@@ -184,7 +204,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full px-3 py-3 overflow-hidden relative isolate">
+      <main className="flex-1 w-full px-4 py-3 overflow-hidden relative isolate">
         <div className="flex gap-3 h-full">
           {/* Sidebar desplegable - capa inferior */}
           <div className="shrink-0 z-10">
@@ -200,7 +220,7 @@ function App() {
 
       {/* Config Dialog */}
       <Dialog open={mostrarConfig} onOpenChange={setMostrarConfig}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Configuración</DialogTitle>
             <DialogDescription>

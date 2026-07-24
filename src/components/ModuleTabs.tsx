@@ -96,13 +96,13 @@ function TabContent({ modulo, isActive, tieneDatos }: SortableTabProps) {
   const Icon = iconMap[modulo.icono]
   return (
     <>
-      {Icon && <Icon className="w-3.5 h-3.5" />}
+      {Icon && <Icon className="w-4 h-4" />}
       <span className="hidden md:inline">{modulo.nombre}</span>
       <span className="md:hidden">{modulo.nombre.split(' ')[0]}</span>
       {tieneDatos && (
         <Badge
           variant={isActive ? "outline" : "secondary"}
-          className="ml-0.5 h-3 min-w-3 px-0.5 text-[8px]"
+          className="ml-1 h-3.5 min-w-3.5 px-1 text-[10px]"
         >
           ✓
         </Badge>
@@ -135,7 +135,7 @@ function SortableTab({ modulo, isActive, tieneDatos }: SortableTabProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="relative data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1 px-2 py-1.5 text-xs pointer-events-auto select-none"
+      className="relative data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5 px-2.5 py-2 text-sm pointer-events-auto select-none"
     >
       <TabContent modulo={modulo} isActive={isActive} tieneDatos={tieneDatos} />
     </TabsTrigger>
@@ -265,7 +265,7 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
                   forceMount
                   className="mt-0 h-full data-[state=inactive]:hidden"
                 >
-                  <div className="p-3 h-full">
+                  <div className="p-4 h-full">
                     <ModuloComponent />
                   </div>
                 </TabsContent>

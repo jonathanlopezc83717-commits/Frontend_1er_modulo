@@ -3,7 +3,7 @@ import { MODULOS, type ModuloConfig } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, memo, useMemo, useState } from 'react'
 import {
   DndContext,
   type DragEndEvent,
@@ -67,6 +67,14 @@ const componentMap: Record<string, React.ComponentType> = {
   ModuloSincronizacion,
   ModuloAprobacion,
 }
+
+// Memoizar los módulos: evita que re-rendericen cuando ModuleTabs re-renderiza por
+// estado local del drag (draggedId). El context (useApp) sigue forzando re-render cuando
+// cambia el estado global, que es lo correcto. Sin esto, arrastrar una pestaña re-renderiza
+// los 9 módulos (incluidos Ficha 48 calls / Materiales 41) en cada frame del mouse.
+const memoizedComponentMap: Record<string, React.ComponentType> = Object.fromEntries(
+  Object.entries(componentMap).map(([key, Comp]) => [key, memo(Comp)]),
+)
 
 interface ModuleTabsProps {
   mostrarNomenclaturas?: boolean
@@ -256,7 +264,7 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
 
           <div className="flex-1 overflow-hidden relative" style={{ zIndex: 20 }}>
             {modulosVisibles.map((modulo) => {
-              const ModuloComponent = componentMap[modulo.componente]
+              const ModuloComponent = memoizedComponentMap[modulo.componente]
 
               return (
                 <TabsContent

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { ImageUploader, type ImageItem } from '@/components/ImageUploader'
 import { AnalysisResult } from '@/components/AnalysisResult'
 import { ModelSelector } from '@/components/ModelSelector'
@@ -24,8 +24,14 @@ import { Images, Brain, AlertCircle, Trash2, Camera, Play, Square, Eye, FileText
 import type { AnalysisProgress } from '@/types'
 
 export function ModuloAnalisis() {
-  const { state, actualizarPunto, guardarAnalisisDB } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p
+      ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre, carpetaPath: p.carpetaPath, analisis: p.moduloData?.analisis }
+      : null
+  }, shallow)
+  const { actualizarPunto, guardarAnalisisDB } = useAppActions()
+  const store = useAppStore()
 
   const [selectedImages, setSelectedImages] = useState<ImageItem[]>([])
   const [analysisResults, setAnalysisResults] = useState<ImageAnalysisResult[]>([])
@@ -60,33 +66,34 @@ export function ModuloAnalisis() {
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Verificar si ya existe análisis guardado
-  const tieneAnalisisGuardado = punto?.moduloData?.analisis?.results && punto.moduloData.analisis.results.length > 0
+  const tieneAnalisisGuardado = punto?.analisis?.results && punto.analisis.results.length > 0
   const nombreCarpeta = punto?.carpetaPath
     ? punto.carpetaPath.split(/[\\/]/).filter(Boolean).pop() || punto.carpetaPath
     : ''
   const fotosConPreview = fotosIndexadas.filter(foto => foto.preview && foto.preview.trim().length > 0)
 
-  // Cargar datos guardados del punto
+  // Cargar datos guardados del punto. Lee estado live (selector estrecho sin
+  // moduloData); depende solo del id para no recargar en cada cambio ajeno.
   useEffect(() => {
-    if (punto?.moduloData?.analisis) {
-      const data = punto.moduloData.analisis
+    const data = store.getState().puntoActivo?.moduloData?.analisis
+    if (data) {
       setAnalysisResults(data.results || [])
       setImageUrls(
         data.imageUrls && data.imageUrls.length > 0
           ? data.imageUrls
           : data.fotosIndexadas?.map(foto => foto.preview) || []
       )
-      
+
       // Cargar fotos indexadas
       if (data.fotosIndexadas) {
         setFotosIndexadas(data.fotosIndexadas)
       }
-      
+
       // Cargar resultados por imagen si existen
       if (data.resultadosPorImagen) {
         setResultadosPorImagen(data.resultadosPorImagen)
       }
-      
+
       // Cargar descripción general
       if (data.descripcionGeneral) {
         setDescripcionGeneral(data.descripcionGeneral)
@@ -101,7 +108,7 @@ export function ModuloAnalisis() {
       setDescripcionGeneral('')
       setError(null)
     }
-  }, [punto])
+  }, [punto?.id, store])
 
   const handleProgressUpdate = useCallback(
     (
@@ -194,11 +201,12 @@ export function ModuloAnalisis() {
           const result = results[0]
           
           // Guardar en el estado local del punto
+          const liveModulo = store.getState().puntoActivo?.moduloData
           actualizarPunto(punto.id, {
             moduloData: {
-              ...punto.moduloData,
+              ...liveModulo,
               analisis: {
-                ...punto.moduloData?.analisis,
+                ...liveModulo?.analisis,
                 results: results,
                 imageUrls: displayUrls,
                 modelUsed: selectedModel,
@@ -275,11 +283,12 @@ export function ModuloAnalisis() {
     )
 
     setAnalysisResults(nuevosResultados)
+    const liveModulo = store.getState().puntoActivo?.moduloData
     actualizarPunto(punto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...liveModulo,
         analisis: {
-          ...punto.moduloData?.analisis,
+          ...liveModulo?.analisis,
           results: nuevosResultados,
           imageUrls,
           modelUsed: selectedModel,

@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,8 +10,12 @@ import { extraerCoordenadasKMZ } from '@/lib/folder-parser'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export function ModuloGeoreferencia() {
-  const { state, actualizarPunto, guardarCoordenadasDB } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre, coordenadas: p.coordenadas } : null
+  }, shallow)
+  const { actualizarPunto, guardarCoordenadasDB } = useAppActions()
+  const store = useAppStore()
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
   const [z, setZ] = useState('')
@@ -22,9 +26,13 @@ export function ModuloGeoreferencia() {
   const [nombreArchivoKMZ, setNombreArchivoKMZ] = useState('')
   const kmzInputRef = useRef<HTMLInputElement>(null)
 
-  // Cargar coordenadas del punto si existen
+  // Cargar coordenadas del punto si existen. Lee estado live: el selector de
+  // render es estrecho (sin moduloData), asi que aqui tomamos el punto actual.
+  // Depende solo del id del punto para no pisar edits locales sin guardar en
+  // cada cambio no relacionado del punto activo.
   useEffect(() => {
-    if (!punto) {
+    const live = store.getState().puntoActivo
+    if (!live) {
       setLat('')
       setLng('')
       setZ('')
@@ -36,15 +44,15 @@ export function ModuloGeoreferencia() {
     let coordsFound = false
 
     // PRIORIDAD 1: Coordenadas del punto principal (si ya fueron guardadas)
-    if (punto.coordenadas?.lat !== undefined && punto.coordenadas?.lng !== undefined) {
-      setLat(punto.coordenadas.lat.toString())
-      setLng(punto.coordenadas.lng.toString())
+    if (live.coordenadas?.lat !== undefined && live.coordenadas?.lng !== undefined) {
+      setLat(live.coordenadas.lat.toString())
+      setLng(live.coordenadas.lng.toString())
       coordsFound = true
     }
     
     // PRIORIDAD 2: Coordenadas del KMZ en moduloData.georeferencia
-    if (punto.moduloData?.georeferencia?.coordenadas) {
-      const geoData = punto.moduloData.georeferencia as {
+    if (live.moduloData?.georeferencia?.coordenadas) {
+      const geoData = live.moduloData.georeferencia as {
         coordenadas?: { x: number; y: number; z: number }
         notas?: string
       }
@@ -70,8 +78,8 @@ export function ModuloGeoreferencia() {
       setTieneCoordenadasKMZ(true)
     } 
     // PRIORIDAD 3: Compatibilidad con datos antiguos (georeferenciacion)
-    else if (punto.moduloData?.georeferenciacion?.coordenadas) {
-      const geoData = punto.moduloData.georeferenciacion as {
+    else if (live.moduloData?.georeferenciacion?.coordenadas) {
+      const geoData = live.moduloData.georeferenciacion as {
         coordenadas?: { x: number; y: number; z: number }
         notas?: string
       }
@@ -97,7 +105,7 @@ export function ModuloGeoreferencia() {
     } else {
       setTieneCoordenadasKMZ(false)
     }
-  }, [punto])
+  }, [punto?.id, store])
 
   const handleCargarKMZ = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -117,7 +125,7 @@ export function ModuloGeoreferencia() {
         // Actualizar punto con datos del KMZ
         actualizarPunto(punto.id, {
           moduloData: {
-            ...punto.moduloData,
+            ...(store.getState().puntoActivo?.moduloData || {}),
             georeferencia: {
               coordenadas: coords,
               notas: `Coordenadas extraídas de ${file.name}`,
@@ -160,7 +168,7 @@ export function ModuloGeoreferencia() {
           lng: isNaN(lngValue) ? 0 : lngValue,
         },
         moduloData: {
-          ...punto.moduloData,
+          ...(store.getState().puntoActivo?.moduloData || {}),
           georeferencia: {
             coordenadas: {
               x: isNaN(lngValue) ? 0 : lngValue,

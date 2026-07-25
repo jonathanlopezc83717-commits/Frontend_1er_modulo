@@ -1,3 +1,4 @@
+import { createContext, useContext, useSyncExternalStore, useRef } from 'react'
 import type { AppState, AppAction } from '@/types'
 
 export interface Store<S, A> {
@@ -50,3 +51,25 @@ export function shallow<T>(a: T, b: T): boolean {
 }
 
 export type AppStore = Store<AppState, AppAction>
+
+export const AppStoreContext = createContext<AppStore | null>(null)
+
+export function useAppSelector<T>(
+  selector: (state: AppState) => T,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  const store = useContext(AppStoreContext)
+  if (!store) {
+    throw new Error('useAppSelector debe usarse dentro de un AppProvider')
+  }
+  const cacheRef = useRef<{ value: T } | null>(null)
+  const getSelection = () => {
+    const next = selector(store.getSnapshot())
+    if (cacheRef.current && (equalityFn ?? Object.is)(next, cacheRef.current.value)) {
+      return cacheRef.current.value
+    }
+    cacheRef.current = { value: next }
+    return next
+  }
+  return useSyncExternalStore(store.subscribe, getSelection, getSelection)
+}

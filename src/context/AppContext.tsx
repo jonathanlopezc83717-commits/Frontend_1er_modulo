@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useSyncExternalStore, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { PuntoFerroviario, AppState, AppAction, EstadoGuardado, ImageAnalysisResult, PlantillaFormato, PlantillaPdfFormato } from '@/types'
 import { guardarEstado, cargarEstado, cargarEstadoCompleto } from '@/lib/storage'
@@ -17,6 +17,9 @@ import {
   obtenerUltimoEstadoAppDesdeNube,
 } from '@/lib/supabase-service'
 import { appReducer, MAX_ESTADOS_GUARDADOS, reenumerarPuntos } from './app-reducer'
+import { createStore, AppStoreContext, useAppSelector, shallow } from './app-store'
+
+export { useAppSelector, shallow }
 
 const initialState: AppState = {
   puntos: [],
@@ -59,6 +62,7 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null)
+const ActionsContext = createContext<Omit<AppContextType, 'state'> | null>(null)
 
 // Cargar estado inicial desde localStorage
 function getInitialState(): AppState {
@@ -92,7 +96,9 @@ function getInitialState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, getInitialState())
+  const [appStore] = useState(() => createStore(appReducer, getInitialState()))
+  const state = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot)
+  const dispatch = appStore.dispatch
   const [cargadoDesdeDB, setCargadoDesdeDB] = useState(false)
   const [estadoRestaurado, setEstadoRestaurado] = useState(false)
 
@@ -252,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const crearCopiaSeguridad = useCallback((tipo: EstadoGuardado['tipo'], descripcion?: string) => {
+    const s = appStore.getState()
     const estadoGuardado: EstadoGuardado = {
       id: generarUUID(),
       tipo,
@@ -259,22 +266,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
       snapshotCompleto: true,
       snapshot: {
-        puntos: JSON.parse(JSON.stringify(state.puntos)),
-        puntoActivoId: state.puntoActivo?.id || null,
-        moduloActivo: state.moduloActivo,
-        nomenclaturasGlobales: JSON.parse(JSON.stringify(state.nomenclaturasGlobales)),
-        plantillasFormato: JSON.parse(JSON.stringify(state.plantillasFormato)),
-        plantillasPdfFormato: JSON.parse(JSON.stringify(state.plantillasPdfFormato)),
-        plantillasFicha: JSON.parse(JSON.stringify(state.plantillasFicha)),
+        puntos: JSON.parse(JSON.stringify(s.puntos)),
+        puntoActivoId: s.puntoActivo?.id || null,
+        moduloActivo: s.moduloActivo,
+        nomenclaturasGlobales: JSON.parse(JSON.stringify(s.nomenclaturasGlobales)),
+        plantillasFormato: JSON.parse(JSON.stringify(s.plantillasFormato)),
+        plantillasPdfFormato: JSON.parse(JSON.stringify(s.plantillasPdfFormato)),
+        plantillasFicha: JSON.parse(JSON.stringify(s.plantillasFicha)),
       },
     }
 
     dispatch({ type: 'AGREGAR_ESTADO_GUARDADO', payload: estadoGuardado })
     return estadoGuardado
-  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha])
+  }, [appStore, dispatch])
 
   const restaurarEstadoGuardado = useCallback(async (id: string) => {
-    let estadoGuardado = state.estadosGuardados.find(estado => estado.id === id)
+    let estadoGuardado = appStore.getState().estadosGuardados.find(estado => estado.id === id)
     if (!estadoGuardado) return false
 
     if (estadoGuardado.snapshotCompleto === false) {
@@ -285,7 +292,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: estadoGuardado.snapshot })
     return true
-  }, [state.estadosGuardados])
+  }, [appStore, dispatch])
 
   useEffect(() => {
     const crearSiCorresponde = () => {
@@ -308,13 +315,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [crearCopiaSeguridad, state.estadosGuardados, state.puntos.length])
 
   const moverPunto = useCallback((id: string, nuevaPosicion: number) => {
-    const punto = state.puntos.find(p => p.id === id)
+    const puntos = appStore.getState().puntos
+    const punto = puntos.find(p => p.id === id)
     if (!punto) return
 
-    const otrosPuntos = state.puntos
+    const otrosPuntos = puntos
       .filter(p => p.id !== id)
       .sort((a, b) => a.numeroSerie - b.numeroSerie)
-    const posicionFinal = Math.max(1, Math.min(nuevaPosicion, state.puntos.length))
+    const posicionFinal = Math.max(1, Math.min(nuevaPosicion, puntos.length))
 
     const nuevosPuntos = reenumerarPuntos([
       ...otrosPuntos.slice(0, posicionFinal - 1),
@@ -323,21 +331,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ])
 
     dispatch({ type: 'REORDENAR_PUNTOS', payload: nuevosPuntos })
-  }, [state.puntos])
+  }, [appStore, dispatch])
 
   // NUEVAS FUNCIONES PARA SUPABASE
 
   const sincronizarConSupabase = useCallback(async () => {
     try {
+      const puntos = appStore.getState().puntos
       const copiaManual = crearCopiaSeguridad('manual', 'Estado guardado manualmente')
-      const total = state.puntos.length
+      const total = puntos.length
       const toastId = toast.loading('Sincronizando con la nube...', {
         description: `0 / ${total} puntos`,
       })
 
       // Sincronizar puntos y snapshot en paralelo: son independientes entre sí
       const [result, snapshotResult] = await Promise.all([
-        sincronizarPuntos(state.puntos, {
+        sincronizarPuntos(puntos, {
           concurrency: 5,
           onLote: (completadas, tot) => {
             toast.loading('Sincronizando con la nube...', {
@@ -376,7 +385,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return { success: false, message: String(error) }
     }
-  }, [crearCopiaSeguridad, state.puntos])
+  }, [crearCopiaSeguridad, appStore])
 
   const cargarDesdeSupabase = useCallback(async () => {
     try {
@@ -438,37 +447,57 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RENUMERAR_PUNTOS', payload: idsOrdenados })
   }, [])
 
+  const actions = useMemo<Omit<AppContextType, 'state'>>(() => ({
+    dispatch,
+    agregarPunto,
+    eliminarPunto,
+    setPuntoActivo,
+    setModuloActivo,
+    reordenarModulos,
+    actualizarPunto,
+    setNomenclaturasGlobales,
+    setPlantillasFormato,
+    setPlantillasPdfFormato,
+    setPlantillasFicha,
+    crearCopiaSeguridad,
+    restaurarEstadoGuardado,
+    moverPunto,
+    renumerarPuntos,
+    sincronizarConSupabase,
+    cargarDesdeSupabase,
+    cargarEstadoPorIdDesdeSupabase,
+    guardarCoordenadasDB,
+    guardarDocumentacionDB,
+    guardarAnalisisDB,
+    toggleBloquearPunto,
+  }), [
+    dispatch, agregarPunto, eliminarPunto, setPuntoActivo, setModuloActivo,
+    reordenarModulos, actualizarPunto, setNomenclaturasGlobales,
+    setPlantillasFormato, setPlantillasPdfFormato, setPlantillasFicha,
+    crearCopiaSeguridad, restaurarEstadoGuardado, moverPunto, renumerarPuntos,
+    sincronizarConSupabase, cargarDesdeSupabase, cargarEstadoPorIdDesdeSupabase,
+    guardarCoordenadasDB, guardarDocumentacionDB, guardarAnalisisDB, toggleBloquearPunto,
+  ])
+
+  const value = useMemo<AppContextType>(() => ({ state, ...actions }), [state, actions])
+
   return (
-    <AppContext.Provider
-      value={{
-        state,
-        dispatch,
-        agregarPunto,
-        eliminarPunto,
-        setPuntoActivo,
-        setModuloActivo,
-        reordenarModulos,
-        actualizarPunto,
-        setNomenclaturasGlobales,
-        setPlantillasFormato,
-        setPlantillasPdfFormato,
-        setPlantillasFicha,
-        crearCopiaSeguridad,
-        restaurarEstadoGuardado,
-        moverPunto,
-        renumerarPuntos,
-        sincronizarConSupabase,
-        cargarDesdeSupabase,
-        cargarEstadoPorIdDesdeSupabase,
-        guardarCoordenadasDB,
-        guardarDocumentacionDB,
-        guardarAnalisisDB,
-        toggleBloquearPunto,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <AppStoreContext.Provider value={appStore}>
+      <ActionsContext.Provider value={actions}>
+        <AppContext.Provider value={value}>
+          {children}
+        </AppContext.Provider>
+      </ActionsContext.Provider>
+    </AppStoreContext.Provider>
   )
+}
+
+export function useAppActions() {
+  const context = useContext(ActionsContext)
+  if (!context) {
+    throw new Error('useAppActions debe usarse dentro de un AppProvider')
+  }
+  return context
 }
 
 export function useApp() {

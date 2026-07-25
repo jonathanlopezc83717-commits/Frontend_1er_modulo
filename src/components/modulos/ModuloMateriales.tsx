@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1143,8 +1143,15 @@ export async function exportarExcelFicha(
 // =====================================================
 
 export function ModuloMateriales() {
-  const { state, actualizarPunto } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre } : null
+  }, shallow)
+  // Las evidencias/croquis se alimentan del análisis (otro slice). Suscripción
+  // estrecha: solo re-renderiza cuando cambia el análisis, no en cada edición.
+  const analisis = useAppSelector((s) => s.puntoActivo?.moduloData?.analisis)
+  const { actualizarPunto } = useAppActions()
+  const store = useAppStore()
 
   const [valores, setValores] = useState<Record<string, string>>({})
   const { opciones: opcionesCombo, registrar: registrarCombo } = useOpcionesCampos()
@@ -1161,17 +1168,19 @@ export function ModuloMateriales() {
   const [plantillaSeleccionadaId, setPlantillaSeleccionadaId] = useState<string>('')
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Cargar datos persistidos al montar o cambiar de punto
+  // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
+  // (selector estrecho sin moduloData); depende solo del id del punto.
   useEffect(() => {
-    const data = punto?.moduloData?.materiales as FichaFormatoData | undefined
+    const livePunto = store.getState().puntoActivo
+    const data = livePunto?.moduloData?.materiales as FichaFormatoData | undefined
     const imagenesGuardadas = data?.imagenes || {}
     let imagenesIniciales = { ...imagenesGuardadas }
 
     // Fallback: el logo derecho (logo 2) se conserva en localStorage porque
     // la copia ligera de localStorage puede descartar data URLs grandes.
-    if (punto && !imagenesIniciales['logo-der']) {
+    if (livePunto && !imagenesIniciales['logo-der']) {
       try {
-        const guardado = localStorage.getItem(logoDerStorageKey(punto.id))
+        const guardado = localStorage.getItem(logoDerStorageKey(livePunto.id))
         if (guardado) {
           imagenesIniciales['logo-der'] = guardado
         }
@@ -1183,7 +1192,7 @@ export function ModuloMateriales() {
     // Croquis de localización: se busca entre las fotos importadas del punto
     // (el batch lo deja como {nombrePunto}_{label}.png en la carpeta).
     if (!imagenesIniciales['croquis']) {
-      const croquis = buscarCroquisEnFotos(punto)
+      const croquis = buscarCroquisEnFotos(livePunto)
       if (croquis) imagenesIniciales['croquis'] = croquis
     }
 
@@ -1225,11 +1234,13 @@ export function ModuloMateriales() {
   const guardarRef = useRef<() => void>(() => {})
 
   // Guarda inmediatamente en el punto; se usa para autoguardado y flush al desmontar.
+  // Lee moduloData live: el selector de render es estrecho, y dispersar un snapshot
+  // stale clobberia los datos que otro modulo guardó concurrentemente.
   const guardarEnPunto = useCallback(() => {
     if (!punto) return
     actualizarPunto(punto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...(store.getState().puntoActivo?.moduloData),
         materiales: {
           valores,
           imagenes,
@@ -1239,7 +1250,7 @@ export function ModuloMateriales() {
         },
       },
     })
-  }, [actualizarPunto, punto, valores, imagenes, numEvidencias, quitarFondoLogos])
+  }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos])
 
   // Autoguardado: persistir cambios en el punto (con debounce corto)
   useEffect(() => {
@@ -1275,7 +1286,7 @@ export function ModuloMateriales() {
   // en los slots de evidencia fotográfica cuando cambia el número de fotos.
   const importarEvidenciasDesdeReconocimiento = useCallback((n: number) => {
     if (!punto) return
-    const disponibles = obtenerImagenesDeReconocimiento(punto)
+    const disponibles = obtenerImagenesDeReconocimiento(analisis ? { moduloData: { analisis } } : null)
     if (disponibles.length === 0) return
     setImagenes(prev => {
       const copia = { ...prev }
@@ -1289,7 +1300,7 @@ export function ModuloMateriales() {
       }
       return copia
     })
-  }, [punto])
+  }, [punto, analisis])
 
   useEffect(() => {
     if (!cargado || !punto) return
@@ -1303,8 +1314,8 @@ export function ModuloMateriales() {
   )
 
   const imagenesReconocimientoDisponibles = useMemo(
-    () => obtenerImagenesDeReconocimiento(punto),
-    [punto],
+    () => obtenerImagenesDeReconocimiento(analisis ? { moduloData: { analisis } } : null),
+    [analisis],
   )
 
   const actualizarValor = (coord: string, valor: string) => {
@@ -1312,19 +1323,20 @@ export function ModuloMateriales() {
   }
 
   const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
-    if (!punto) return
+    const livePunto = store.getState().puntoActivo
+    if (!livePunto) return
     try {
-      const rango = await leerRangoCadenamiento(punto)
+      const rango = await leerRangoCadenamiento(livePunto)
       const nuevosValores = { ...valores }
       for (const [coord, campo] of Object.entries(COORD_A_CAMPO)) {
         if (!nuevosValores[coord]) {
           let val: string
           if (campo === 'cadenamiento_inicio') {
-            val = punto.cadenamiento || rango?.inicio || ''
+            val = livePunto.cadenamiento || rango?.inicio || ''
           } else if (campo === 'cadenamiento_fin') {
             val = rango?.fin || ''
           } else {
-            val = extraerValor(punto, campo)
+            val = extraerValor(livePunto, campo)
           }
           if (val) nuevosValores[coord] = val
         }
@@ -1332,7 +1344,7 @@ export function ModuloMateriales() {
       const nuevasImagenes = { ...imagenes }
       for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
         if (!nuevasImagenes[key]) {
-          const val = extraerImagen(punto, campo)
+          const val = extraerImagen(livePunto, campo)
           if (val) nuevasImagenes[key] = val
         }
       }
@@ -1361,7 +1373,7 @@ export function ModuloMateriales() {
     if (!punto) return
     actualizarPunto(punto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...(store.getState().puntoActivo?.moduloData),
         materiales: {
           valores,
           imagenes,

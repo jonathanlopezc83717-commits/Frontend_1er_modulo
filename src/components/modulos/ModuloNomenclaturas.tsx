@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,16 +16,21 @@ import {
 } from '@/lib/nomenclaturas'
 
 export function ModuloNomenclaturas() {
-  const { state, actualizarPunto, setModuloActivo, setNomenclaturasGlobales } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre } : null
+  }, shallow)
+  const nomenclaturasGlobales = useAppSelector((s) => s.nomenclaturasGlobales)
+  const { actualizarPunto, setModuloActivo, setNomenclaturasGlobales } = useAppActions()
+  const store = useAppStore()
   const [nomenclaturas, setNomenclaturas] = useState<NomenclaturaEntry[]>([])
   const [nuevoCodigo, setNuevoCodigo] = useState('')
   const [nuevaDefinicion, setNuevaDefinicion] = useState('')
 
   // Cargar tabla global
   useEffect(() => {
-    setNomenclaturas(state.nomenclaturasGlobales)
-  }, [state.nomenclaturasGlobales])
+    setNomenclaturas(nomenclaturasGlobales)
+  }, [nomenclaturasGlobales])
 
   const guardarNomenclaturas = (nuevasNomenclaturas: NomenclaturaEntry[]) => {
     setNomenclaturas(nuevasNomenclaturas)
@@ -66,25 +71,26 @@ export function ModuloNomenclaturas() {
   }
 
   const agregarADocumentacion = (nom: NomenclaturaEntry) => {
-    if (!punto) {
+    const livePunto = store.getState().puntoActivo
+    if (!livePunto) {
       alert('Selecciona un punto para agregar el elemento a documentacion')
       return
     }
 
-    const notasActuales = punto.moduloData?.documentacion?.notas || ''
+    const notasActuales = livePunto.moduloData?.documentacion?.notas || ''
     const codigoSeriado = obtenerSiguienteCodigoSeriado(notasActuales, nom.codigo)
     const bloque = `${codigoSeriado}\n${nom.definicion}`
     const notasActualizadas = notasActuales.trim()
       ? `${notasActuales.trim()}\n\n${bloque}`
       : bloque
 
-    actualizarPunto(punto.id, {
+    actualizarPunto(livePunto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...livePunto.moduloData,
         documentacion: {
-          ...punto.moduloData?.documentacion,
+          ...livePunto.moduloData?.documentacion,
           notas: notasActualizadas,
-          nombreArchivo: punto.moduloData?.documentacion?.nombreArchivo || 'documento.txt',
+          nombreArchivo: livePunto.moduloData?.documentacion?.nombreArchivo || 'documento.txt',
           updatedAt: new Date().toISOString(),
         },
       },
@@ -94,12 +100,12 @@ export function ModuloNomenclaturas() {
 
   // Parsear nomenclaturas desde el documento
   const parsearNomenclaturas = () => {
-    if (!punto?.moduloData?.documentacion?.notas) {
+    const notas = store.getState().puntoActivo?.moduloData?.documentacion?.notas
+    if (!notas) {
       alert('No hay documento con texto para analizar')
       return
     }
 
-    const notas = punto.moduloData.documentacion.notas
     const detectadas = parsearNomenclaturasDesdeTexto(notas)
     const discrepancias = obtenerDiscrepanciasNomenclaturas(nomenclaturas, detectadas)
     const todas = fusionarNomenclaturas(nomenclaturas, detectadas)

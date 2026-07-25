@@ -54,6 +54,20 @@ export type AppStore = Store<AppState, AppAction>
 
 export const AppStoreContext = createContext<AppStore | null>(null)
 
+// Imperative access to the live store. Needed by consumers that, after
+// narrowing their `useAppSelector` reads, still must read the CURRENT state at
+// write-time (e.g. spreading `puntoActivo.moduloData` to preserve sibling keys)
+// or load data on point-change. Selectors only give a render snapshot, which
+// goes stale when a consumer no longer re-renders on sibling edits; reading
+// live avoids clobbering a concurrent sibling save.
+export function useAppStore(): AppStore {
+  const store = useContext(AppStoreContext)
+  if (!store) {
+    throw new Error('useAppStore debe usarse dentro de un AppProvider')
+  }
+  return store
+}
+
 export function useAppSelector<T>(
   selector: (state: AppState) => T,
   equalityFn?: (a: T, b: T) => boolean

@@ -17,9 +17,9 @@ import {
   obtenerUltimoEstadoAppDesdeNube,
 } from '@/lib/supabase-service'
 import { appReducer, MAX_ESTADOS_GUARDADOS, reenumerarPuntos } from './app-reducer'
-import { createStore, AppStoreContext, useAppSelector, shallow } from './app-store'
+import { createStore, AppStoreContext, useAppSelector, useAppStore, shallow } from './app-store'
 
-export { useAppSelector, shallow }
+export { useAppSelector, useAppStore, shallow }
 
 const initialState: AppState = {
   puntos: [],

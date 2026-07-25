@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions } from '@/context/AppContext'
 import { obtenerHistorialCompleto, type HistorialDB } from '@/lib/supabase-service'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +29,8 @@ const coloresEvento: Record<string, string> = {
 }
 
 export function HistorialObras() {
-  const { state, restaurarEstadoGuardado } = useApp()
+  const estadosGuardados = useAppSelector((s) => s.estadosGuardados)
+  const { restaurarEstadoGuardado } = useAppActions()
   const [historial, setHistorial] = useState<HistorialDB[]>([])
   const [cargando, setCargando] = useState(true)
 
@@ -80,7 +81,7 @@ export function HistorialObras() {
     )
   }
 
-  if (historial.length === 0 && state.estadosGuardados.length === 0) {
+  if (historial.length === 0 && estadosGuardados.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
@@ -93,17 +94,17 @@ export function HistorialObras() {
   return (
     <ScrollArea className="h-[500px]">
       <div className="space-y-4">
-        {state.estadosGuardados.length > 0 && (
+        {estadosGuardados.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Archive className="h-4 w-4 text-primary" />
                 Estados guardados
               </div>
-              <Badge variant="secondary">{state.estadosGuardados.length}</Badge>
+              <Badge variant="secondary">{estadosGuardados.length}</Badge>
             </div>
 
-            {state.estadosGuardados.map((estado) => (
+            {estadosGuardados.map((estado) => (
               <Card key={estado.id} className="border-l-4 border-l-amber-500">
                 <CardContent className="py-3">
                   <div className="flex items-start justify-between gap-3">
@@ -142,7 +143,7 @@ export function HistorialObras() {
           </div>
         )}
 
-        {historial.length > 0 && state.estadosGuardados.length > 0 && <Separator />}
+        {historial.length > 0 && estadosGuardados.length > 0 && <Separator />}
 
         {historial.length > 0 && (
           <div className="space-y-3">

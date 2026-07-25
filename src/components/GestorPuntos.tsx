@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions } from '@/context/AppContext'
 import { ordenarPuntos, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
@@ -57,8 +57,10 @@ interface DatosFicha {
 }
 
 export function GestorPuntos() {
+  const puntos = useAppSelector((s) => s.puntos)
+  const puntoActivo = useAppSelector((s) => s.puntoActivo)
+  const nomenclaturasGlobales = useAppSelector((s) => s.nomenclaturasGlobales)
   const {
-    state,
     agregarPunto,
     eliminarPunto,
     setPuntoActivo,
@@ -66,7 +68,7 @@ export function GestorPuntos() {
     setNomenclaturasGlobales,
     moverPunto,
     toggleBloquearPunto,
-  } = useApp()
+  } = useAppActions()
   const [expandido, setExpandido] = useState(false)
   const [dialogoEliminar, setDialogoEliminar] = useState<string | null>(null)
   const [dialogoEliminarSeleccionados, setDialogoEliminarSeleccionados] = useState(false)
@@ -81,7 +83,7 @@ export function GestorPuntos() {
   const [barraBloqueada, setBarraBloqueada] = useState(false)
   const [dialogoReasignar, setDialogoReasignar] = useState(false)
   const [generando, setGenerando] = useState(false)
-  const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(state.puntos)
+  const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const raizMultipuntoRef = useRef<HTMLInputElement>(null)
   const routingInputRef = useRef<HTMLInputElement>(null)
@@ -96,7 +98,7 @@ export function GestorPuntos() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Puntos ordenados según el filtro activo
-  const puntosOrdenados = useMemo(() => ordenarPuntos(state.puntos, sortKey), [state.puntos, sortKey])
+  const puntosOrdenados = useMemo(() => ordenarPuntos(puntos, sortKey), [puntos, sortKey])
 
   const { swipeState, dragState, itemRefs, handlePointerDown, getSwipeOffset, shouldIgnoreDragStart } = useReordenarPuntos({ puntosOrdenados, moverPunto, setSortKey })
 
@@ -110,7 +112,7 @@ export function GestorPuntos() {
   // las funciones puras exportarPdfFicha/exportarExcelFicha. Lee moduloData.materiales.
   const generarTodasLasFichas = async () => {
     const conFicha = ordenarPuntos(
-      state.puntos.filter((p) => {
+      puntos.filter((p) => {
         const m = (p.moduloData as Record<string, unknown> | undefined)?.materiales as DatosFicha | undefined
         return !!m && !!m.valores
       }),
@@ -153,10 +155,10 @@ export function GestorPuntos() {
   }
 
   const handleReasignarNumeros = () => {
-    if (state.puntos.length === 0) return
+    if (puntos.length === 0) return
     const idsEnOrdenVisual = puntosOrdenados.map(p => p.id)
     idsEnOrdenVisual.forEach((id, idx) => {
-      const punto = state.puntos.find(p => p.id === id)
+      const punto = puntos.find(p => p.id === id)
       if (!punto) return
       const nuevaSeq = idx + 1
       // ponytail: quita el número+separador inicial del nombre ("1. ", "01_ ", "3 - ")
@@ -191,8 +193,8 @@ export function GestorPuntos() {
     setDialogoBloquear(null)
   }
 
-  const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: state.puntos, puntoActivo: state.puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: state.puntoActivo, nomenclaturasGlobales: state.nomenclaturasGlobales, puntosLength: state.puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: puntos, puntoActivo: puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
+  const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: puntoActivo, nomenclaturasGlobales: nomenclaturasGlobales, puntosLength: puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   const abrirCargaResumen = (puntoId: string, tipo: 'kmz' | 'txt' | 'excel' | 'fotos') => {
     setCargaPendienteId(puntoId)
@@ -204,7 +206,7 @@ export function GestorPuntos() {
     const pid = cargaPendienteId
     setCargaPendienteId(null)
     if (!pid) { e.target.value = ''; return }
-    const punto = state.puntos.find(p => p.id === pid)
+    const punto = puntos.find(p => p.id === pid)
     if (!punto) { e.target.value = ''; return }
     const destino = { id: punto.id, moduloData: punto.moduloData }
     try {
@@ -257,7 +259,7 @@ export function GestorPuntos() {
               <span className="font-semibold text-sm">Puntos</span>
             )}
           </div>
-          <Badge variant="secondary" className="text-xs">{state.puntos.length}</Badge>
+          <Badge variant="secondary" className="text-xs">{puntos.length}</Badge>
         </div>
 
         {/* Botón toggle fijo */}
@@ -332,7 +334,7 @@ export function GestorPuntos() {
                 {procesandoCarpeta ? 'Procesando...' : 'Importar varios puntos (carpeta raíz)'}
               </Button>
 
-              {state.puntoActivo && (
+              {puntoActivo && (
                 <Button
                   variant="outline"
                   className="w-full"
@@ -349,7 +351,7 @@ export function GestorPuntos() {
                 variant="outline"
                 className="w-full"
                 onClick={generarTodasLasFichas}
-                disabled={generando || state.puntos.length === 0}
+                disabled={generando || puntos.length === 0}
                 size="sm"
               >
                 {generando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
@@ -382,7 +384,7 @@ export function GestorPuntos() {
             <Separator />
 
             {/* Filtro de ordenamiento */}
-            {state.puntos.length > 0 && (
+            {puntos.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -431,7 +433,7 @@ export function GestorPuntos() {
             )}
 
             {/* Barra de herramientas */}
-            {state.puntos.length > 0 && (
+            {puntos.length > 0 && (
               <div className="space-y-2 p-2 rounded-lg bg-muted/50">
                 <div className="flex items-center justify-between gap-2">
                   <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -442,8 +444,8 @@ export function GestorPuntos() {
                     />
                     <span>
                       {seleccionadosCount > 0
-                        ? `${seleccionadosCount}/${state.puntos.length} seleccionados`
-                        : `${state.puntos.length} punto${state.puntos.length === 1 ? '' : 's'}`}
+                        ? `${seleccionadosCount}/${puntos.length} seleccionados`
+                        : `${puntos.length} punto${puntos.length === 1 ? '' : 's'}`}
                     </span>
                   </label>
 
@@ -495,7 +497,7 @@ export function GestorPuntos() {
 
             {/* Lista de puntos */}
             <ScrollArea className="flex-1 overflow-hidden">
-              {state.puntos.length === 0 ? (
+              {puntos.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">No hay puntos importados</p>
@@ -508,7 +510,7 @@ export function GestorPuntos() {
                     const isSwipingThis = swipeState.id === punto.id && swipeState.isSwiping
                     const isDraggingThis = dragState.id === punto.id && dragState.isDragging
                     const isBloqueado = punto.bloqueado
-                    const isActivo = state.puntoActivo?.id === punto.id
+                    const isActivo = puntoActivo?.id === punto.id
                     const dragOffset = isDraggingThis && dragState.hasMoved ? dragState.currentY - dragState.startY : 0
                     const isDropTarget = dragState.id !== punto.id && dragState.isDragging && dragState.currentIndex === visualIndex
 
@@ -532,13 +534,13 @@ export function GestorPuntos() {
                           onClick={() => setPuntoActivo(punto)}
                           onMouseDown={(e) => {
                             if (sortKey !== 'manual' || isBloqueado || shouldIgnoreDragStart(e.target)) return
-                            const puntosPorSerie = [...state.puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
+                            const puntosPorSerie = [...puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
                             const realIndex = puntosPorSerie.findIndex(p => p.id === punto.id)
                             handlePointerDown(e, punto.id, realIndex)
                           }}
                           onTouchStart={(e) => {
                             if (sortKey !== 'manual' || isBloqueado || shouldIgnoreDragStart(e.target)) return
-                            const puntosPorSerie = [...state.puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
+                            const puntosPorSerie = [...puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
                             const realIndex = puntosPorSerie.findIndex(p => p.id === punto.id)
                             handlePointerDown(e, punto.id, realIndex)
                           }}
@@ -570,13 +572,13 @@ export function GestorPuntos() {
                               className="flex-shrink-0 text-muted-foreground/50 cursor-grab active:cursor-grabbing"
                               onMouseDown={(e) => {
                                 if (sortKey !== 'manual' || isBloqueado) return
-                                const puntosPorSerie = [...state.puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
+                                const puntosPorSerie = [...puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
                                 const realIndex = puntosPorSerie.findIndex(p => p.id === punto.id)
                                 handlePointerDown(e, punto.id, realIndex)
                               }}
                               onTouchStart={(e) => {
                                 if (sortKey !== 'manual' || isBloqueado) return
-                                const puntosPorSerie = [...state.puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
+                                const puntosPorSerie = [...puntos].sort((a, b) => a.numeroSerie - b.numeroSerie)
                                 const realIndex = puntosPorSerie.findIndex(p => p.id === punto.id)
                                 handlePointerDown(e, punto.id, realIndex)
                               }}
@@ -685,12 +687,12 @@ export function GestorPuntos() {
         {!expandido && (
           <div className="flex-1 overflow-y-auto py-2 pointer-events-auto">
             <div className="flex flex-col items-center gap-1">
-              {state.puntos.slice(0, 8).map((punto) => (
+              {puntos.slice(0, 8).map((punto) => (
                 <button
                   key={punto.id}
                   onClick={() => setPuntoActivo(punto)}
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                    state.puntoActivo?.id === punto.id
+                    puntoActivo?.id === punto.id
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted hover:bg-muted-foreground/20 text-muted-foreground'
                   } ${punto.bloqueado ? 'opacity-50' : ''}`}
@@ -699,9 +701,9 @@ export function GestorPuntos() {
                   {punto.numeroSerie}
                 </button>
               ))}
-              {state.puntos.length > 8 && (
+              {puntos.length > 8 && (
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                  +{state.puntos.length - 8}
+                  +{puntos.length - 8}
                 </div>
               )}
             </div>
@@ -762,10 +764,10 @@ export function GestorPuntos() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {state.puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'Desbloquear Punto' : 'Bloquear Punto'}
+              {puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'Desbloquear Punto' : 'Bloquear Punto'}
             </DialogTitle>
             <DialogDescription>
-              {state.puntos.find(p => p.id === dialogoBloquear)?.bloqueado
+              {puntos.find(p => p.id === dialogoBloquear)?.bloqueado
                 ? 'Al desbloquear el punto se permitirá editar sus datos y reordenarlo. ¿Continuar?'
                 : 'Al bloquear el punto se protegerá contra modificaciones y no se podrá reordenar. ¿Continuar?'}
             </DialogDescription>
@@ -775,10 +777,10 @@ export function GestorPuntos() {
               Cancelar
             </Button>
             <Button
-              variant={state.puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'default' : 'secondary'}
+              variant={puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'default' : 'secondary'}
               onClick={() => dialogoBloquear && handleBloquearPunto(dialogoBloquear)}
             >
-              {state.puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'Desbloquear' : 'Bloquear'}
+              {puntos.find(p => p.id === dialogoBloquear)?.bloqueado ? 'Desbloquear' : 'Bloquear'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -799,7 +801,7 @@ export function GestorPuntos() {
               <Input
                 type="number"
                 min={1}
-                max={state.puntos.length}
+                max={puntos.length}
                 value={editForm.numeroSerie}
                 onChange={(e) => setEditForm(prev => ({ ...prev, numeroSerie: e.target.value }))}
                 placeholder="1"
@@ -924,7 +926,7 @@ export function GestorPuntos() {
               </>
             ) : (
               <>
-                <DialogTitle>Punto agregado: {state.puntoActivo?.nombre}</DialogTitle>
+                <DialogTitle>Punto agregado: {puntoActivo?.nombre}</DialogTitle>
                 <DialogDescription>
                   Tipos de archivos detectados en la carpeta importada.
                 </DialogDescription>

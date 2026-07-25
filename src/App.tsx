@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions } from '@/context/AppContext'
 import { GestorPuntos } from '@/components/GestorPuntos'
 import { ModuleTabs } from '@/components/ModuleTabs'
 import { HistorialObras } from '@/components/HistorialObras'
@@ -25,7 +25,10 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 
 function App() {
-  const { state, sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo } = useApp()
+  const puntosLength = useAppSelector((s) => s.puntos.length)
+  const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
+  const puntoActivoNombre = useAppSelector((s) => s.puntoActivo?.nombre)
+  const { sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo } = useAppActions()
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
@@ -136,12 +139,12 @@ function App() {
               <h1 className="text-base font-bold text-foreground truncate">Obras Ferroviarias</h1>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Badge variant="secondary" className="text-[10px] h-4">
-                  {state.puntos.length} pts
+                  {puntosLength} pts
                 </Badge>
-                {state.puntoActivo && (
+                {puntoActivoId && (
                   <>
                     <Separator orientation="vertical" className="h-2.5" />
-                    <span className="truncate max-w-[120px] sm:max-w-[200px]">{state.puntoActivo.nombre}</span>
+                    <span className="truncate max-w-[120px] sm:max-w-[200px]">{puntoActivoNombre}</span>
                   </>
                 )}
               </div>

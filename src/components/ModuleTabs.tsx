@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, shallow } from '@/context/AppContext'
 import { MODULOS, type ModuloConfig } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
@@ -151,8 +151,12 @@ function SortableTab({ modulo, isActive, tieneDatos }: SortableTabProps) {
 }
 
 export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false }: ModuleTabsProps) {
-  const { state, setModuloActivo, reordenarModulos } = useApp()
-  const { moduloActivo, puntoActivo, modulosOrden } = state
+  const moduloActivo = useAppSelector((s) => s.moduloActivo)
+  const modulosOrden = useAppSelector((s) => s.modulosOrden)
+  // Solo re-renderiza la barra de pestañas cuando cambia el CONJUNTO de
+  // módulos con datos, no en cada edición (p.ej. al teclear en Materiales).
+  const modulosConDatos = useAppSelector((s) => Object.keys(s.puntoActivo?.moduloData || {}), shallow)
+  const { setModuloActivo, reordenarModulos } = useAppActions()
   const [draggedId, setDraggedId] = useState<string | null>(null)
 
   const modulosVisibles = useMemo(
@@ -235,7 +239,7 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
                 <TabsList className="w-full justify-start h-auto flex-wrap gap-0.5 bg-transparent p-0 relative">
                   {modulosOrdenados.map((modulo) => {
                     const isActive = moduloActivo === modulo.id
-                    const tieneDatos = puntoActivo?.moduloData?.[modulo.id] !== undefined
+                    const tieneDatos = modulosConDatos.includes(modulo.id)
 
                     return (
                       <SortableTab
@@ -254,7 +258,7 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
                     <TabContent
                       modulo={moduloArrastrado}
                       isActive={moduloActivo === moduloArrastrado.id}
-                      tieneDatos={puntoActivo?.moduloData?.[moduloArrastrado.id] !== undefined}
+                      tieneDatos={modulosConDatos.includes(moduloArrastrado.id)}
                     />
                   </div>
                 ) : null}

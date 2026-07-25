@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,14 +17,19 @@ import {
 } from '@/lib/nomenclaturas'
 
 export function ModuloDocumentacion() {
-  const { state, actualizarPunto, setNomenclaturasGlobales } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre } : null
+  }, shallow)
+  const nomenclaturasGlobales = useAppSelector((s) => s.nomenclaturasGlobales)
+  const { actualizarPunto, setNomenclaturasGlobales } = useAppActions()
+  const store = useAppStore()
   const [notas, setNotas] = useState('')
   const [nombreArchivo, setNombreArchivo] = useState('')
 
   const nomenclaturasBase = useMemo<NomenclaturaEntry[]>(() => {
-    return state.nomenclaturasGlobales
-  }, [state.nomenclaturasGlobales])
+    return nomenclaturasGlobales
+  }, [nomenclaturasGlobales])
 
   const nomenclaturasDetectadas = useMemo(() => {
     return parsearNomenclaturasDesdeTexto(notas)
@@ -42,13 +47,13 @@ export function ModuloDocumentacion() {
     return new Map(nomenclaturasBase.map(item => [item.codigo, item.definicion]))
   }, [nomenclaturasBase])
 
-  // Cargar datos del punto
+  // Cargar datos del punto. Lee estado live (selector estrecho sin moduloData).
   useEffect(() => {
-    if (punto?.moduloData?.documentacion) {
-      const docData = punto.moduloData.documentacion as { 
-        notas?: string; 
-        nombreArchivo?: string;
-      }
+    const docData = store.getState().puntoActivo?.moduloData?.documentacion as {
+      notas?: string
+      nombreArchivo?: string
+    } | undefined
+    if (docData) {
       setNotas(docData.notas || '')
       setNombreArchivo(docData.nombreArchivo || '')
     } else {
@@ -56,7 +61,7 @@ export function ModuloDocumentacion() {
       setNombreArchivo('')
     }
     // ponytail: depender de punto?.id (ver ModuloFicha). [punto] pisaba edits sin guardar.
-  }, [punto?.id])
+  }, [punto?.id, store])
 
   const handleGuardar = () => {
     if (!punto) return
@@ -70,11 +75,12 @@ export function ModuloDocumentacion() {
     const nomenclaturasActualizadas = fusionarNomenclaturas(nomenclaturasBase, nomenclaturasDetectadas)
     setNomenclaturasGlobales(nomenclaturasActualizadas)
 
+    const liveModulo = store.getState().puntoActivo?.moduloData
     actualizarPunto(punto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...liveModulo,
         documentacion: {
-          ...punto.moduloData?.documentacion,
+          ...liveModulo?.documentacion,
           notas: notas || '',
           nombreArchivo: nombreArchivo || 'documento.txt',
           nomenclaturas: nomenclaturasActualizadas,

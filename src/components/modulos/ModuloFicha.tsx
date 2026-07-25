@@ -1,4 +1,4 @@
-import { useApp } from '@/context/AppContext'
+import { useAppSelector, useAppActions, useAppStore, shallow } from '@/context/AppContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -40,8 +40,13 @@ const MAX_PLANTILLAS_FICHA = 8
 // Combobox reutilizable: ver campo-combo.tsx.
 
 export function ModuloFicha() {
-  const { state, actualizarPunto, setPlantillasFicha } = useApp()
-  const punto = state.puntoActivo
+  const punto = useAppSelector((s) => {
+    const p = s.puntoActivo
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre } : null
+  }, shallow)
+  const plantillasFicha = useAppSelector((s) => s.plantillasFicha)
+  const { actualizarPunto, setPlantillasFicha } = useAppActions()
+  const store = useAppStore()
   const [ficha, setFicha] = useState<FichaFormato>(crearFichaVacia)
   const [nombreArchivo, setNombreArchivo] = useState('')
   const [archivoPlantillaBase64, setArchivoPlantillaBase64] = useState('')
@@ -60,17 +65,18 @@ export function ModuloFicha() {
   )
 
   const completarDesdeModulos = (baseFicha: FichaFormato, sobrescribir = false): FichaFormato => {
-    if (!punto) return baseFicha
+    const live = store.getState().puntoActivo
+    if (!live) return baseFicha
 
-    const nombreCarpeta = extraerNombreCarpeta(punto.carpetaPath || punto.nombre)
+    const nombreCarpeta = extraerNombreCarpeta(live.carpetaPath || live.nombre)
     const fecha = extraerFechaDeCarpeta(nombreCarpeta)
     const operador = extraerOperadorDeCarpeta(nombreCarpeta)
-    const geoData = punto.moduloData?.georeferencia || punto.moduloData?.georeferenciacion
+    const geoData = live.moduloData?.georeferencia || live.moduloData?.georeferenciacion
     const coordenadas = geoData?.coordenadas
-    const observaciones = extraerDescripcionAnalisis(punto.moduloData?.analisis)
-    const evidencias = extraerEvidenciasAnalisis(punto.moduloData?.analisis)
+    const observaciones = extraerDescripcionAnalisis(live.moduloData?.analisis)
+    const evidencias = extraerEvidenciasAnalisis(live.moduloData?.analisis)
     // ponytail: indices por coordenada Excel del modulo Materiales (layout estable, ver COORD_A_CAMPO).
-    const mat = (punto.moduloData?.materiales as { valores?: Record<string, string> } | undefined)?.valores
+    const mat = (live.moduloData?.materiales as { valores?: Record<string, string> } | undefined)?.valores
     const tipoInstalacion = mat?.['3-D'] || ''
     const ubicacionEje = mat?.['3-F'] || ''
     const estadoFisico = mat?.['5-F'] || ''
@@ -111,7 +117,7 @@ export function ModuloFicha() {
   }
 
   useEffect(() => {
-    const data = punto?.moduloData?.ficha as {
+    const data = store.getState().puntoActivo?.moduloData?.ficha as {
       ficha?: FichaFormato
       nombreArchivo?: string
     } | undefined
@@ -209,7 +215,7 @@ export function ModuloFicha() {
 
     const plantillas = [
       plantilla,
-      ...state.plantillasFicha.filter(item => item.nombre.toLowerCase() !== nombre.toLowerCase()),
+      ...plantillasFicha.filter(item => item.nombre.toLowerCase() !== nombre.toLowerCase()),
     ].slice(0, MAX_PLANTILLAS_FICHA)
 
     setPlantillasFicha(plantillas)
@@ -217,7 +223,7 @@ export function ModuloFicha() {
   }
 
   const eliminarPlantilla = (id: string) => {
-    setPlantillasFicha(state.plantillasFicha.filter(plantilla => plantilla.id !== id))
+    setPlantillasFicha(plantillasFicha.filter(plantilla => plantilla.id !== id))
   }
 
   const exportarPlantilla = async (plantilla: PlantillaFormato) => {
@@ -300,7 +306,8 @@ export function ModuloFicha() {
       alert('Faltan coordenadas X/Y validas en la ficha para centrar la captura')
       return
     }
-    const clave = extraerNombreCarpeta(punto.carpetaPath || punto.nombre)
+    const livePunto = store.getState().puntoActivo
+    const clave = extraerNombreCarpeta(livePunto?.carpetaPath || livePunto?.nombre || punto.nombre)
     setCargandoCroquisAuto(true)
     try {
       const imagen = await generarCroquisPorClave(clave, x, y)
@@ -345,7 +352,7 @@ export function ModuloFicha() {
 
     actualizarPunto(punto.id, {
       moduloData: {
-        ...punto.moduloData,
+        ...(store.getState().puntoActivo?.moduloData),
         ficha: {
           ficha,
           nombreArchivo,
@@ -506,13 +513,13 @@ export function ModuloFicha() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">Plantillas guardadas</CardTitle>
-                  <Badge variant="secondary">{state.plantillasFicha.length}/{MAX_PLANTILLAS_FICHA}</Badge>
+                  <Badge variant="secondary">{plantillasFicha.length}/{MAX_PLANTILLAS_FICHA}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                {state.plantillasFicha.length > 0 ? (
+                {plantillasFicha.length > 0 ? (
                   <div className="space-y-2">
-                    {state.plantillasFicha.map((plantilla) => {
+                    {plantillasFicha.map((plantilla) => {
                       const camposPlantilla = obtenerCamposPlantilla(plantilla)
                       const imagenesPlantilla = obtenerImagenesPlantilla(plantilla)
 

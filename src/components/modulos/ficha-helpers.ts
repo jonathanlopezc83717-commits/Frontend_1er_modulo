@@ -41,7 +41,6 @@ export const CAMPOS_DATOS = [
   'Coordenada "X"',
   'Coordenada "Y"',
   'Coordenada "Z"',
-  'Operador',
 ]
 
 export const ALIAS_CAMPOS: Record<string, string> = {
@@ -69,7 +68,6 @@ export const ALIAS_CAMPOS: Record<string, string> = {
   coordenada_x: 'coordenada_x',
   coordenada_y: 'coordenada_y',
   coordenada_z: 'coordenada_z',
-  operador: 'operador',
   descripcion_izquierda: 'descripcion_izquierda',
   estado_actual_izquierdo: 'descripcion_izquierda',
   descripcion_derecha: 'descripcion_derecha',
@@ -105,7 +103,6 @@ export const ETIQUETAS_A_CAMPO: Record<string, string> = {
   coordenada_x: 'coordenada_x',
   coordenada_y: 'coordenada_y',
   coordenada_z: 'coordenada_z',
-  operador: 'operador',
 }
 
 export const IMAGENES_PREDETERMINADAS: Record<string, PlantillaImagenFormato> = {

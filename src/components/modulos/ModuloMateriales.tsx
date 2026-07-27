@@ -39,6 +39,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { separarDigitos } from '@/lib/excel-sync'
+import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 
 // =====================================================
 // TIPOS
@@ -82,7 +83,6 @@ const COORD_A_CAMPO: Record<string, string> = {
   '5-F': 'estado_fisico',
   '6-B': 'coordenada_x',
   '6-D': 'coordenada_y',
-  '6-F': 'operador',
   '7-D': 'descripcion_izquierda',
   '7-F': 'descripcion_derecha',
   '8-F': 'observaciones',
@@ -244,15 +244,19 @@ function extraerValor(punto: unknown, campo: string): string {
     }
     case 'coordenada_x': {
       const geo = moduloData?.georeferencia as Record<string, unknown> | undefined
-      return geo?.coordenadas ? String((geo.coordenadas as Record<string, number>).x || '') : buscarValorEnFicha(punto, campo) || ''
+      const c = geo?.coordenadas as { x?: number; y?: number } | undefined
+      if (c && c.x !== undefined && c.y !== undefined) {
+        return latLngToUtmEasting(c.y, c.x) ?? ''
+      }
+      return buscarValorEnFicha(punto, campo) || ''
     }
     case 'coordenada_y': {
       const geo = moduloData?.georeferencia as Record<string, unknown> | undefined
-      return geo?.coordenadas ? String((geo.coordenadas as Record<string, number>).y || '') : buscarValorEnFicha(punto, campo) || ''
-    }
-    case 'operador': {
-      const nombre = String(p.carpetaPath || p.nombre || '')
-      return nombre.replace(/\s*\d{2}_\d{2}_\d{4}.*$/, '').trim() || buscarValorEnFicha(punto, campo) || ''
+      const c = geo?.coordenadas as { x?: number; y?: number } | undefined
+      if (c && c.x !== undefined && c.y !== undefined) {
+        return latLngToUtmNorthing(c.y, c.x) ?? ''
+      }
+      return buscarValorEnFicha(punto, campo) || ''
     }
     case 'observaciones': {
       const analisis = moduloData?.analisis as Record<string, unknown> | undefined

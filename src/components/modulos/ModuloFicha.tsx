@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato } from '@/types'
 import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
 import { generarCroquisDesdeDwg, generarCroquisPorClave, DwgError } from '@/lib/dwg-croquis'
+import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 import { CampoCombo, CAMPOS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -30,7 +31,6 @@ import {
   extraerImagenesExcel,
   extraerNombreCarpeta,
   extraerFechaDeCarpeta,
-  extraerOperadorDeCarpeta,
   extraerDescripcionAnalisis,
   extraerEvidenciasAnalisis,
 } from './ficha-helpers'
@@ -70,7 +70,6 @@ export function ModuloFicha() {
 
     const nombreCarpeta = extraerNombreCarpeta(live.carpetaPath || live.nombre)
     const fecha = extraerFechaDeCarpeta(nombreCarpeta)
-    const operador = extraerOperadorDeCarpeta(nombreCarpeta)
     const geoData = live.moduloData?.georeferencia || live.moduloData?.georeferenciacion
     const coordenadas = geoData?.coordenadas
     const observaciones = extraerDescripcionAnalisis(live.moduloData?.analisis)
@@ -94,13 +93,15 @@ export function ModuloFicha() {
         case 'Estado fisico':
           return { ...campo, valor: estadoFisico }
         case 'Coordenada "X"':
-          return { ...campo, valor: coordenadas?.x !== undefined ? String(coordenadas.x) : '' }
+          return { ...campo, valor: coordenadas?.y !== undefined && coordenadas?.x !== undefined
+            ? (latLngToUtmEasting(coordenadas.y, coordenadas.x) ?? '')
+            : '' }
         case 'Coordenada "Y"':
-          return { ...campo, valor: coordenadas?.y !== undefined ? String(coordenadas.y) : '' }
+          return { ...campo, valor: coordenadas?.y !== undefined && coordenadas?.x !== undefined
+            ? (latLngToUtmNorthing(coordenadas.y, coordenadas.x) ?? '')
+            : '' }
         case 'Coordenada "Z"':
           return { ...campo, valor: coordenadas?.z !== undefined ? String(coordenadas.z) : '' }
-        case 'Operador':
-          return { ...campo, valor: operador }
         default:
           return campo
       }

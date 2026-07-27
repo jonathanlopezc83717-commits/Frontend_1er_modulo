@@ -1,4 +1,11 @@
 import type { PlantillaFormato, PlantillaCampoFormato, PlantillaImagenFormato } from '@/types'
+import {
+  type OpcionUbicacion,
+  ETIQUETA_UBICACION,
+  etiquetasCoordenadasPara,
+  etiquetaBaseFromSufijada,
+  esCoordenadaPrimaria,
+} from './ubicacion-opciones'
 
 export interface CampoFicha {
   etiqueta: string
@@ -38,9 +45,6 @@ export const CAMPOS_DATOS = [
   'Cadenamiento inicio',
   'Cadenamiento fin',
   'Estado fisico',
-  'Coordenada "X"',
-  'Coordenada "Y"',
-  'Coordenada "Z"',
 ]
 
 export const ALIAS_CAMPOS: Record<string, string> = {
@@ -113,12 +117,16 @@ export const IMAGENES_PREDETERMINADAS: Record<string, PlantillaImagenFormato> = 
   evidencia_4: { sheet: '', cell: 'D12', range: 'D12:F12' },
 }
 
-export function crearFichaVacia(): FichaFormato {
+export function crearFichaVacia(ubicacion?: OpcionUbicacion | ''): FichaFormato {
+  const coordenadas = etiquetasCoordenadasPara(ubicacion)
   return {
     titulo: 'FICHA DE IDENTIFICACION DE INFRAESTRUCTURA EXISTENTE',
     proyecto: '',
     clave: '',
-    datos: CAMPOS_DATOS.map(etiqueta => ({ etiqueta, valor: '' })),
+    datos: [
+      ...CAMPOS_DATOS.map(etiqueta => ({ etiqueta, valor: '' })),
+      ...coordenadas.map(etiqueta => ({ etiqueta, valor: '' })),
+    ],
     descripcionIzquierda: '',
     descripcionDerecha: '',
     croquis: '',
@@ -216,8 +224,12 @@ export function obtenerValoresFicha(ficha: FichaFormato): Record<string, string>
     observaciones: ficha.observaciones,
   }
 
+  const op = (ficha.datos.find(d => d.etiqueta === ETIQUETA_UBICACION)?.valor || '') as OpcionUbicacion | ''
+
   for (const campo of ficha.datos) {
-    const key = ETIQUETAS_A_CAMPO[normalizarClave(campo.etiqueta)] || normalizarClave(campo.etiqueta)
+    const base = etiquetaBaseFromSufijada(campo.etiqueta)
+    if (base !== campo.etiqueta && !esCoordenadaPrimaria(campo.etiqueta, op)) continue
+    const key = ETIQUETAS_A_CAMPO[normalizarClave(base)] || normalizarClave(base)
     valores[key] = campo.valor
   }
 
@@ -288,17 +300,25 @@ export function normalizarFicha(valor: unknown): FichaFormato {
   if (!valor || typeof valor !== 'object') return base
 
   const ficha = valor as Partial<FichaFormato>
+  const incomingDatos = Array.isArray(ficha.datos) ? ficha.datos : []
+  const ubicacion = (incomingDatos.find(d => d?.etiqueta === ETIQUETA_UBICACION)?.valor || '') as OpcionUbicacion | ''
+  const plantilla = crearFichaVacia(ubicacion)
+
+  const porEtiqueta = new Map<string, CampoFicha>()
+  for (const campo of plantilla.datos) porEtiqueta.set(campo.etiqueta, { ...campo })
+  for (const item of incomingDatos) {
+    if (!item || typeof item.etiqueta !== 'string') continue
+    const valorCampo = typeof item.valor === 'string' ? item.valor : ''
+    const existente = porEtiqueta.get(item.etiqueta)
+    if (existente) existente.valor = valorCampo
+    else porEtiqueta.set(item.etiqueta, { etiqueta: item.etiqueta, valor: valorCampo })
+  }
+
   return {
     titulo: typeof ficha.titulo === 'string' ? ficha.titulo : base.titulo,
     proyecto: typeof ficha.proyecto === 'string' ? ficha.proyecto : base.proyecto,
     clave: typeof ficha.clave === 'string' ? ficha.clave : base.clave,
-    datos: base.datos.map((campo, index) => {
-      const item = ficha.datos?.[index]
-      return {
-        etiqueta: typeof item?.etiqueta === 'string' ? item.etiqueta : campo.etiqueta,
-        valor: typeof item?.valor === 'string' ? item.valor : '',
-      }
-    }),
+    datos: [...porEtiqueta.values()],
     descripcionIzquierda: typeof ficha.descripcionIzquierda === 'string' ? ficha.descripcionIzquierda : '',
     descripcionDerecha: typeof ficha.descripcionDerecha === 'string' ? ficha.descripcionDerecha : '',
     croquis: typeof ficha.croquis === 'string' ? ficha.croquis : '',

@@ -9,7 +9,16 @@ import type { PlantillaFormato } from '@/types'
 import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
 import { generarCroquisDesdeDwg, generarCroquisPorClave, DwgError } from '@/lib/dwg-croquis'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
-import { CampoCombo, CAMPOS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
+import { CampoCombo, CAMPOS_CON_OPCIONES, CAMPOS_RESTRINGIDOS, useOpcionesCampos } from './campo-combo'
+import {
+  type OpcionUbicacion,
+  ETIQUETA_UBICACION,
+  OPCIONES_UBICACION,
+  etiquetaBaseFromSufijada,
+  esCoordenadaPrimaria,
+  reconciliarDatosPorUbicacion,
+  valorCoordenadaPrimaria,
+} from './ubicacion-opciones'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type FichaFormato,
@@ -72,6 +81,8 @@ export function ModuloFicha() {
     const fecha = extraerFechaDeCarpeta(nombreCarpeta)
     const geoData = live.moduloData?.georeferencia || live.moduloData?.georeferenciacion
     const coordenadas = geoData?.coordenadas
+    const lat = coordenadas?.y
+    const lng = coordenadas?.x
     const observaciones = extraerDescripcionAnalisis(live.moduloData?.analisis)
     const evidencias = extraerEvidenciasAnalisis(live.moduloData?.analisis)
     // ponytail: indices por coordenada Excel del modulo Materiales (layout estable, ver COORD_A_CAMPO).
@@ -79,32 +90,29 @@ export function ModuloFicha() {
     const tipoInstalacion = mat?.['3-D'] || ''
     const ubicacionEje = mat?.['3-F'] || ''
     const estadoFisico = mat?.['5-F'] || ''
+    const ubicacionFicha = (baseFicha.datos.find(d => d.etiqueta === ETIQUETA_UBICACION)?.valor || '') as OpcionUbicacion | ''
 
     const datos = baseFicha.datos.map(campo => {
       if (!sobrescribir && campo.valor.trim()) return campo
 
-      switch (campo.etiqueta) {
-        case 'Fecha':
-          return { ...campo, valor: fecha }
-        case 'Tipo de instalacion':
-          return { ...campo, valor: tipoInstalacion }
-        case 'Ubicacion respecto al eje de proyecto':
-          return { ...campo, valor: ubicacionEje }
-        case 'Estado fisico':
-          return { ...campo, valor: estadoFisico }
-        case 'Coordenada "X"':
-          return { ...campo, valor: coordenadas?.y !== undefined && coordenadas?.x !== undefined
-            ? (latLngToUtmEasting(coordenadas.y, coordenadas.x) ?? '')
-            : '' }
-        case 'Coordenada "Y"':
-          return { ...campo, valor: coordenadas?.y !== undefined && coordenadas?.x !== undefined
-            ? (latLngToUtmNorthing(coordenadas.y, coordenadas.x) ?? '')
-            : '' }
-        case 'Coordenada "Z"':
-          return { ...campo, valor: coordenadas?.z !== undefined ? String(coordenadas.z) : '' }
-        default:
-          return campo
+      if (campo.etiqueta === 'Fecha') return { ...campo, valor: fecha }
+      if (campo.etiqueta === 'Tipo de instalacion') return { ...campo, valor: tipoInstalacion }
+      if (campo.etiqueta === ETIQUETA_UBICACION) return { ...campo, valor: ubicacionEje }
+      if (campo.etiqueta === 'Estado fisico') return { ...campo, valor: estadoFisico }
+
+      const base = etiquetaBaseFromSufijada(campo.etiqueta)
+      if (!esCoordenadaPrimaria(campo.etiqueta, ubicacionFicha)) return campo
+      if (base === 'Coordenada "X"') {
+        return { ...campo, valor: lat !== undefined && lng !== undefined ? (latLngToUtmEasting(lat, lng) ?? '') : '' }
       }
+      if (base === 'Coordenada "Y"') {
+        return { ...campo, valor: lat !== undefined && lng !== undefined ? (latLngToUtmNorthing(lat, lng) ?? '') : '' }
+      }
+      if (base === 'Coordenada "Z"') {
+        return { ...campo, valor: coordenadas?.z !== undefined ? String(coordenadas.z) : '' }
+      }
+
+      return campo
     })
 
     return {
@@ -282,8 +290,8 @@ export function ModuloFicha() {
 
   const cargarCroquisDwg = async (file?: File) => {
     if (!file) return
-    const x = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "X"')?.valor)
-    const y = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "Y"')?.valor)
+    const x = Number(valorCoordenadaPrimaria(ficha, 'X'))
+    const y = Number(valorCoordenadaPrimaria(ficha, 'Y'))
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       alert('Faltan coordenadas X/Y validas en la ficha para centrar la captura')
       return
@@ -305,8 +313,8 @@ export function ModuloFicha() {
       alert('No hay punto activo')
       return
     }
-    const x = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "X"')?.valor)
-    const y = Number(ficha.datos.find(c => c.etiqueta === 'Coordenada "Y"')?.valor)
+    const x = Number(valorCoordenadaPrimaria(ficha, 'X'))
+    const y = Number(valorCoordenadaPrimaria(ficha, 'Y'))
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       alert('Faltan coordenadas X/Y validas en la ficha para centrar la captura')
       return
@@ -437,18 +445,35 @@ export function ModuloFicha() {
             <div className="grid gap-3 md:grid-cols-3">
               {ficha.datos.map((campo, index) => {
                 const esCombo = CAMPOS_CON_OPCIONES.has(campo.etiqueta)
+                const restrict = CAMPOS_RESTRINGIDOS[campo.etiqueta]
+                const esUbicacion = campo.etiqueta === ETIQUETA_UBICACION
+                const fueraDeCatalogo = esUbicacion && campo.valor !== '' && !(OPCIONES_UBICACION as readonly string[]).includes(campo.valor)
                 return (
                   <div key={campo.etiqueta} className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">{campo.etiqueta}</label>
                     {esCombo ? (
                       <CampoCombo
                         value={campo.valor}
-                        onChange={(valor) => actualizarDato(index, valor)}
-                        onCommit={(valor) => registrarOpcion(campo.etiqueta, valor)}
+                        onChange={(valor) => {
+                          if (esUbicacion) {
+                            const reconciliado = reconciliarDatosPorUbicacion(ficha.datos, valor as OpcionUbicacion)
+                            const nuevosDatos = reconciliado.map(d =>
+                              d.etiqueta === ETIQUETA_UBICACION ? { ...d, valor } : d
+                            )
+                            actualizarFicha({ datos: nuevosDatos })
+                          } else {
+                            actualizarDato(index, valor)
+                          }
+                        }}
+                        onCommit={(valor) => { if (!restrict) registrarOpcion(campo.etiqueta, valor) }}
                         opciones={opcionesGuardadas[campo.etiqueta] || []}
+                        restrictTo={restrict}
                       />
                     ) : (
                       <Input value={campo.valor} onChange={(event) => actualizarDato(index, event.target.value)} className="px-0 py-0" />
+                    )}
+                    {fueraDeCatalogo && (
+                      <p className="text-xs text-amber-600">Valor fuera del catálogo de 9 opciones</p>
                     )}
                   </div>
                 )

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { OPCIONES_UBICACION } from './ubicacion-opciones'
 
 // Etiquetas que tienen lista desplegable de opciones guardadas.
 // Compartidas entre ModuloFicha y ModuloMateriales via localStorage
@@ -24,6 +25,11 @@ export const COORDS_CON_OPCIONES: Record<string, string> = {
   '3-D': 'Tipo de instalacion',
   '3-F': 'Ubicacion respecto al eje de proyecto',
   '5-F': 'Estado fisico',
+}
+
+// Etiquetas cuyo valor está restringido a una lista fija (native <select>).
+export const CAMPOS_RESTRINGIDOS: Record<string, readonly string[]> = {
+  'Ubicacion respecto al eje de proyecto': OPCIONES_UBICACION,
 }
 
 /**
@@ -89,6 +95,7 @@ export function CampoCombo({
   onFocus,
   placeholder,
   className,
+  restrictTo,
 }: {
   value: string
   onChange: (valor: string) => void
@@ -97,6 +104,7 @@ export function CampoCombo({
   onFocus?: () => void
   placeholder?: string
   className?: string
+  restrictTo?: readonly string[]
 }) {
   const [abierto, setAbierto] = useState(false)
   const contenedorRef = useRef<HTMLDivElement>(null)
@@ -116,6 +124,22 @@ export function CampoCombo({
     onChange(opcion)
     onCommit(opcion)
     setAbierto(false)
+  }
+
+  if (restrictTo) {
+    const fueraDeLista = value !== '' && !restrictTo.includes(value)
+    return (
+      <select
+        value={value}
+        onChange={(evento) => elegir(evento.target.value)}
+        className={cn('h-9 w-full rounded-md border border-input bg-transparent px-1 py-0 text-sm', className)}
+      >
+        {fueraDeLista && <option value={value} disabled>{value}</option>}
+        {restrictTo.map(opcion => (
+          <option key={opcion} value={opcion}>{opcion}</option>
+        ))}
+      </select>
+    )
   }
 
   return (

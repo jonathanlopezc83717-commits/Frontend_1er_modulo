@@ -227,6 +227,10 @@ export function ModuloFicha() {
     setPlantillasFicha(plantillasFicha.filter(plantilla => plantilla.id !== id))
   }
 
+  const renombrarPlantilla = (id: string, nombre: string) => {
+    setPlantillasFicha(plantillasFicha.map(p => (p.id === id ? { ...p, nombre } : p)))
+  }
+
   const exportarPlantilla = async (plantilla: PlantillaFormato) => {
     if (!plantilla.archivoBase64) {
       alert('Esta plantilla no tiene el archivo Excel disponible. Vuelve a cargarla y guardarla como plantilla.')
@@ -527,7 +531,15 @@ export function ModuloFicha() {
                       return (
                         <div key={plantilla.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{plantilla.nombre || 'Plantilla sin nombre'}</p>
+                            <Input
+                              defaultValue={plantilla.nombre || ''}
+                              onBlur={(e) => renombrarPlantilla(plantilla.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                              }}
+                              className="h-8 px-2 py-1 text-sm font-medium"
+                              placeholder="Plantilla sin nombre"
+                            />
                             <p className="text-xs text-muted-foreground">
                               {plantilla.archivoNombre || 'Archivo no disponible'} - {Object.keys(camposPlantilla).length} campos - {Object.keys(imagenesPlantilla).length} imagenes
                             </p>

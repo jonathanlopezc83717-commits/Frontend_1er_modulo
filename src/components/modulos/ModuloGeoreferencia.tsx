@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { MapPin, Navigation, Save, Globe, Upload } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { extraerCoordenadasKMZ } from '@/lib/folder-parser'
+import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export function ModuloGeoreferencia() {
@@ -244,6 +245,26 @@ export function ModuloGeoreferencia() {
                 </div>
               )}
             </div>
+            {(() => {
+              const latNum = punto.coordenadas!.lat
+              const lngNum = punto.coordenadas!.lng
+              if (typeof latNum !== 'number' || typeof lngNum !== 'number') return null
+              const utmE = latLngToUtmEasting(latNum, lngNum)
+              const utmN = latLngToUtmNorthing(latNum, lngNum)
+              if (utmE === null || utmN === null) return null
+              return (
+                <div className="grid grid-cols-2 gap-3 text-sm border-t mt-2 pt-2">
+                  <div>
+                    <span className="text-muted-foreground">UTM E: </span>
+                    <span className="font-mono">{utmE}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">UTM N: </span>
+                    <span className="font-mono">{utmN}</span>
+                  </div>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       )}

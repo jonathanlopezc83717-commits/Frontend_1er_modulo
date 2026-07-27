@@ -129,12 +129,12 @@ describe('Ordenamiento de puntos', () => {
     expect(ordenados.map(p => p.nombre)).toEqual(['Central', 'Zona B', 'Zona A'])
   })
 
-  it('ordena por cadenamiento + coordenada (cad ascendente, resto de X descendente)', () => {
+  it('ordena por cadenamiento + coordenada (cad ascendente, resto de Y descendente)', () => {
     const pts = [
-      crearPunto({ nombre: 'A', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 561009.175, y: 0, z: 0 } } } }),
-      crearPunto({ nombre: 'B', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 560500, y: 0, z: 0 } } } }),
-      crearPunto({ nombre: 'C', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 560100, y: 0, z: 0 } } } }),
-      crearPunto({ nombre: 'D', cadenamiento: '57', moduloData: { georeferencia: { coordenadas: { x: 571050, y: 0, z: 0 } } } }),
+      crearPunto({ nombre: 'A', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 0, y: 561009.175, z: 0 } } } }),
+      crearPunto({ nombre: 'B', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 0, y: 560500, z: 0 } } } }),
+      crearPunto({ nombre: 'C', cadenamiento: '56', moduloData: { georeferencia: { coordenadas: { x: 0, y: 560100, z: 0 } } } }),
+      crearPunto({ nombre: 'D', cadenamiento: '57', moduloData: { georeferencia: { coordenadas: { x: 0, y: 571050, z: 0 } } } }),
     ]
     const ordenados = ordenarPuntos(pts, 'cadenamiento-coordenada')
     expect(ordenados.map(p => p.nombre)).toEqual(['A', 'B', 'C', 'D'])

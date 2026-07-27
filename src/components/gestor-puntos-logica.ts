@@ -26,11 +26,11 @@ export function compararCadenamiento(a: string | undefined, b: string | undefine
   return va.localeCompare(vb)
 }
 
-function extraerRestoX(punto: PuntoFerroviario): number {
+function extraerRestoY(punto: PuntoFerroviario): number {
   const geo = punto.moduloData?.georeferencia ?? punto.moduloData?.georeferenciacion
-  const x = geo?.coordenadas?.x
-  if (typeof x !== 'number' || !Number.isFinite(x)) return 0
-  return separarDigitos(x, 2).resto
+  const y = geo?.coordenadas?.y
+  if (typeof y !== 'number' || !Number.isFinite(y)) return 0
+  return separarDigitos(y, 2).resto
 }
 
 export function ordenarPuntos(puntos: PuntoFerroviario[], sortKey: SortKey): PuntoFerroviario[] {
@@ -56,7 +56,7 @@ export function ordenarPuntos(puntos: PuntoFerroviario[], sortKey: SortKey): Pun
       return copia.sort((a, b) => {
         const cadComp = compararCadenamiento(a.cadenamiento, b.cadenamiento)
         if (cadComp !== 0) return cadComp
-        return extraerRestoX(b) - extraerRestoX(a)
+        return extraerRestoY(b) - extraerRestoY(a)
       })
     case 'manual':
     default:

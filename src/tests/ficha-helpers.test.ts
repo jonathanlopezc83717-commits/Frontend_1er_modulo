@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   crearFichaVacia,
+  etiquetaBaseDe,
   normalizarTexto,
   normalizarClave,
   indiceColumnaALetra,
@@ -10,6 +11,7 @@ import {
   extraerFechaDeCarpeta,
   extraerOperadorDeCarpeta,
   normalizarFicha,
+  asignarCampo,
   detectarMapeo,
   obtenerValoresFicha,
   extraerDescripcionAnalisis,
@@ -142,6 +144,67 @@ describe('ficha-helpers', () => {
       }
       const normalizada = normalizarFicha(conExtra)
       expect(normalizada.datos.find(d => d.etiqueta === 'CampoCustom')?.valor).toBe('X')
+    })
+  })
+
+  describe('etiquetaBaseDe + crearFichaVacia etiquetaBase', () => {
+    it('crearFichaVacia marca cada campo con etiquetaBase igual a etiqueta', () => {
+      const f = crearFichaVacia()
+      expect(f.datos.every(c => c.etiquetaBase === c.etiqueta)).toBe(true)
+    })
+    it('etiquetaBaseDe cae a etiqueta cuando falta etiquetaBase', () => {
+      expect(etiquetaBaseDe({ etiqueta: 'Fecha' })).toBe('Fecha')
+    })
+  })
+
+  describe('normalizarFicha (re-key por etiquetaBase)', () => {
+    it('S1: renombra Fecha->Dia y hace merge sobre el slot Fecha', () => {
+      const base = crearFichaVacia()
+      const idx = base.datos.findIndex(d => d.etiqueta === 'Fecha')
+      base.datos[idx] = { etiqueta: 'Día', valor: '2024', etiquetaBase: 'Fecha' }
+      const norm = normalizarFicha(base)
+      const slot = norm.datos.find(d => etiquetaBaseDe(d) === 'Fecha')
+      expect(slot?.etiqueta).toBe('Día')
+      expect(slot?.valor).toBe('2024')
+      expect(slot?.etiquetaBase).toBe('Fecha')
+      expect(norm.datos.filter(d => etiquetaBaseDe(d) === 'Fecha')).toHaveLength(1)
+    })
+    it('backward-compat: entrada sin etiquetaBase merge sobre slot por etiqueta', () => {
+      const base = crearFichaVacia()
+      const norm = normalizarFicha({
+        ...base,
+        datos: base.datos.map(d => ({ etiqueta: d.etiqueta, valor: d.etiqueta === 'Segmento' ? 'Seg' : '' })),
+      })
+      expect(norm.datos.find(d => d.etiqueta === 'Segmento')?.valor).toBe('Seg')
+    })
+  })
+
+  describe('asignarCampo (fallback por etiquetaBase)', () => {
+    it('S12 regression: etiqueta por defecto matchea', () => {
+      const f = crearFichaVacia()
+      asignarCampo(f.datos, 'Fecha:', '2024-01-01')
+      expect(f.datos.find(d => d.etiqueta === 'Fecha')?.valor).toBe('2024-01-01')
+    })
+    it('campo renombrado matchea por etiquetaBase al importar Excel con etiqueta vieja', () => {
+      const f = crearFichaVacia()
+      const idx = f.datos.findIndex(d => d.etiqueta === 'Fecha')
+      f.datos[idx] = { etiqueta: 'Día', valor: '', etiquetaBase: 'Fecha' }
+      asignarCampo(f.datos, 'Fecha:', '2024-01-01')
+      expect(f.datos.find(d => d.etiquetaBase === 'Fecha')?.valor).toBe('2024-01-01')
+    })
+  })
+
+  describe('detectarMapeo labelCell', () => {
+    it('registra labelCell para etiqueta-texto', () => {
+      const rows = [['Fecha:', 'valor']]
+      const mapeo = detectarMapeo(rows, 'Hoja1')
+      expect(mapeo.campos.fecha.cell).toBe('B1')
+      expect(mapeo.campos.fecha.labelCell).toBe('A1')
+    })
+    it('omite labelCell para placeholders {{...}}', () => {
+      const rows = [['{{fecha}}']]
+      const mapeo = detectarMapeo(rows, 'Hoja1')
+      expect(mapeo.campos.fecha.labelCell).toBeUndefined()
     })
   })
 

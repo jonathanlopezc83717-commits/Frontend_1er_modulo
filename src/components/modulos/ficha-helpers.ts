@@ -10,6 +10,11 @@ import {
 export interface CampoFicha {
   etiqueta: string
   valor: string
+  etiquetaBase?: string
+}
+
+export function etiquetaBaseDe(campo: Pick<CampoFicha, 'etiqueta' | 'etiquetaBase'>): string {
+  return campo.etiquetaBase ?? campo.etiqueta
 }
 
 export interface FichaFormato {
@@ -124,8 +129,8 @@ export function crearFichaVacia(ubicacion?: OpcionUbicacion | ''): FichaFormato 
     proyecto: '',
     clave: '',
     datos: [
-      ...CAMPOS_DATOS.map(etiqueta => ({ etiqueta, valor: '' })),
-      ...coordenadas.map(etiqueta => ({ etiqueta, valor: '' })),
+      ...CAMPOS_DATOS.map(etiqueta => ({ etiqueta, valor: '', etiquetaBase: etiqueta })),
+      ...coordenadas.map(etiqueta => ({ etiqueta, valor: '', etiquetaBase: etiqueta })),
     ],
     descripcionIzquierda: '',
     descripcionDerecha: '',
@@ -151,6 +156,21 @@ export function normalizarClave(valor: string): string {
 
 export function limpiarEtiqueta(valor: string): string {
   return valor.replace(/:$/g, '').trim()
+}
+
+export function construirAliasEtiquetas(datos: ReadonlyArray<CampoFicha>): Record<string, string> {
+  const alias: Record<string, string> = {}
+  for (const campo of datos) {
+    const base = etiquetaBaseDe(campo)
+    if (campo.etiqueta === base) continue
+    const key = ETIQUETAS_A_CAMPO[normalizarClave(base)] || normalizarClave(base)
+    alias[key] = campo.etiqueta
+  }
+  return alias
+}
+
+export function reescribirEtiquetaLabel(original: string, alias: string): string {
+  return original.trimEnd().endsWith(':') ? `${alias}:` : alias
 }
 
 export function indiceColumnaALetra(index: number): string {
@@ -276,7 +296,11 @@ export function detectarMapeo(rows: unknown[][], sheetName: string): MapeoPlanti
       const etiqueta = texto.split('\n')[0].replace(/:$/g, '')
       const keyEtiqueta = ETIQUETAS_A_CAMPO[normalizarClave(etiqueta)]
       if (keyEtiqueta && !mapeo.campos[keyEtiqueta]) {
-        mapeo.campos[keyEtiqueta] = { sheet: sheetName, cell: celda(rowIndex, Math.min(colIndex + 1, 5)) }
+        mapeo.campos[keyEtiqueta] = {
+          sheet: sheetName,
+          cell: celda(rowIndex, Math.min(colIndex + 1, 5)),
+          labelCell: celda(rowIndex, colIndex),
+        }
       }
     })
   })
@@ -305,13 +329,21 @@ export function normalizarFicha(valor: unknown): FichaFormato {
   const plantilla = crearFichaVacia(ubicacion)
 
   const porEtiqueta = new Map<string, CampoFicha>()
-  for (const campo of plantilla.datos) porEtiqueta.set(campo.etiqueta, { ...campo })
+  for (const campo of plantilla.datos) porEtiqueta.set(etiquetaBaseDe(campo), { ...campo })
   for (const item of incomingDatos) {
     if (!item || typeof item.etiqueta !== 'string') continue
     const valorCampo = typeof item.valor === 'string' ? item.valor : ''
-    const existente = porEtiqueta.get(item.etiqueta)
-    if (existente) existente.valor = valorCampo
-    else porEtiqueta.set(item.etiqueta, { etiqueta: item.etiqueta, valor: valorCampo })
+    const itemBase = etiquetaBaseDe(item as CampoFicha)
+    const existente = porEtiqueta.get(itemBase)
+    if (existente) {
+      existente.valor = valorCampo
+      if (typeof item.etiquetaBase === 'string') existente.etiquetaBase = item.etiquetaBase
+      existente.etiqueta = item.etiqueta
+    } else {
+      const entrada: CampoFicha = { etiqueta: item.etiqueta, valor: valorCampo }
+      if (typeof item.etiquetaBase === 'string') entrada.etiquetaBase = item.etiquetaBase
+      porEtiqueta.set(itemBase, entrada)
+    }
   }
 
   return {
@@ -331,7 +363,10 @@ export function normalizarFicha(valor: unknown): FichaFormato {
 
 export function asignarCampo(datos: CampoFicha[], etiqueta: string, valor: unknown) {
   const etiquetaNormalizada = limpiarEtiqueta(etiqueta).toLowerCase()
-  const campo = datos.find(item => item.etiqueta.toLowerCase() === etiquetaNormalizada)
+  const campo = datos.find(item =>
+    item.etiqueta.toLowerCase() === etiquetaNormalizada
+    || item.etiquetaBase?.toLowerCase() === etiquetaNormalizada
+  )
   if (campo) campo.valor = normalizarTexto(valor)
 }
 

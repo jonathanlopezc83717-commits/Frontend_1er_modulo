@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { PlantillaFormato } from '@/types'
-import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
+import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, Pencil, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
 import { generarCroquisDesdeDwg, generarCroquisPorClave, DwgError } from '@/lib/dwg-croquis'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 import { CampoCombo, CAMPOS_CON_OPCIONES, CAMPOS_RESTRINGIDOS, useOpcionesCampos } from './campo-combo'
@@ -24,6 +24,9 @@ import {
   type FichaFormato,
   type MapeoPlantilla,
   crearFichaVacia,
+  etiquetaBaseDe,
+  construirAliasEtiquetas,
+  reescribirEtiquetaLabel,
   normalizarTexto,
   normalizarFicha,
   asignarCampo,
@@ -43,6 +46,7 @@ import {
   extraerDescripcionAnalisis,
   extraerEvidenciasAnalisis,
 } from './ficha-helpers'
+import { EditarEtiquetasModal } from './EditarEtiquetasModal'
 
 const MAX_PLANTILLAS_FICHA = 8
 
@@ -64,6 +68,7 @@ export function ModuloFicha() {
   const [cargandoCroquisDwg, setCargandoCroquisDwg] = useState(false)
   const [cargandoCroquisAuto, setCargandoCroquisAuto] = useState(false)
   const excelInputRef = useRef<HTMLInputElement>(null)
+  const [modalEtiquetasOpen, setModalEtiquetasOpen] = useState(false)
 
   // Opciones guardadas (compartidas con ModuloMateriales via localStorage).
   const { opciones: opcionesGuardadas, registrar: registrarOpcion } = useOpcionesCampos()
@@ -95,10 +100,10 @@ export function ModuloFicha() {
     const datos = baseFicha.datos.map(campo => {
       if (!sobrescribir && campo.valor.trim()) return campo
 
-      if (campo.etiqueta === 'Fecha') return { ...campo, valor: fecha }
-      if (campo.etiqueta === 'Tipo de instalacion') return { ...campo, valor: tipoInstalacion }
-      if (campo.etiqueta === ETIQUETA_UBICACION) return { ...campo, valor: ubicacionEje }
-      if (campo.etiqueta === 'Estado fisico') return { ...campo, valor: estadoFisico }
+      if (etiquetaBaseDe(campo) === 'Fecha') return { ...campo, valor: fecha }
+      if (etiquetaBaseDe(campo) === 'Tipo de instalacion') return { ...campo, valor: tipoInstalacion }
+      if (etiquetaBaseDe(campo) === ETIQUETA_UBICACION) return { ...campo, valor: ubicacionEje }
+      if (etiquetaBaseDe(campo) === 'Estado fisico') return { ...campo, valor: estadoFisico }
 
       const base = etiquetaBaseFromSufijada(campo.etiqueta)
       if (!esCoordenadaPrimaria(campo.etiqueta, ubicacionFicha)) return campo
@@ -220,6 +225,7 @@ export function ModuloFicha() {
       createdAt: new Date().toISOString(),
       campos: mapeoPlantilla.campos,
       imagenes: mapeoPlantilla.imagenes,
+      aliasEtiquetas: construirAliasEtiquetas(ficha.datos),
     }
 
     const plantillas = [
@@ -261,6 +267,17 @@ export function ModuloFicha() {
         if (!worksheet) continue
         const valor = valores[key] ?? ''
         worksheet.getCell(destino.cell).value = valor
+      }
+
+      const alias = plantilla.aliasEtiquetas || {}
+      for (const [key, destino] of Object.entries(camposPlantilla)) {
+        if (!destino.labelCell) continue
+        const override = alias[key]
+        if (!override) continue
+        const worksheet = workbook.getWorksheet(destino.sheet)
+        if (!worksheet) continue
+        const cell = worksheet.getCell(destino.labelCell)
+        cell.value = reescribirEtiquetaLabel(String(cell.value || ''), override)
       }
 
       for (const [key, destino] of Object.entries(imagenesPlantilla)) {
@@ -420,6 +437,10 @@ export function ModuloFicha() {
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Actualizar desde módulos
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setModalEtiquetasOpen(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar etiquetas
+                </Button>
                 <Button variant="outline" size="sm" onClick={guardarComoPlantilla} disabled={!archivoPlantillaBase64}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   Guardar plantilla
@@ -444,12 +465,13 @@ export function ModuloFicha() {
 
             <div className="grid gap-3 md:grid-cols-3">
               {ficha.datos.map((campo, index) => {
-                const esCombo = CAMPOS_CON_OPCIONES.has(campo.etiqueta)
-                const restrict = CAMPOS_RESTRINGIDOS[campo.etiqueta]
-                const esUbicacion = campo.etiqueta === ETIQUETA_UBICACION
+                const base = etiquetaBaseDe(campo)
+                const esCombo = CAMPOS_CON_OPCIONES.has(base)
+                const restrict = CAMPOS_RESTRINGIDOS[base]
+                const esUbicacion = base === ETIQUETA_UBICACION
                 const fueraDeCatalogo = esUbicacion && campo.valor !== '' && !(OPCIONES_UBICACION as readonly string[]).includes(campo.valor)
                 return (
-                  <div key={campo.etiqueta} className="space-y-1">
+                  <div key={base} className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">{campo.etiqueta}</label>
                     {esCombo ? (
                       <CampoCombo
@@ -465,8 +487,8 @@ export function ModuloFicha() {
                             actualizarDato(index, valor)
                           }
                         }}
-                        onCommit={(valor) => { if (!restrict) registrarOpcion(campo.etiqueta, valor) }}
-                        opciones={opcionesGuardadas[campo.etiqueta] || []}
+                        onCommit={(valor) => { if (!restrict) registrarOpcion(base, valor) }}
+                        opciones={opcionesGuardadas[base] || []}
                         restrictTo={restrict}
                       />
                     ) : (
@@ -596,6 +618,19 @@ export function ModuloFicha() {
             </Card>
           </CardContent>
         </Card>
+
+        <EditarEtiquetasModal
+          open={modalEtiquetasOpen}
+          onOpenChange={setModalEtiquetasOpen}
+          datos={ficha.datos}
+          onSave={draft => setFicha(prev => ({
+            ...prev,
+            datos: prev.datos.map(c => {
+              const base = etiquetaBaseDe(c)
+              return draft[base] !== undefined && draft[base] !== c.etiqueta ? { ...c, etiqueta: draft[base] } : c
+            }),
+          }))}
+        />
       </div>
     </ScrollArea>
   )

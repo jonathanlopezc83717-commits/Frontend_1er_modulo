@@ -27,6 +27,7 @@ const COORDENADA_BASES = ['Coordenada "X"', 'Coordenada "Y"', 'Coordenada "Z"'] 
 export interface CampoSimple {
   etiqueta: string
   valor: string
+  etiquetaBase?: string
 }
 
 export function esOpcionDoble(op: OpcionUbicacion | '' | undefined): boolean {
@@ -82,7 +83,7 @@ export function reconciliarDatosPorUbicacion(
   for (const d of datos) {
     const base = etiquetaBaseFromSufijada(d.etiqueta)
     if (basesSet.has(base)) continue
-    resultado.push({ etiqueta: d.etiqueta, valor: d.valor })
+    resultado.push(d.etiquetaBase !== undefined ? { etiqueta: d.etiqueta, valor: d.valor, etiquetaBase: d.etiquetaBase } : { etiqueta: d.etiqueta, valor: d.valor })
   }
 
   for (const etiqueta of etiquetasCoordenadasPara(newOp)) {

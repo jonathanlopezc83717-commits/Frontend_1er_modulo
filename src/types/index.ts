@@ -240,6 +240,7 @@ export interface AppState {
 export interface PlantillaCampoFormato {
   sheet: string
   cell: string
+  labelCell?: string
 }
 
 export interface PlantillaImagenFormato extends PlantillaCampoFormato {
@@ -254,6 +255,7 @@ export interface PlantillaFormato {
   createdAt: string
   campos: Record<string, PlantillaCampoFormato>
   imagenes: Record<string, PlantillaImagenFormato>
+  aliasEtiquetas?: Record<string, string>
 }
 
 export interface PlantillaPdfCampoFormato {

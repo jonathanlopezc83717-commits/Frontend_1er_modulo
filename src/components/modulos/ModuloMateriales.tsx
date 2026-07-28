@@ -25,6 +25,7 @@ import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 import {
+  ChevronDown,
   Eraser,
   FileSpreadsheet,
   FileText,
@@ -176,6 +177,7 @@ interface PlantillaLogos {
   logoIzq?: string
   logoDer?: string
   etiquetas?: Record<string, string>
+  camposCustom?: Array<{ coord: string; etiqueta: string }>
   createdAt: string
 }
 
@@ -513,6 +515,7 @@ export async function exportarPdfFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string }> = [],
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -812,6 +815,32 @@ export async function exportarPdfFicha(
     }
   }
 
+  // 10. Información adicional (campos personalizados)
+  if (camposCustom.length > 0) {
+    const HaddLbl = 8
+    const HaddRow = 8
+    if (y + HaddLbl + HaddRow > MT + PH) {
+      doc.addPage()
+      y = MT
+    }
+    cell(ML, y, PW, HaddLbl, [240, 241, 243])
+    txt('Información adicional', ML, y, PW, { fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HaddLbl })
+    y += HaddLbl
+    const lblW = CX[3] - ML
+    const valW = CX[6] - CX[3]
+    for (const campo of camposCustom) {
+      if (y + HaddRow > MT + PH) {
+        doc.addPage()
+        y = MT
+      }
+      cell(ML, y, lblW, HaddRow, [240, 241, 243])
+      txt(campo.etiqueta + ':', ML, y, lblW, { fs: 7.5, bold: true, vcenter: true, py: 0, h: HaddRow })
+      cell(CX[3], y, valW, HaddRow)
+      txt(d[campo.coord] || '', CX[3], y, valW, { fs: 7.5, vcenter: true, py: 0, h: HaddRow })
+      y += HaddRow
+    }
+  }
+
   doc.save(`${nombreArchivo}.pdf`)
 }
 
@@ -825,6 +854,7 @@ export async function exportarExcelFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string }> = [],
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -1140,6 +1170,35 @@ export async function exportarExcelFicha(
     }
   }
 
+  // Información adicional (campos personalizados)
+  if (camposCustom.length > 0) {
+    const evRowsCalc = numEvidencias > 0 ? calcularDistribucionEvidencias(numEvidencias).rows : 0
+    let r = numEvidencias > 0 ? 14 + evRowsCalc : 13
+    ws.mergeCells(r, 1, r, 6)
+    const cellAddLbl = ws.getCell(r, 1)
+    cellAddLbl.value = 'Información adicional'
+    cellAddLbl.fill = fillLabel
+    cellAddLbl.font = fontLabelBold
+    cellAddLbl.alignment = { horizontal: 'center', vertical: 'middle' }
+    cellAddLbl.border = thinBorder
+    ws.getRow(r).height = 18
+    r++
+    for (const campo of camposCustom) {
+      const cellLbl = ws.getCell(r, 1)
+      cellLbl.value = campo.etiqueta + ':'
+      cellLbl.fill = fillLabel
+      cellLbl.font = fontLabelBold
+      cellLbl.alignment = { vertical: 'middle', wrapText: true }
+      cellLbl.border = thinBorder
+      const cellVal = ws.getCell(r, 2)
+      cellVal.value = d[campo.coord] || ''
+      cellVal.border = thinBorder
+      cellVal.alignment = { vertical: 'middle', wrapText: true }
+      ws.getRow(r).height = 18
+      r++
+    }
+  }
+
   const buffer = await workbook.xlsx.writeBuffer()
   descargarArchivo(
     new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
@@ -1177,6 +1236,8 @@ export function ModuloMateriales() {
   const [plantillaSeleccionadaId, setPlantillaSeleccionadaId] = useState<string>('')
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
+  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string }>>([])
+  const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
@@ -1333,6 +1394,16 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
+  const eliminarCampoGrid = (coord: string) => {
+    setCamposCustom(prev => prev.filter(c => c.coord !== coord))
+    setValores(prev => {
+      if (!(coord in prev)) return prev
+      const copia = { ...prev }
+      delete copia[coord]
+      return copia
+    })
+  }
+
   const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
     const livePunto = store.getState().puntoActivo
     if (!livePunto) return
@@ -1415,6 +1486,7 @@ export function ModuloMateriales() {
         logoIzq: imagenes['logo-izq'] || undefined,
         logoDer: imagenes['logo-der'] || undefined,
         etiquetas: { ...etiquetas },
+        camposCustom: camposCustom.map(c => ({ ...c })),
         createdAt: new Date().toISOString(),
       },
     ]
@@ -1436,6 +1508,7 @@ export function ModuloMateriales() {
       ...(plantilla.logoDer && { 'logo-der': plantilla.logoDer }),
     }))
     setEtiquetas(plantilla.etiquetas ? { ...plantilla.etiquetas } : {})
+    setCamposCustom(plantilla.camposCustom ? plantilla.camposCustom.map(c => ({ ...c })) : [])
     toast.success(`Plantilla "${plantilla.nombre}" cargada`)
     setDialogoPlantillasOpen(false)
   }
@@ -1455,12 +1528,12 @@ export function ModuloMateriales() {
       await exportarPdfFicha(valores, imagenes, nombre, {
         quitarFondoLogos,
         numEvidencias,
-      }, etiquetas)
+      }, etiquetas, camposCustom)
       await exportarExcelFicha(valores, imagenes, nombre, {
         quitarFondoLogos,
         numEvidencias,
         imagenesReconocimiento: imagenesReconocimientoDisponibles,
-      }, etiquetas)
+      }, etiquetas, camposCustom)
       toast.success('PDF y Excel exportados')
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -1529,28 +1602,36 @@ export function ModuloMateriales() {
                 <CardTitle>Formato LMT-T11-02</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos()}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Autocompletar
+                <Button variant="outline" size="sm" onClick={() => setMasAccionesAbierto(v => !v)}>
+                  <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${masAccionesAbierto ? 'rotate-180' : ''}`} />
+                  Más acciones
                 </Button>
-                <Button variant="outline" size="sm" onClick={limpiarFicha}>
-                  <Eraser className="mr-2 h-4 w-4" />
-                  Limpiar
-                </Button>
-                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
-                  <input
-                    type="checkbox"
-                    checked={quitarFondoLogos}
-                    onChange={e => setQuitarFondoLogos(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <Eraser className="h-4 w-4" />
-                  <span>Quitar fondo</span>
-                </label>
-                <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  {exportando ? 'Exportando...' : 'PDF + Excel'}
-                </Button>
+                {masAccionesAbierto && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos()}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Autocompletar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={limpiarFicha}>
+                      <Eraser className="mr-2 h-4 w-4" />
+                      Limpiar
+                    </Button>
+                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
+                      <input
+                        type="checkbox"
+                        checked={quitarFondoLogos}
+                        onChange={e => setQuitarFondoLogos(e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      <Eraser className="h-4 w-4" />
+                      <span>Quitar fondo</span>
+                    </label>
+                    <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      {exportando ? 'Exportando...' : 'PDF + Excel'}
+                    </Button>
+                  </div>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar etiquetas
@@ -1728,6 +1809,31 @@ export function ModuloMateriales() {
                   })}
                 </div>
               ))}
+              {camposCustom.length > 0 && (
+                <div className="grid gap-2 md:grid-cols-3">
+                  {camposCustom.map(campo => (
+                    <div key={campo.coord} className="space-y-1">
+                      <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>{campo.etiqueta}</span>
+                        <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
+                      </label>
+                      <div className="flex gap-1">
+                        <Input
+                          value={valores[campo.coord] || ''}
+                          onChange={e => actualizarValor(campo.coord, e.target.value)}
+                          onFocus={() => setCoordActiva(campo.coord)}
+                          onKeyDown={e => { if (e.key === 'Enter') guardarEnPunto() }}
+                          placeholder={campo.etiqueta}
+                          className="px-2 py-1"
+                        />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => eliminarCampoGrid(campo.coord)} title="Eliminar campo">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Estado actual */}
@@ -1936,6 +2042,8 @@ export function ModuloMateriales() {
         filas={FILAS_EDITABLES}
         overrideInicial={etiquetas}
         onSave={setEtiquetas}
+        camposCustomInicial={camposCustom}
+        onSaveCamposCustom={(nuevos) => setCamposCustom(nuevos)}
       />
     </ScrollArea>
   )

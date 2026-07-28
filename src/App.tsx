@@ -32,7 +32,6 @@ function App() {
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
-  const [mostrarFicha, setMostrarFicha] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
 
   // Estados para el diálogo de guardado en la nube (con título)
@@ -186,7 +185,6 @@ function App() {
               className="h-9 w-9 text-primary hover:text-primary/80 shrink-0"
               onClick={() => {
                 setMostrarNomenclaturas(true)
-                setMostrarFicha(true)
                 setModuloActivo('nomenclaturas')
               }}
               title="Panel de obra: módulos y ficha"
@@ -216,7 +214,7 @@ function App() {
 
           {/* Main Area - capa superior para evitar interferencia con sidebar */}
           <div className="flex-1 h-full overflow-hidden min-w-0 z-20 relative">
-            <ModuleTabs mostrarNomenclaturas={mostrarNomenclaturas} mostrarFicha={mostrarFicha} />
+            <ModuleTabs mostrarNomenclaturas={mostrarNomenclaturas} />
           </div>
         </div>
       </main>

@@ -218,7 +218,6 @@ function historialSlice(state: AppState, action: AppAction): AppState | undefine
         nomenclaturasGlobales: consolidarNomenclaturas([action.payload.nomenclaturasGlobales]),
         plantillasFormato: action.payload.plantillasFormato || state.plantillasFormato,
         plantillasPdfFormato: action.payload.plantillasPdfFormato || state.plantillasPdfFormato,
-        plantillasFicha: action.payload.plantillasFicha || state.plantillasFicha,
       }
     }
 
@@ -246,12 +245,6 @@ function configSlice(state: AppState, action: AppAction): AppState | undefined {
       return {
         ...state,
         plantillasPdfFormato: action.payload,
-      }
-
-    case 'SET_PLANTILLAS_FICHA':
-      return {
-        ...state,
-        plantillasFicha: action.payload,
       }
 
     case 'SET_MODULO_ACTIVO':

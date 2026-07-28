@@ -29,7 +29,6 @@ const initialState: AppState = {
   nomenclaturasGlobales: [],
   plantillasFormato: [],
   plantillasPdfFormato: [],
-  plantillasFicha: [],
   estadosGuardados: [],
 }
 
@@ -47,7 +46,6 @@ interface AppContextType {
   setNomenclaturasGlobales: (nomenclaturas: NomenclaturaEntry[]) => void
   setPlantillasFormato: (plantillas: PlantillaFormato[]) => void
   setPlantillasPdfFormato: (plantillas: PlantillaPdfFormato[]) => void
-  setPlantillasFicha: (plantillas: PlantillaFormato[]) => void
   crearCopiaSeguridad: (tipo: EstadoGuardado['tipo'], descripcion?: string) => EstadoGuardado
   restaurarEstadoGuardado: (id: string) => Promise<boolean>
   moverPunto: (id: string, nuevaPosicion: number) => void
@@ -73,7 +71,6 @@ function getInitialState(): AppState {
     const nomenclaturasGuardadas = (stored.nomenclaturasGlobales || []) as NomenclaturaEntry[]
     const plantillasFormato = (stored.plantillasFormato || []) as PlantillaFormato[]
     const plantillasPdfFormato = (stored.plantillasPdfFormato || []) as PlantillaPdfFormato[]
-    const plantillasFicha = (stored.plantillasFicha || []) as PlantillaFormato[]
     const estadosGuardados = (stored.estadosGuardados || []) as EstadoGuardado[]
     const nomenclaturasMigradas = puntos.map(p => p.moduloData?.documentacion?.nomenclaturas || [])
     return {
@@ -88,7 +85,6 @@ function getInitialState(): AppState {
         : consolidarNomenclaturas([nomenclaturasGuardadas, ...nomenclaturasMigradas]),
       plantillasFormato,
       plantillasPdfFormato,
-      plantillasFicha,
       estadosGuardados: estadosGuardados.slice(0, MAX_ESTADOS_GUARDADOS),
     }
   }
@@ -119,7 +115,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             nomenclaturasGlobales: (stored.nomenclaturasGlobales || []) as AppState['nomenclaturasGlobales'],
             plantillasFormato: (stored.plantillasFormato || []) as PlantillaFormato[],
             plantillasPdfFormato: (stored.plantillasPdfFormato || []) as PlantillaPdfFormato[],
-            plantillasFicha: (stored.plantillasFicha || []) as PlantillaFormato[],
           },
         })
         dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: (stored.estadosGuardados || []) as EstadoGuardado[] })
@@ -180,24 +175,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
   }, [state.plantillasPdfFormato])
 
-  useEffect(() => {
-    const tienePlantillasSinArchivo = state.plantillasFicha.some(plantilla => !plantilla.archivoBase64)
-    if (!tienePlantillasSinArchivo) return
-
-    cargarArchivosPlantilla(state.plantillasFicha)
-      .then((plantillas) => {
-        const cambio = plantillas.some((plantilla, index) =>
-          plantilla.archivoBase64 !== state.plantillasFicha[index]?.archivoBase64
-        )
-        if (cambio) {
-          dispatch({ type: 'SET_PLANTILLAS_FICHA', payload: plantillas })
-        }
-      })
-      .catch(error => {
-        console.error('Error cargando archivos de plantillas de ficha:', error)
-      })
-  }, [state.plantillasFicha])
-
   // Persistir estado en localStorage/IndexedDB cuando cambie.
   // IMPORTANTE: no guardar hasta que el estado completo se haya restaurado
   // desde IndexedDB, para evitar sobreescribir dataURLs con versiones vacías.
@@ -211,10 +188,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.nomenclaturasGlobales,
       state.plantillasFormato,
       state.plantillasPdfFormato,
-      state.plantillasFicha,
       state.estadosGuardados
     )
-  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.plantillasFicha, state.estadosGuardados, estadoRestaurado])
+  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.estadosGuardados, estadoRestaurado])
 
   const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>, id?: string) => {
     dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto, id } })
@@ -253,10 +229,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_PLANTILLAS_PDF_FORMATO', payload: plantillas })
   }, [])
 
-  const setPlantillasFicha = useCallback((plantillas: PlantillaFormato[]) => {
-    dispatch({ type: 'SET_PLANTILLAS_FICHA', payload: plantillas })
-  }, [])
-
   const crearCopiaSeguridad = useCallback((tipo: EstadoGuardado['tipo'], descripcion?: string) => {
     const s = appStore.getState()
     const estadoGuardado: EstadoGuardado = {
@@ -272,7 +244,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nomenclaturasGlobales: JSON.parse(JSON.stringify(s.nomenclaturasGlobales)),
         plantillasFormato: JSON.parse(JSON.stringify(s.plantillasFormato)),
         plantillasPdfFormato: JSON.parse(JSON.stringify(s.plantillasPdfFormato)),
-        plantillasFicha: JSON.parse(JSON.stringify(s.plantillasFicha)),
       },
     }
 
@@ -458,7 +429,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNomenclaturasGlobales,
     setPlantillasFormato,
     setPlantillasPdfFormato,
-    setPlantillasFicha,
     crearCopiaSeguridad,
     restaurarEstadoGuardado,
     moverPunto,
@@ -473,7 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [
     dispatch, agregarPunto, eliminarPunto, setPuntoActivo, setModuloActivo,
     reordenarModulos, actualizarPunto, setNomenclaturasGlobales,
-    setPlantillasFormato, setPlantillasPdfFormato, setPlantillasFicha,
+    setPlantillasFormato, setPlantillasPdfFormato,
     crearCopiaSeguridad, restaurarEstadoGuardado, moverPunto, renumerarPuntos,
     sincronizarConSupabase, cargarDesdeSupabase, cargarEstadoPorIdDesdeSupabase,
     guardarCoordenadasDB, guardarDocumentacionDB, guardarAnalisisDB, toggleBloquearPunto,

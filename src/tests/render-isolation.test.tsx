@@ -41,7 +41,6 @@ const baseState: AppState = {
   nomenclaturasGlobales: [],
   plantillasFormato: [],
   plantillasPdfFormato: [],
-  plantillasFicha: [],
   estadosGuardados: [],
 }
 

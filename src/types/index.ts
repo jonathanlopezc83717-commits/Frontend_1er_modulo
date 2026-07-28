@@ -233,7 +233,6 @@ export interface AppState {
   }>
   plantillasFormato: PlantillaFormato[]
   plantillasPdfFormato: PlantillaPdfFormato[]
-  plantillasFicha: PlantillaFormato[]
   estadosGuardados: EstadoGuardado[]
 }
 
@@ -296,7 +295,6 @@ export interface EstadoGuardado {
     nomenclaturasGlobales: AppState['nomenclaturasGlobales']
     plantillasFormato?: PlantillaFormato[]
     plantillasPdfFormato?: PlantillaPdfFormato[]
-    plantillasFicha?: PlantillaFormato[]
   }
 }
 
@@ -305,7 +303,6 @@ export type AppAction =
   | { type: 'SET_NOMENCLATURAS_GLOBALES'; payload: AppState['nomenclaturasGlobales'] }
   | { type: 'SET_PLANTILLAS_FORMATO'; payload: PlantillaFormato[] }
   | { type: 'SET_PLANTILLAS_PDF_FORMATO'; payload: PlantillaPdfFormato[] }
-  | { type: 'SET_PLANTILLAS_FICHA'; payload: PlantillaFormato[] }
   | { type: 'SET_ESTADOS_GUARDADOS'; payload: EstadoGuardado[] }
   | { type: 'AGREGAR_ESTADO_GUARDADO'; payload: EstadoGuardado }
   | { type: 'RESTAURAR_ESTADO_GUARDADO'; payload: EstadoGuardado['snapshot'] }
@@ -347,7 +344,6 @@ export const MODULOS: ModuloConfig[] = [
   { id: 'analisis', nombre: 'Análisis de Imágenes', descripcion: 'Análisis visual con IA', icono: 'Wand2', componente: 'ModuloAnalisis' },
   { id: 'georeferencia', nombre: 'Georeferencia', descripcion: 'Ubicación GPS y coordenadas', icono: 'MapPin', componente: 'ModuloGeoreferencia' },
   { id: 'documentacion', nombre: 'Documentación', descripcion: 'Documentos técnicos y planos', icono: 'FileText', componente: 'ModuloDocumentacion' },
-  { id: 'ficha', nombre: 'Ficha', descripcion: 'Ficha editable desde Excel', icono: 'FileSpreadsheet', componente: 'ModuloFicha' },
   { id: 'reportes', nombre: 'Checklist', descripcion: 'Verificación de módulos completados', icono: 'BarChart3', componente: 'ModuloReportes' },
   { id: 'aprobacion', nombre: 'Aprobación', descripcion: 'Revisar cambios del NAS antes de exportar', icono: 'ClipboardCheck', componente: 'ModuloAprobacion' },
   { id: 'sincronizacion', nombre: 'Sincronización', descripcion: 'Sincronizar puntos desde Excel con nomenclaturas', icono: 'RefreshCw', componente: 'ModuloSincronizacion' },

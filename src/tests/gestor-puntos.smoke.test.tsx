@@ -17,7 +17,6 @@ const { stateRef, actions } = vi.hoisted(() => ({
       modulosOrden: [] as unknown[],
       plantillasFormato: [] as unknown[],
       plantillasPdfFormato: [] as unknown[],
-      plantillasFicha: [] as unknown[],
       estadosGuardados: [] as unknown[],
     },
   },

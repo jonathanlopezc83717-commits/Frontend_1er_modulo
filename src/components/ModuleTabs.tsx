@@ -39,7 +39,6 @@ import { ModuloGeoreferencia } from './modulos/ModuloGeoreferencia'
 import { ModuloDocumentacion } from './modulos/ModuloDocumentacion'
 import { ModuloNomenclaturas } from './modulos/ModuloNomenclaturas'
 import { ModuloMateriales } from './modulos/ModuloMateriales'
-import { ModuloFicha } from './modulos/ModuloFicha'
 import { ModuloReportes } from './modulos/ModuloReportes'
 import { ModuloSincronizacion } from './modulos/ModuloSincronizacion'
 import { ModuloAprobacion } from './modulos/ModuloAprobacion'
@@ -62,7 +61,6 @@ const componentMap: Record<string, React.ComponentType> = {
   ModuloDocumentacion,
   ModuloNomenclaturas,
   ModuloMateriales,
-  ModuloFicha,
   ModuloReportes,
   ModuloSincronizacion,
   ModuloAprobacion,
@@ -71,14 +69,13 @@ const componentMap: Record<string, React.ComponentType> = {
 // Memoizar los módulos: evita que re-rendericen cuando ModuleTabs re-renderiza por
 // estado local del drag (draggedId). El context (useApp) sigue forzando re-render cuando
 // cambia el estado global, que es lo correcto. Sin esto, arrastrar una pestaña re-renderiza
-// los 9 módulos (incluidos Ficha 48 calls / Materiales 41) en cada frame del mouse.
+// los módulos pesados (p.ej. Materiales 41 calls) en cada frame del mouse.
 const memoizedComponentMap: Record<string, React.ComponentType> = Object.fromEntries(
   Object.entries(componentMap).map(([key, Comp]) => [key, memo(Comp)]),
 )
 
 interface ModuleTabsProps {
   mostrarNomenclaturas?: boolean
-  mostrarFicha?: boolean
 }
 
 function ordenarModulos(modulos: ModuloConfig[], orden: string[] | null): ModuloConfig[] {
@@ -150,7 +147,7 @@ function SortableTab({ modulo, isActive, tieneDatos }: SortableTabProps) {
   )
 }
 
-export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false }: ModuleTabsProps) {
+export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
   const moduloActivo = useAppSelector((s) => s.moduloActivo)
   const modulosOrden = useAppSelector((s) => s.modulosOrden)
   // Solo re-renderiza la barra de pestañas cuando cambia el CONJUNTO de
@@ -160,12 +157,8 @@ export function ModuleTabs({ mostrarNomenclaturas = false, mostrarFicha = false 
   const [draggedId, setDraggedId] = useState<string | null>(null)
 
   const modulosVisibles = useMemo(
-    () => MODULOS.filter(
-      modulo =>
-        (modulo.id !== 'nomenclaturas' || mostrarNomenclaturas) &&
-        (modulo.id !== 'ficha' || mostrarFicha)
-    ),
-    [mostrarNomenclaturas, mostrarFicha]
+    () => MODULOS.filter(modulo => modulo.id !== 'nomenclaturas' || mostrarNomenclaturas),
+    [mostrarNomenclaturas]
   )
 
   const modulosOrdenados = useMemo(

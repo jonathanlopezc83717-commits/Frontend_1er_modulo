@@ -22,7 +22,6 @@ export interface StoredState {
   nomenclaturasGlobales?: unknown[]
   plantillasFormato?: unknown[]
   plantillasPdfFormato?: unknown[]
-  plantillasFicha?: unknown[]
   estadosGuardados?: unknown[]
   timestamp: number
 }
@@ -59,9 +58,6 @@ function quitarArchivosDeSnapshots(estadosGuardados: unknown[] = []): unknown[] 
     const plantillasPdfFormato = Array.isArray(snapshotRecord.plantillasPdfFormato)
       ? quitarArchivosPlantilla(snapshotRecord.plantillasPdfFormato)
       : snapshotRecord.plantillasPdfFormato
-    const plantillasFicha = Array.isArray(snapshotRecord.plantillasFicha)
-      ? quitarArchivosPlantilla(snapshotRecord.plantillasFicha)
-      : snapshotRecord.plantillasFicha
 
     return {
       ...estadoRecord,
@@ -69,7 +65,6 @@ function quitarArchivosDeSnapshots(estadosGuardados: unknown[] = []): unknown[] 
         ...snapshotRecord,
         plantillasFormato,
         plantillasPdfFormato,
-        plantillasFicha,
       },
     }
   })
@@ -97,7 +92,6 @@ function crearEstadoLigero(state: StoredState): StoredState {
     ...state,
     plantillasFormato: quitarArchivosPlantilla(state.plantillasFormato),
     plantillasPdfFormato: quitarArchivosPlantilla(state.plantillasPdfFormato),
-    plantillasFicha: quitarArchivosPlantilla(state.plantillasFicha),
     estadosGuardados: quitarArchivosDeSnapshots(state.estadosGuardados),
   }) as StoredState
 }
@@ -197,7 +191,6 @@ export function guardarEstado(
   nomenclaturasGlobales: unknown[] = [],
   plantillasFormato: unknown[] = [],
   plantillasPdfFormato: unknown[] = [],
-  plantillasFicha: unknown[] = [],
   estadosGuardados: unknown[] = []
 ): void {
   const state: StoredState = {
@@ -208,7 +201,6 @@ export function guardarEstado(
     nomenclaturasGlobales,
     plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
     plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),
-    plantillasFicha: quitarArchivosPlantilla(plantillasFicha),
     estadosGuardados: quitarArchivosDeSnapshots(estadosGuardados),
     timestamp: Date.now(),
   }
@@ -216,7 +208,6 @@ export function guardarEstado(
   guardarArchivosPlantilla([
     ...(plantillasFormato as PlantillaFormato[]),
     ...(plantillasPdfFormato as PlantillaFormato[]),
-    ...(plantillasFicha as PlantillaFormato[]),
   ]).catch(error => {
     console.error('Error guardando archivos de plantilla:', error)
   })
@@ -225,7 +216,6 @@ export function guardarEstado(
     ...state,
     plantillasFormato,
     plantillasPdfFormato,
-    plantillasFicha,
     estadosGuardados,
   }).catch(error => {
     console.error('Error guardando estado completo:', error)
@@ -244,7 +234,6 @@ export function guardarEstado(
         nomenclaturasGlobales,
         plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
         plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),
-        plantillasFicha: quitarArchivosPlantilla(plantillasFicha),
         estadosGuardados: [],
         timestamp: Date.now(),
       } satisfies StoredState))

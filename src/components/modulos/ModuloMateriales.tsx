@@ -31,6 +31,7 @@ import {
   ImagePlus,
   LayoutTemplate,
   MapPin,
+  Pencil,
   RefreshCw,
   Save,
   Trash2,
@@ -38,6 +39,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
+import { EditarEtiquetasMateriales } from './EditarEtiquetasMateriales'
 import { separarDigitos } from '@/lib/excel-sync'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 
@@ -96,14 +98,59 @@ const IMAGEN_COORD: Record<string, string> = {
   'evid-2': 'evidencia_3',
 }
 
+// Source of truth para labels visibles y exportados.
+// Claves: coord (filas del grid) + 'sec:<id>' (headers de sección en exporters).
+// Editable via EditarEtiquetasMateriales; override persiste en PlantillaLogos.
+const LABELS_DEFAULT: Record<string, string> = {
+  // Filas del grid (coords)
+  '1-B': 'Fecha',
+  '1-D': 'Segmento',
+  '1-F': 'Tramo',
+  '2-B': 'Servicio',
+  '2-D': 'Infraestructura',
+  '2-F': 'Altura',
+  '3-B': 'Tensión',
+  '3-D': 'Tipo de instalación',
+  '3-F': 'Ubicación respecto al eje',
+  '4-B': 'Elementos afectos',
+  '4-D': 'Número de Fases',
+  '4-F': 'Número de hilos',
+  '5-B': 'Cadenamiento inicio',
+  '5-D': 'Cadenamiento fin',
+  '5-F': 'Estado físico',
+  '6-B': 'Coordenada "X"',
+  '6-D': 'Coordenada "Y"',
+  '6-F': 'Operador',
+  // Headers de sección (exporters)
+  'sec:titulo': 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE',
+  'sec:proyecto': 'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17',
+  'sec:clave': 'Clave:',
+  'sec:estado-izq': 'Estado actual y descripción del estado del elemento. Lado Izquierdo',
+  'sec:estado-der': 'Lado derecho',
+  'sec:croquis': 'CROQUIS DE LOCALIZACIÓN:',
+  'sec:observaciones': 'Observaciones:',
+  'sec:evidencias': 'EVIDENCIA FOTOGRÁFICA',
+}
+
+function resolverLabel(key: string, override: Record<string, string> | undefined): string {
+  return override?.[key] ?? LABELS_DEFAULT[key] ?? key
+}
+
+/** Filas editables derivadas de LABELS_DEFAULT: coords → grupo 'fila', sec:* → 'seccion'. */
+const FILAS_EDITABLES = Object.entries(LABELS_DEFAULT).map(([key, defaultLabel]) => ({
+  key,
+  defaultLabel,
+  grupo: (key.startsWith('sec:') ? 'seccion' : 'fila') as 'fila' | 'seccion',
+}))
+
 /** Filas de datos para el formulario (3 columnas por fila: etiqueta/valor). */
 const FILAS_DATOS: Array<Array<{ etiqueta: string; coord: string }>> = [
-  [{ etiqueta: 'Fecha', coord: '1-B' }, { etiqueta: 'Segmento', coord: '1-D' }, { etiqueta: 'Tramo', coord: '1-F' }],
-  [{ etiqueta: 'Servicio', coord: '2-B' }, { etiqueta: 'Infraestructura', coord: '2-D' }, { etiqueta: 'Altura', coord: '2-F' }],
-  [{ etiqueta: 'Tensión', coord: '3-B' }, { etiqueta: 'Tipo de instalación', coord: '3-D' }, { etiqueta: 'Ubicación respecto al eje', coord: '3-F' }],
-  [{ etiqueta: 'Elementos afectos', coord: '4-B' }, { etiqueta: 'Número de Fases', coord: '4-D' }, { etiqueta: 'Número de hilos', coord: '4-F' }],
-  [{ etiqueta: 'Cadenamiento inicio', coord: '5-B' }, { etiqueta: 'Cadenamiento fin', coord: '5-D' }, { etiqueta: 'Estado físico', coord: '5-F' }],
-  [{ etiqueta: 'Coordenada "X"', coord: '6-B' }, { etiqueta: 'Coordenada "Y"', coord: '6-D' }, { etiqueta: 'Operador', coord: '6-F' }],
+  [{ etiqueta: LABELS_DEFAULT['1-B'], coord: '1-B' }, { etiqueta: LABELS_DEFAULT['1-D'], coord: '1-D' }, { etiqueta: LABELS_DEFAULT['1-F'], coord: '1-F' }],
+  [{ etiqueta: LABELS_DEFAULT['2-B'], coord: '2-B' }, { etiqueta: LABELS_DEFAULT['2-D'], coord: '2-D' }, { etiqueta: LABELS_DEFAULT['2-F'], coord: '2-F' }],
+  [{ etiqueta: LABELS_DEFAULT['3-B'], coord: '3-B' }, { etiqueta: LABELS_DEFAULT['3-D'], coord: '3-D' }, { etiqueta: LABELS_DEFAULT['3-F'], coord: '3-F' }],
+  [{ etiqueta: LABELS_DEFAULT['4-B'], coord: '4-B' }, { etiqueta: LABELS_DEFAULT['4-D'], coord: '4-D' }, { etiqueta: LABELS_DEFAULT['4-F'], coord: '4-F' }],
+  [{ etiqueta: LABELS_DEFAULT['5-B'], coord: '5-B' }, { etiqueta: LABELS_DEFAULT['5-D'], coord: '5-D' }, { etiqueta: LABELS_DEFAULT['5-F'], coord: '5-F' }],
+  [{ etiqueta: LABELS_DEFAULT['6-B'], coord: '6-B' }, { etiqueta: LABELS_DEFAULT['6-D'], coord: '6-D' }, { etiqueta: LABELS_DEFAULT['6-F'], coord: '6-F' }],
 ]
 
 /** Número máximo de evidencias permitidas. */
@@ -122,12 +169,13 @@ function logoDerStorageKey(puntoId: string): string {
 // PLANTILLAS DE LOGOS
 // =====================================================
 
-/** Plantilla que conserva solo los logos del formato. */
+/** Plantilla que conserva logos + etiquetas editadas del formato. */
 interface PlantillaLogos {
   id: string
   nombre: string
   logoIzq?: string
   logoDer?: string
+  etiquetas?: Record<string, string>
   createdAt: string
 }
 
@@ -183,52 +231,6 @@ function calcularDistribucionEvidencias(n: number): { cols: number; rows: number
 // UTILIDADES DE EXTRACCIÓN (autocompletado desde otros módulos)
 // =====================================================
 
-function normalizarBusquedaCampo(valor: string): string {
-  return valor
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/["']/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function buscarValorEnFicha(punto: unknown, campo: string): string | undefined {
-  if (!punto || typeof punto !== 'object') return undefined
-  const moduloData = (punto as Record<string, unknown>).moduloData as Record<string, unknown> | undefined
-  const fichaWrapper = moduloData?.ficha as Record<string, unknown> | undefined
-  const ficha = (fichaWrapper?.ficha || fichaWrapper) as {
-    datos?: Array<{ etiqueta: string; valor: string }>
-    descripcionIzquierda?: string
-    descripcionDerecha?: string
-    observaciones?: string
-    titulo?: string
-    proyecto?: string
-    clave?: string
-  } | undefined
-  if (!ficha) return undefined
-
-  switch (campo) {
-    case 'titulo': return ficha.titulo
-    case 'proyecto': return ficha.proyecto
-    case 'clave': return ficha.clave
-    case 'descripcion_izquierda': return ficha.descripcionIzquierda
-    case 'descripcion_derecha': return ficha.descripcionDerecha
-    case 'observaciones': return ficha.observaciones
-  }
-
-  const etiquetaBuscada = normalizarBusquedaCampo(campo)
-  if (etiquetaBuscada && ficha.datos) {
-    const item = ficha.datos.find(d => {
-      const normal = normalizarBusquedaCampo(d.etiqueta)
-      return normal === etiquetaBuscada || normal.includes(etiquetaBuscada) || etiquetaBuscada.includes(normal)
-    })
-    if (item?.valor) return item.valor
-  }
-
-  return undefined
-}
-
 function extraerValor(punto: unknown, campo: string): string {
   if (!punto || typeof punto !== 'object') return ''
   const p = punto as Record<string, unknown>
@@ -236,11 +238,11 @@ function extraerValor(punto: unknown, campo: string): string {
 
   switch (campo) {
     case 'clave':
-      return String(p.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || buscarValorEnFicha(punto, campo) || ''
+      return String(p.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
     case 'fecha': {
       const nombre = String(p.carpetaPath || '')
       const match = nombre.match(/(\d{2})_(\d{2})_(\d{4})/)
-      return match ? `${match[1]}/${match[2]}/${match[3]}` : buscarValorEnFicha(punto, campo) || ''
+      return match ? `${match[1]}/${match[2]}/${match[3]}` : ''
     }
     case 'coordenada_x': {
       const geo = moduloData?.georeferencia as Record<string, unknown> | undefined
@@ -248,7 +250,7 @@ function extraerValor(punto: unknown, campo: string): string {
       if (c && c.x !== undefined && c.y !== undefined) {
         return latLngToUtmEasting(c.y, c.x) ?? ''
       }
-      return buscarValorEnFicha(punto, campo) || ''
+      return ''
     }
     case 'coordenada_y': {
       const geo = moduloData?.georeferencia as Record<string, unknown> | undefined
@@ -256,16 +258,16 @@ function extraerValor(punto: unknown, campo: string): string {
       if (c && c.x !== undefined && c.y !== undefined) {
         return latLngToUtmNorthing(c.y, c.x) ?? ''
       }
-      return buscarValorEnFicha(punto, campo) || ''
+      return ''
     }
     case 'observaciones': {
       const analisis = moduloData?.analisis as Record<string, unknown> | undefined
       const results = (analisis?.results || []) as Array<{ description?: string }>
       const descripcionObra = results[0]?.description
-      return String(descripcionObra || analisis?.descripcionGeneral || buscarValorEnFicha(punto, campo) || '')
+      return String(descripcionObra || analisis?.descripcionGeneral || '')
     }
     default:
-      return buscarValorEnFicha(punto, campo) || ''
+      return ''
   }
 }
 
@@ -510,6 +512,7 @@ export async function exportarPdfFicha(
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
+  etiquetas?: Record<string, string>,
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -652,28 +655,28 @@ export async function exportarPdfFicha(
   }
 
   // Título: centrado en la zona central (siempre visible)
-  txt('FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE', tituloZoneX, Ytitle, tituloZoneW, {
+  txt(resolverLabel('sec:titulo', etiquetas), tituloZoneX, Ytitle, tituloZoneW, {
     fs: 10, bold: true, color: [255, 255, 255], align: 'center', vcenter: true, py: 0, h: Htitle,
   })
 
   // 2. Subtítulo (proyecto + clave)
   cell(ML, Ysub, CX[4] - ML, Hsub, [45, 45, 45])
-  txt('Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17', ML, Ysub, CX[4] - ML, {
+  txt(resolverLabel('sec:proyecto', etiquetas), ML, Ysub, CX[4] - ML, {
     fs: 8, color: [255, 255, 255], vcenter: true, py: 0, h: Hsub,
   })
   cell(CX[4], Ysub, C[4], Hsub, [240, 241, 243])
-  txt('Clave:', CX[4], Ysub, C[4], { fs: 7.5, bold: true, align: 'right', vcenter: true, py: 0, h: Hsub })
+  txt(resolverLabel('sec:clave', etiquetas), CX[4], Ysub, C[4], { fs: 7.5, bold: true, align: 'right', vcenter: true, py: 0, h: Hsub })
   cell(CX[5], Ysub, C[5], Hsub)
   txt(d['0-F'] || '', CX[5], Ysub, C[5], { fs: 7.5, vcenter: true, py: 0, h: Hsub })
 
   // 3. Filas de datos (6 filas × 6 columnas)
   const dataRows = [
-    { l: ['Fecha:', 'Segmento:', 'Tramo:'], v: ['1-B', '1-D', '1-F'] },
-    { l: ['Servicio:', 'Infraestructura:', 'Altura:'], v: ['2-B', '2-D', '2-F'] },
-    { l: ['Tensión:', 'Tipo de instalación:', 'Ubicación respecto al eje de proyecto:'], v: ['3-B', '3-D', '3-F'] },
-    { l: ['Elementos afectos:', 'Número de Fases:', 'Número de hilos:'], v: ['4-B', '4-D', '4-F'] },
-    { l: ['Cadenamiento inicio:', 'Cadenamiento fin:', 'Estado físico:'], v: ['5-B', '5-D', '5-F'] },
-    { l: ['Coordenada "X":', 'Coordenada "Y":', 'Operador:'], v: ['6-B', '6-D', '6-F'] },
+    { v: ['1-B', '1-D', '1-F'] },
+    { v: ['2-B', '2-D', '2-F'] },
+    { v: ['3-B', '3-D', '3-F'] },
+    { v: ['4-B', '4-D', '4-F'] },
+    { v: ['5-B', '5-D', '5-F'] },
+    { v: ['6-B', '6-D', '6-F'] },
   ]
 
   dataRows.forEach((row, ri) => {
@@ -681,9 +684,10 @@ export async function exportarPdfFicha(
     for (let p = 0; p < 3; p++) {
       const lx = CX[p * 2]
       const vx = CX[p * 2 + 1]
+      const lbl = resolverLabel(row.v[p], etiquetas) + ':'
       cell(lx, yy, C[p * 2], Hdata, [240, 241, 243])
-      const lblFS = row.l[p].length > 28 ? 6.5 : 7.5
-      txt(row.l[p], lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
+      const lblFS = lbl.length > 28 ? 6.5 : 7.5
+      txt(lbl, lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
       cell(vx, yy, C[p * 2 + 1], Hdata)
       txt(d[row.v[p]] || '', vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
     }
@@ -691,11 +695,11 @@ export async function exportarPdfFicha(
 
   // 4. Estado actual — etiquetas
   cell(ML, YestLbl, CX[3] - ML, HestLbl, [240, 241, 243])
-  txt('Estado actual y descripción del estado del elemento. Lado Izquierdo', ML, YestLbl, CX[3] - ML, {
+  txt(resolverLabel('sec:estado-izq', etiquetas), ML, YestLbl, CX[3] - ML, {
     fs: 7, bold: true, vcenter: true, py: 0, h: HestLbl,
   })
   cell(CX[3], YestLbl, CX[6] - CX[3], HestLbl, [240, 241, 243])
-  txt('Lado derecho', CX[3], YestLbl, CX[6] - CX[3], {
+  txt(resolverLabel('sec:estado-der', etiquetas), CX[3], YestLbl, CX[6] - CX[3], {
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HestLbl,
   })
 
@@ -707,11 +711,11 @@ export async function exportarPdfFicha(
 
   // 6. Croquis / Observaciones — etiquetas
   cell(ML, YcrLbl, CX[3] - ML, HcrLbl, [240, 241, 243])
-  txt('CROQUIS DE LOCALIZACIÓN:', ML, YcrLbl, CX[3] - ML, {
+  txt(resolverLabel('sec:croquis', etiquetas), ML, YcrLbl, CX[3] - ML, {
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HcrLbl,
   })
   cell(CX[3], YcrLbl, CX[6] - CX[3], HcrLbl, [240, 241, 243])
-  txt('Observaciones:', CX[3], YcrLbl, CX[6] - CX[3], {
+  txt(resolverLabel('sec:observaciones', etiquetas), CX[3], YcrLbl, CX[6] - CX[3], {
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HcrLbl,
   })
 
@@ -748,7 +752,7 @@ export async function exportarPdfFicha(
 
   // 8. Evidencia fotográfica — etiqueta
   cell(ML, YevLbl, PW, HevLbl, [240, 241, 243])
-  txt('EVIDENCIA FOTOGRÁFICA', ML, YevLbl, PW, {
+  txt(resolverLabel('sec:evidencias', etiquetas), ML, YevLbl, PW, {
     fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HevLbl,
   })
 
@@ -820,6 +824,7 @@ export async function exportarExcelFicha(
   imagenes: Record<string, string>,
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
+  etiquetas?: Record<string, string>,
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -861,7 +866,7 @@ export async function exportarExcelFicha(
 
   ws.mergeCells('B1:E1')
   const cellTitulo = ws.getCell('B1')
-  cellTitulo.value = 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE'
+  cellTitulo.value = resolverLabel('sec:titulo', etiquetas)
   cellTitulo.fill = fillDark
   cellTitulo.font = fontWhiteBold
   cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -875,14 +880,14 @@ export async function exportarExcelFicha(
   // Fila 2: Proyecto (A2:D2) + Clave (E2) + valor clave (F2)
   ws.mergeCells('A2:D2')
   const cellProy = ws.getCell('A2')
-  cellProy.value = 'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17'
+  cellProy.value = resolverLabel('sec:proyecto', etiquetas)
   cellProy.fill = fillSub
   cellProy.font = fontWhite
   cellProy.alignment = { vertical: 'middle' }
   cellProy.border = thinBorder
 
   const cellClaveLbl = ws.getCell('E2')
-  cellClaveLbl.value = 'Clave:'
+  cellClaveLbl.value = resolverLabel('sec:clave', etiquetas)
   cellClaveLbl.fill = fillLabel
   cellClaveLbl.font = fontLabelBold
   cellClaveLbl.alignment = { horizontal: 'right', vertical: 'middle' }
@@ -896,12 +901,12 @@ export async function exportarExcelFicha(
 
   // Filas 3-8: datos (6 filas × 6 columnas)
   const dataRows = [
-    { l: ['Fecha:', 'Segmento:', 'Tramo:'], v: ['1-B', '1-D', '1-F'] },
-    { l: ['Servicio:', 'Infraestructura:', 'Altura:'], v: ['2-B', '2-D', '2-F'] },
-    { l: ['Tensión:', 'Tipo de instalación:', 'Ubicación respecto al eje de proyecto:'], v: ['3-B', '3-D', '3-F'] },
-    { l: ['Elementos afectos:', 'Número de Fases:', 'Número de hilos:'], v: ['4-B', '4-D', '4-F'] },
-    { l: ['Cadenamiento inicio:', 'Cadenamiento fin:', 'Estado físico:'], v: ['5-B', '5-D', '5-F'] },
-    { l: ['Coordenada "X":', 'Coordenada "Y":', 'Operador:'], v: ['6-B', '6-D', '6-F'] },
+    { v: ['1-B', '1-D', '1-F'] },
+    { v: ['2-B', '2-D', '2-F'] },
+    { v: ['3-B', '3-D', '3-F'] },
+    { v: ['4-B', '4-D', '4-F'] },
+    { v: ['5-B', '5-D', '5-F'] },
+    { v: ['6-B', '6-D', '6-F'] },
   ]
   dataRows.forEach((row, ri) => {
     const rowNumber = ri + 3
@@ -910,7 +915,7 @@ export async function exportarExcelFicha(
       const lblCol = p * 2 + 1
       const valCol = p * 2 + 2
       const cellLbl = ws.getCell(rowNumber, lblCol)
-      cellLbl.value = row.l[p]
+      cellLbl.value = resolverLabel(row.v[p], etiquetas) + ':'
       cellLbl.fill = fillLabel
       cellLbl.font = fontLabelBold
       cellLbl.alignment = { vertical: 'middle', wrapText: true }
@@ -926,7 +931,7 @@ export async function exportarExcelFicha(
   // Fila 9: etiquetas estado actual
   ws.mergeCells('A9:C9')
   const cellEstIzqLbl = ws.getCell('A9')
-  cellEstIzqLbl.value = 'Estado actual y descripción del estado del elemento. Lado Izquierdo'
+  cellEstIzqLbl.value = resolverLabel('sec:estado-izq', etiquetas)
   cellEstIzqLbl.fill = fillLabel
   cellEstIzqLbl.font = fontLabelBold
   cellEstIzqLbl.alignment = { vertical: 'middle', wrapText: true }
@@ -934,7 +939,7 @@ export async function exportarExcelFicha(
 
   ws.mergeCells('D9:F9')
   const cellEstDerLbl = ws.getCell('D9')
-  cellEstDerLbl.value = 'Lado derecho'
+  cellEstDerLbl.value = resolverLabel('sec:estado-der', etiquetas)
   cellEstDerLbl.fill = fillLabel
   cellEstDerLbl.font = fontLabelBold
   cellEstDerLbl.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -957,7 +962,7 @@ export async function exportarExcelFicha(
   // Fila 11: etiquetas croquis / observaciones
   ws.mergeCells('A11:C11')
   const cellCrLbl = ws.getCell('A11')
-  cellCrLbl.value = 'CROQUIS DE LOCALIZACIÓN:'
+  cellCrLbl.value = resolverLabel('sec:croquis', etiquetas)
   cellCrLbl.fill = fillLabel
   cellCrLbl.font = fontLabelBold
   cellCrLbl.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -965,7 +970,7 @@ export async function exportarExcelFicha(
 
   ws.mergeCells('D11:F11')
   const cellObsLbl = ws.getCell('D11')
-  cellObsLbl.value = 'Observaciones:'
+  cellObsLbl.value = resolverLabel('sec:observaciones', etiquetas)
   cellObsLbl.fill = fillLabel
   cellObsLbl.font = fontLabelBold
   cellObsLbl.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -1097,7 +1102,7 @@ export async function exportarExcelFicha(
     // Etiqueta de evidencia
     ws.mergeCells(evStartRow, 1, evStartRow, 6)
     const cellEvLbl = ws.getCell(evStartRow, 1)
-    cellEvLbl.value = 'EVIDENCIA FOTOGRÁFICA'
+    cellEvLbl.value = resolverLabel('sec:evidencias', etiquetas)
     cellEvLbl.fill = fillLabel
     cellEvLbl.font = fontLabelBold
     cellEvLbl.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -1170,6 +1175,8 @@ export function ModuloMateriales() {
   const [dialogoPlantillasOpen, setDialogoPlantillasOpen] = useState(false)
   const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
   const [plantillaSeleccionadaId, setPlantillaSeleccionadaId] = useState<string>('')
+  const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
+  const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
@@ -1407,6 +1414,7 @@ export function ModuloMateriales() {
         nombre,
         logoIzq: imagenes['logo-izq'] || undefined,
         logoDer: imagenes['logo-der'] || undefined,
+        etiquetas: { ...etiquetas },
         createdAt: new Date().toISOString(),
       },
     ]
@@ -1427,6 +1435,7 @@ export function ModuloMateriales() {
       ...(plantilla.logoIzq && { 'logo-izq': plantilla.logoIzq }),
       ...(plantilla.logoDer && { 'logo-der': plantilla.logoDer }),
     }))
+    setEtiquetas(plantilla.etiquetas ? { ...plantilla.etiquetas } : {})
     toast.success(`Plantilla "${plantilla.nombre}" cargada`)
     setDialogoPlantillasOpen(false)
   }
@@ -1446,12 +1455,12 @@ export function ModuloMateriales() {
       await exportarPdfFicha(valores, imagenes, nombre, {
         quitarFondoLogos,
         numEvidencias,
-      })
+      }, etiquetas)
       await exportarExcelFicha(valores, imagenes, nombre, {
         quitarFondoLogos,
         numEvidencias,
         imagenesReconocimiento: imagenesReconocimientoDisponibles,
-      })
+      }, etiquetas)
       toast.success('PDF y Excel exportados')
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -1541,6 +1550,10 @@ export function ModuloMateriales() {
                 <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
                   <FileText className="mr-2 h-4 w-4" />
                   {exportando ? 'Exportando...' : 'PDF + Excel'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar etiquetas
                 </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
                   <DialogTrigger asChild>
@@ -1648,7 +1661,7 @@ export function ModuloMateriales() {
                     />
                   </div>
                   <Input
-                    value="FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE"
+                    value={resolverLabel('sec:titulo', etiquetas)}
                     readOnly
                     className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-semibold text-white"
                   />
@@ -1664,7 +1677,7 @@ export function ModuloMateriales() {
               </div>
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
                 <Input
-                  value="Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17"
+                  value={resolverLabel('sec:proyecto', etiquetas)}
                   readOnly
                   className="border-0 px-0 py-0 text-sm"
                 />
@@ -1682,12 +1695,13 @@ export function ModuloMateriales() {
             <div className="space-y-2">
               {FILAS_DATOS.map((fila, filaIndex) => (
                 <div key={filaIndex} className="grid gap-2 md:grid-cols-3">
-                  {fila.map(({ etiqueta, coord }) => {
+                  {fila.map(({ coord }) => {
                     const etiquetaCombo = COORDS_CON_OPCIONES[coord]
+                    const etiquetaResuelta = resolverLabel(coord, etiquetas)
                     return (
                       <div key={coord} className="space-y-1">
                         <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                          <span>{etiqueta}</span>
+                          <span>{etiquetaResuelta}</span>
                           <span className="font-mono text-[10px] text-emerald-600">{coord}</span>
                         </label>
                         {etiquetaCombo ? (
@@ -1697,7 +1711,7 @@ export function ModuloMateriales() {
                             onCommit={v => registrarCombo(etiquetaCombo, v)}
                             opciones={opcionesCombo[etiquetaCombo] || []}
                             onFocus={() => setCoordActiva(coord)}
-                            placeholder={etiqueta}
+                            placeholder={etiquetaResuelta}
                             className="px-2 py-1"
                           />
                         ) : (
@@ -1706,7 +1720,7 @@ export function ModuloMateriales() {
                             value={valores[coord] || ''}
                             onChange={v => actualizarValor(coord, v)}
                             onFocus={setCoordActiva}
-                            placeholder={etiqueta}
+                            placeholder={etiquetaResuelta}
                           />
                         )}
                       </div>
@@ -1916,6 +1930,13 @@ export function ModuloMateriales() {
           </CardContent>
         </Card>
       </div>
+      <EditarEtiquetasMateriales
+        open={editarEtiquetasAbierto}
+        onOpenChange={setEditarEtiquetasAbierto}
+        filas={FILAS_EDITABLES}
+        overrideInicial={etiquetas}
+        onSave={setEtiquetas}
+      />
     </ScrollArea>
   )
 }

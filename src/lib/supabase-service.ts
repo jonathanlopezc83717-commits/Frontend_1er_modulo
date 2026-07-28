@@ -452,7 +452,6 @@ function estadoGuardadoFromDB(db: EstadoAppSnapshotDB): EstadoGuardado {
       nomenclaturasGlobales: [],
       plantillasFormato: [],
       plantillasPdfFormato: [],
-      plantillasFicha: [],
     },
   }
 }

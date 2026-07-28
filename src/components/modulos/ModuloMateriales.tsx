@@ -549,6 +549,9 @@ export async function exportarPdfFicha(
   const Ysub = y; y += Hsub
   const Ydata: number[] = []
   for (let i = 0; i < 6; i++) { Ydata.push(y); y += Hdata }
+  const filasCustom = Math.ceil(camposCustom.length / 3)
+  const Ycustom: number[] = []
+  for (let i = 0; i < filasCustom; i++) { Ycustom.push(y); y += Hdata }
   const YestLbl = y; y += HestLbl
   const YestVal = y; y += HestVal
   const YcrLbl = y; y += HcrLbl
@@ -696,6 +699,25 @@ export async function exportarPdfFicha(
     }
   })
 
+  // 3b. Campos personalizados (mismo formato que dataRows, 3 por fila)
+  for (let fi = 0; fi < filasCustom; fi++) {
+    const yy = Ycustom[fi]
+    for (let p = 0; p < 3; p++) {
+      const idx = fi * 3 + p
+      const lx = CX[p * 2]
+      const vx = CX[p * 2 + 1]
+      cell(lx, yy, C[p * 2], Hdata, [240, 241, 243])
+      cell(vx, yy, C[p * 2 + 1], Hdata)
+      if (idx < camposCustom.length) {
+        const campo = camposCustom[idx]
+        const lbl = campo.etiqueta + ':'
+        const lblFS = lbl.length > 28 ? 6.5 : 7.5
+        txt(lbl, lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
+        txt(d[campo.coord] || '', vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+      }
+    }
+  }
+
   // 4. Estado actual — etiquetas
   cell(ML, YestLbl, CX[3] - ML, HestLbl, [240, 241, 243])
   txt(resolverLabel('sec:estado-izq', etiquetas), ML, YestLbl, CX[3] - ML, {
@@ -812,32 +834,6 @@ export async function exportarPdfFicha(
       doc.setDrawColor(0, 0, 0)
       doc.setLineWidth(0.4)
       doc.line(ML, ey + evSlotH, ML + PW, ey + evSlotH)
-    }
-  }
-
-  // 10. Información adicional (campos personalizados)
-  if (camposCustom.length > 0) {
-    const HaddLbl = 8
-    const HaddRow = 8
-    if (y + HaddLbl + HaddRow > MT + PH) {
-      doc.addPage()
-      y = MT
-    }
-    cell(ML, y, PW, HaddLbl, [240, 241, 243])
-    txt('Información adicional', ML, y, PW, { fs: 7.5, bold: true, align: 'center', vcenter: true, py: 0, h: HaddLbl })
-    y += HaddLbl
-    const lblW = CX[3] - ML
-    const valW = CX[6] - CX[3]
-    for (const campo of camposCustom) {
-      if (y + HaddRow > MT + PH) {
-        doc.addPage()
-        y = MT
-      }
-      cell(ML, y, lblW, HaddRow, [240, 241, 243])
-      txt(campo.etiqueta + ':', ML, y, lblW, { fs: 7.5, bold: true, vcenter: true, py: 0, h: HaddRow })
-      cell(CX[3], y, valW, HaddRow)
-      txt(d[campo.coord] || '', CX[3], y, valW, { fs: 7.5, vcenter: true, py: 0, h: HaddRow })
-      y += HaddRow
     }
   }
 
@@ -958,67 +954,98 @@ export async function exportarExcelFicha(
     }
   })
 
-  // Fila 9: etiquetas estado actual
-  ws.mergeCells('A9:C9')
-  const cellEstIzqLbl = ws.getCell('A9')
+  // Filas adicionales: campos personalizados (3 por fila, mismo formato que dataRows)
+  let fila = 9
+  const filasCustom = Math.ceil(camposCustom.length / 3)
+  for (let fi = 0; fi < filasCustom; fi++) {
+    ws.getRow(fila).height = 18
+    for (let p = 0; p < 3; p++) {
+      const idx = fi * 3 + p
+      const lblCol = p * 2 + 1
+      const valCol = p * 2 + 2
+      const cellLbl = ws.getCell(fila, lblCol)
+      cellLbl.fill = fillLabel
+      cellLbl.font = fontLabelBold
+      cellLbl.alignment = { vertical: 'middle', wrapText: true }
+      cellLbl.border = thinBorder
+      const cellVal = ws.getCell(fila, valCol)
+      cellVal.border = thinBorder
+      cellVal.alignment = { vertical: 'middle', wrapText: true }
+      if (idx < camposCustom.length) {
+        const campo = camposCustom[idx]
+        cellLbl.value = campo.etiqueta + ':'
+        cellVal.value = d[campo.coord] || ''
+      }
+    }
+    fila++
+  }
+
+  // Fila estado actual: etiquetas
+  ws.mergeCells(`A${fila}:C${fila}`)
+  const cellEstIzqLbl = ws.getCell(`A${fila}`)
   cellEstIzqLbl.value = resolverLabel('sec:estado-izq', etiquetas)
   cellEstIzqLbl.fill = fillLabel
   cellEstIzqLbl.font = fontLabelBold
   cellEstIzqLbl.alignment = { vertical: 'middle', wrapText: true }
   cellEstIzqLbl.border = thinBorder
 
-  ws.mergeCells('D9:F9')
-  const cellEstDerLbl = ws.getCell('D9')
+  ws.mergeCells(`D${fila}:F${fila}`)
+  const cellEstDerLbl = ws.getCell(`D${fila}`)
   cellEstDerLbl.value = resolverLabel('sec:estado-der', etiquetas)
   cellEstDerLbl.fill = fillLabel
   cellEstDerLbl.font = fontLabelBold
   cellEstDerLbl.alignment = { horizontal: 'center', vertical: 'middle' }
   cellEstDerLbl.border = thinBorder
+  fila++
 
-  // Fila 10: valores estado actual
-  ws.mergeCells('A10:C10')
-  const cellEstIzqVal = ws.getCell('A10')
+  // Estado actual: valores
+  ws.mergeCells(`A${fila}:C${fila}`)
+  const cellEstIzqVal = ws.getCell(`A${fila}`)
   cellEstIzqVal.value = d['7-D'] || ''
   cellEstIzqVal.alignment = { vertical: 'top', wrapText: true }
   cellEstIzqVal.border = thinBorder
 
-  ws.mergeCells('D10:F10')
-  const cellEstDerVal = ws.getCell('D10')
+  ws.mergeCells(`D${fila}:F${fila}`)
+  const cellEstDerVal = ws.getCell(`D${fila}`)
   cellEstDerVal.value = d['7-F'] || ''
   cellEstDerVal.alignment = { vertical: 'top', wrapText: true }
   cellEstDerVal.border = thinBorder
-  ws.getRow(10).height = 80
+  ws.getRow(fila).height = 80
+  fila++
 
-  // Fila 11: etiquetas croquis / observaciones
-  ws.mergeCells('A11:C11')
-  const cellCrLbl = ws.getCell('A11')
+  // Croquis / Observaciones: etiquetas
+  ws.mergeCells(`A${fila}:C${fila}`)
+  const cellCrLbl = ws.getCell(`A${fila}`)
   cellCrLbl.value = resolverLabel('sec:croquis', etiquetas)
   cellCrLbl.fill = fillLabel
   cellCrLbl.font = fontLabelBold
   cellCrLbl.alignment = { horizontal: 'center', vertical: 'middle' }
   cellCrLbl.border = thinBorder
 
-  ws.mergeCells('D11:F11')
-  const cellObsLbl = ws.getCell('D11')
+  ws.mergeCells(`D${fila}:F${fila}`)
+  const cellObsLbl = ws.getCell(`D${fila}`)
   cellObsLbl.value = resolverLabel('sec:observaciones', etiquetas)
   cellObsLbl.fill = fillLabel
   cellObsLbl.font = fontLabelBold
   cellObsLbl.alignment = { horizontal: 'center', vertical: 'middle' }
   cellObsLbl.border = thinBorder
+  fila++
 
-  // Fila 12: valores croquis / observaciones
-  ws.mergeCells('A12:C12')
-  const cellCrVal = ws.getCell('A12')
+  // Croquis / Observaciones: valores
+  const crValRow = fila
+  ws.mergeCells(`A${crValRow}:C${crValRow}`)
+  const cellCrVal = ws.getCell(`A${crValRow}`)
   cellCrVal.value = imagenes.croquis ? '[Ver croquis adjunto]' : ''
   cellCrVal.alignment = { vertical: 'top', wrapText: true }
   cellCrVal.border = thinBorder
 
-  ws.mergeCells('D12:F12')
-  const cellObsVal = ws.getCell('D12')
+  ws.mergeCells(`D${crValRow}:F${crValRow}`)
+  const cellObsVal = ws.getCell(`D${crValRow}`)
   cellObsVal.value = d['8-F'] || ''
   cellObsVal.alignment = { vertical: 'top', wrapText: true }
   cellObsVal.border = thinBorder
-  ws.getRow(12).height = 120
+  ws.getRow(crValRow).height = 120
+  fila++
 
   // === Imágenes en Excel ===
   // Usamos el formato { tl: {col, row}, br: {col, row} } que es el más
@@ -1116,15 +1143,15 @@ export async function exportarExcelFicha(
     await addImageContain(logo, 5, 0, 1, 0.9)
   }
 
-  // --- Croquis (filas 12, columnas A-C) ---
+  // --- Croquis (fila valores croquis, columnas A-C) ---
   if (imagenes.croquis) {
-    await addImageContain(imagenes.croquis, 0, 11, 3, 1)
+    await addImageContain(imagenes.croquis, 0, crValRow - 1, 3, 1)
   }
 
   // --- Evidencias fotográficas ---
   if (numEvidencias > 0) {
     const { cols: evCols, rows: evRows } = calcularDistribucionEvidencias(numEvidencias)
-    const evStartRow = 13
+    const evStartRow = fila
     const colsPorImagen = 6 / evCols
     const itemsUltimaFila = numEvidencias - (evRows - 1) * evCols
     const offsetUltimaFila = itemsUltimaFila < evCols ? Math.floor((evCols - itemsUltimaFila) / 2) : 0
@@ -1139,13 +1166,13 @@ export async function exportarExcelFicha(
     cellEvLbl.border = thinBorder
     ws.getRow(evStartRow).height = 18
 
-    for (let fila = 0; fila < evRows; fila++) {
-      const rowNumber = evStartRow + 1 + fila
+    for (let evFila = 0; evFila < evRows; evFila++) {
+      const rowNumber = evStartRow + 1 + evFila
       ws.getRow(rowNumber).height = 90
-      const isUltimaFila = fila === evRows - 1
+      const isUltimaFila = evFila === evRows - 1
       const offset = isUltimaFila ? offsetUltimaFila : 0
       for (let col = 0; col < evCols; col++) {
-        const idx = fila * evCols + col
+        const idx = evFila * evCols + col
         if (idx >= numEvidencias) break
         const imgKey = `evid-${idx}`
         // Preferir imágenes del módulo de reconocimiento cuando se exporta a Excel.
@@ -1167,35 +1194,6 @@ export async function exportarExcelFicha(
           await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)
         }
       }
-    }
-  }
-
-  // Información adicional (campos personalizados)
-  if (camposCustom.length > 0) {
-    const evRowsCalc = numEvidencias > 0 ? calcularDistribucionEvidencias(numEvidencias).rows : 0
-    let r = numEvidencias > 0 ? 14 + evRowsCalc : 13
-    ws.mergeCells(r, 1, r, 6)
-    const cellAddLbl = ws.getCell(r, 1)
-    cellAddLbl.value = 'Información adicional'
-    cellAddLbl.fill = fillLabel
-    cellAddLbl.font = fontLabelBold
-    cellAddLbl.alignment = { horizontal: 'center', vertical: 'middle' }
-    cellAddLbl.border = thinBorder
-    ws.getRow(r).height = 18
-    r++
-    for (const campo of camposCustom) {
-      const cellLbl = ws.getCell(r, 1)
-      cellLbl.value = campo.etiqueta + ':'
-      cellLbl.fill = fillLabel
-      cellLbl.font = fontLabelBold
-      cellLbl.alignment = { vertical: 'middle', wrapText: true }
-      cellLbl.border = thinBorder
-      const cellVal = ws.getCell(r, 2)
-      cellVal.value = d[campo.coord] || ''
-      cellVal.border = thinBorder
-      cellVal.alignment = { vertical: 'middle', wrapText: true }
-      ws.getRow(r).height = 18
-      r++
     }
   }
 

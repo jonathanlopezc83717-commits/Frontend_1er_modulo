@@ -4,6 +4,7 @@ import {
   etiquetaBaseDe,
   construirAliasEtiquetas,
   reescribirEtiquetaLabel,
+  resolverOverrideEtiqueta,
   type CampoFicha,
 } from '@/components/modulos/ficha-helpers'
 
@@ -74,6 +75,27 @@ describe('plantilla-alias-etiquetas', () => {
     })
     it('detects colon after trailing whitespace', () => {
       expect(reescribirEtiquetaLabel('Fecha : ', 'Día')).toBe('Día:')
+    })
+  })
+
+  describe('resolverOverrideEtiqueta (S14 precedence)', () => {
+    it('alias wins over campos.etiqueta for built-in key', () => {
+      const alias = { fecha: 'Día' }
+      const camposEtiqueta = { fecha: 'Foo' }
+      expect(resolverOverrideEtiqueta('fecha', alias, camposEtiqueta)).toBe('Día')
+    })
+    it('custom etiqueta used when no alias present', () => {
+      const alias: Record<string, string> = {}
+      const camposEtiqueta = { custom_x: 'Inspector' }
+      expect(resolverOverrideEtiqueta('custom_x', alias, camposEtiqueta)).toBe('Inspector')
+    })
+    it('returns undefined when neither source has the key', () => {
+      expect(resolverOverrideEtiqueta('missing', {}, {})).toBeUndefined()
+    })
+    it('camposEtiqueta optional: only alias consulted', () => {
+      const alias = { fecha: 'Día' }
+      expect(resolverOverrideEtiqueta('fecha', alias)).toBe('Día')
+      expect(resolverOverrideEtiqueta('custom_x', alias)).toBeUndefined()
     })
   })
 })

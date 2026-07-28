@@ -145,6 +145,21 @@ describe('ficha-helpers', () => {
       const normalizada = normalizarFicha(conExtra)
       expect(normalizada.datos.find(d => d.etiqueta === 'CampoCustom')?.valor).toBe('X')
     })
+    it('S13: preserva campos custom (con etiquetaBase custom_) en round-trip', () => {
+      const f = crearFichaVacia()
+      const conCustom = {
+        ...f,
+        datos: [
+          ...f.datos,
+          { etiqueta: 'Inspector', valor: 'Juan', etiquetaBase: 'custom_123' },
+        ],
+      }
+      const normalizada = normalizarFicha(conCustom)
+      const custom = normalizada.datos.find(d => d.etiquetaBase === 'custom_123')
+      expect(custom).toBeDefined()
+      expect(custom?.etiqueta).toBe('Inspector')
+      expect(custom?.valor).toBe('Juan')
+    })
   })
 
   describe('etiquetaBaseDe + crearFichaVacia etiquetaBase', () => {
@@ -253,6 +268,19 @@ describe('ficha-helpers', () => {
       f.datos[idxXDer].valor = '470999.99'
       const v = obtenerValoresFicha(f)
       expect(v.coordenada_x).toBe('470123.45')
+    })
+    it('campos-custom: clavea custom por etiquetaBase estable', () => {
+      const f = crearFichaVacia()
+      f.datos.push({ etiqueta: 'Inspector', valor: 'Juan', etiquetaBase: 'custom_123' })
+      const v = obtenerValoresFicha(f)
+      expect(v.custom_123).toBe('Juan')
+    })
+    it('regresion built-in renombrado sigue keyeando por su base', () => {
+      const f = crearFichaVacia()
+      const idx = f.datos.findIndex(d => d.etiqueta === 'Fecha')
+      f.datos[idx] = { etiqueta: 'Día', valor: '01/01', etiquetaBase: 'Fecha' }
+      const v = obtenerValoresFicha(f)
+      expect(v.fecha).toBe('01/01')
     })
   })
 })

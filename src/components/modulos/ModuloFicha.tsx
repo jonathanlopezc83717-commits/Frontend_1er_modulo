@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import type { PlantillaFormato } from '@/types'
+import type { PlantillaFormato, PlantillaCampoFormato } from '@/types'
 import { Download, FileSpreadsheet, ImagePlus, Loader2, MapPin, Pencil, RefreshCw, Save, Trash2, Upload, X, Zap } from 'lucide-react'
 import { generarCroquisDesdeDwg, generarCroquisPorClave, DwgError } from '@/lib/dwg-croquis'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
@@ -27,6 +27,7 @@ import {
   etiquetaBaseDe,
   construirAliasEtiquetas,
   reescribirEtiquetaLabel,
+  resolverOverrideEtiqueta,
   normalizarTexto,
   normalizarFicha,
   asignarCampo,
@@ -270,9 +271,13 @@ export function ModuloFicha() {
       }
 
       const alias = plantilla.aliasEtiquetas || {}
+      const camposEtiqueta: Record<string, string> = {}
+      for (const [key, destino] of Object.entries(camposPlantilla)) {
+        if (destino.etiqueta) camposEtiqueta[key] = destino.etiqueta
+      }
       for (const [key, destino] of Object.entries(camposPlantilla)) {
         if (!destino.labelCell) continue
-        const override = alias[key]
+        const override = resolverOverrideEtiqueta(key, alias, camposEtiqueta)
         if (!override) continue
         const worksheet = workbook.getWorksheet(destino.sheet)
         if (!worksheet) continue
@@ -623,13 +628,44 @@ export function ModuloFicha() {
           open={modalEtiquetasOpen}
           onOpenChange={setModalEtiquetasOpen}
           datos={ficha.datos}
-          onSave={draft => setFicha(prev => ({
-            ...prev,
-            datos: prev.datos.map(c => {
-              const base = etiquetaBaseDe(c)
-              return draft[base] !== undefined && draft[base] !== c.etiqueta ? { ...c, etiqueta: draft[base] } : c
-            }),
-          }))}
+          mapeoCustom={Object.fromEntries(
+            Object.entries(mapeoPlantilla.campos).filter(([key]) => key.startsWith('custom_'))
+          )}
+          onSave={({ renames, added, removed, mappings }) => {
+            setFicha(prev => {
+              const removedSet = new Set(removed)
+              const renamed = prev.datos
+                .filter(c => !removedSet.has(etiquetaBaseDe(c)))
+                .map(c => {
+                  const base = etiquetaBaseDe(c)
+                  return renames[base] !== undefined && renames[base] !== c.etiqueta
+                    ? { ...c, etiqueta: renames[base] }
+                    : c
+                })
+              return { ...prev, datos: [...renamed, ...added] }
+            })
+            setMapeoPlantilla(prev => {
+              const campos = { ...prev.campos }
+              for (const [base, mapping] of Object.entries(mappings)) {
+                const hasCell = mapping.sheet.trim() !== '' && mapping.cell.trim() !== ''
+                if (hasCell) {
+                  const etiqueta = renames[base] ?? campos[base]?.etiqueta
+                  const entry: PlantillaCampoFormato = {
+                    sheet: mapping.sheet,
+                    cell: mapping.cell,
+                  }
+                  if (mapping.labelCell && mapping.labelCell.trim() !== '') {
+                    entry.labelCell = mapping.labelCell
+                  }
+                  if (etiqueta !== undefined) entry.etiqueta = etiqueta
+                  campos[base] = entry
+                } else {
+                  if (base.startsWith('custom_')) delete campos[base]
+                }
+              }
+              return { ...prev, campos }
+            })
+          }}
         />
       </div>
     </ScrollArea>

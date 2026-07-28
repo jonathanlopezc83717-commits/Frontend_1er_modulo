@@ -241,6 +241,7 @@ export interface PlantillaCampoFormato {
   sheet: string
   cell: string
   labelCell?: string
+  etiqueta?: string
 }
 
 export interface PlantillaImagenFormato extends PlantillaCampoFormato {

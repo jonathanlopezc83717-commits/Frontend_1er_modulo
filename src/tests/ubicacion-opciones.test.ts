@@ -157,6 +157,21 @@ describe('ubicacion-opciones', () => {
       expect(porEtq['Coordenada "Z"']).toBe('3')
       expect(out.filter(d => d.etiqueta.startsWith('Coordenada'))).toHaveLength(3)
     })
+
+    it('S12: preserva campos custom al cambiar opcion', () => {
+      const datosConCustom = [
+        { etiqueta: 'Ubicacion respecto al eje de proyecto', valor: 'Izquierda', etiquetaBase: 'Ubicacion respecto al eje de proyecto' },
+        { etiqueta: 'Coordenada "X"', valor: '1', etiquetaBase: 'Coordenada "X"' },
+        { etiqueta: 'Coordenada "Y"', valor: '2', etiquetaBase: 'Coordenada "Y"' },
+        { etiqueta: 'Coordenada "Z"', valor: '3', etiquetaBase: 'Coordenada "Z"' },
+        { etiqueta: 'Inspector', valor: 'Juan', etiquetaBase: 'custom_123' },
+      ]
+      const out = reconciliarDatosPorUbicacion(datosConCustom, 'Izquierda-Derecha')
+      const customEntry = out.find(d => d.etiquetaBase === 'custom_123')
+      expect(customEntry).toBeDefined()
+      expect(customEntry?.etiqueta).toBe('Inspector')
+      expect(customEntry?.valor).toBe('Juan')
+    })
   })
 
   describe('valorCoordenadaPrimaria', () => {

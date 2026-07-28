@@ -17,6 +17,14 @@ export function etiquetaBaseDe(campo: Pick<CampoFicha, 'etiqueta' | 'etiquetaBas
   return campo.etiquetaBase ?? campo.etiqueta
 }
 
+export function esCampoRemovible(campo: CampoFicha): boolean {
+  const base = etiquetaBaseDe(campo)
+  if (CAMPOS_DATOS.includes(base)) return false
+  if (base.startsWith('Coordenada "')) return false
+  if (etiquetaBaseFromSufijada(base) !== base) return false
+  return true
+}
+
 export interface FichaFormato {
   titulo: string
   proyecto: string
@@ -173,6 +181,14 @@ export function reescribirEtiquetaLabel(original: string, alias: string): string
   return original.trimEnd().endsWith(':') ? `${alias}:` : alias
 }
 
+export function resolverOverrideEtiqueta(
+  key: string,
+  alias: Record<string, string>,
+  camposEtiqueta?: Record<string, string>,
+): string | undefined {
+  return alias[key] ?? camposEtiqueta?.[key]
+}
+
 export function indiceColumnaALetra(index: number): string {
   let value = index + 1
   let result = ''
@@ -247,8 +263,9 @@ export function obtenerValoresFicha(ficha: FichaFormato): Record<string, string>
   const op = (ficha.datos.find(d => d.etiqueta === ETIQUETA_UBICACION)?.valor || '') as OpcionUbicacion | ''
 
   for (const campo of ficha.datos) {
-    const base = etiquetaBaseFromSufijada(campo.etiqueta)
-    if (base !== campo.etiqueta && !esCoordenadaPrimaria(campo.etiqueta, op)) continue
+    const base = etiquetaBaseFromSufijada(etiquetaBaseDe(campo))
+    const esSufijada = etiquetaBaseFromSufijada(campo.etiqueta) !== campo.etiqueta
+    if (esSufijada && !esCoordenadaPrimaria(campo.etiqueta, op)) continue
     const key = ETIQUETAS_A_CAMPO[normalizarClave(base)] || normalizarClave(base)
     valores[key] = campo.valor
   }

@@ -699,21 +699,38 @@ export async function exportarPdfFicha(
     }
   })
 
-  // 3b. Campos personalizados (mismo formato que dataRows, 3 por fila)
+  // 3b. Campos personalizados. La última fila con M < 3 redistribuye el ancho
+  // proporcionalmente en vez de dejar celdas vacías a la derecha.
   for (let fi = 0; fi < filasCustom; fi++) {
     const yy = Ycustom[fi]
-    for (let p = 0; p < 3; p++) {
-      const idx = fi * 3 + p
-      const lx = CX[p * 2]
-      const vx = CX[p * 2 + 1]
-      cell(lx, yy, C[p * 2], Hdata, [240, 241, 243])
-      cell(vx, yy, C[p * 2 + 1], Hdata)
-      if (idx < camposCustom.length) {
-        const campo = camposCustom[idx]
+    const chunk = camposCustom.slice(fi * 3, fi * 3 + 3)
+    const M = chunk.length
+    if (M === 3) {
+      for (let p = 0; p < 3; p++) {
+        const lx = CX[p * 2]
+        const vx = CX[p * 2 + 1]
+        cell(lx, yy, C[p * 2], Hdata, [240, 241, 243])
+        cell(vx, yy, C[p * 2 + 1], Hdata)
+        const campo = chunk[p]
         const lbl = campo.etiqueta + ':'
         const lblFS = lbl.length > 28 ? 6.5 : 7.5
         txt(lbl, lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
         txt(d[campo.coord] || '', vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+      }
+    } else {
+      const cellW = PW / M
+      const labelW = cellW * 0.4
+      const valorW = cellW * 0.6
+      for (let p = 0; p < M; p++) {
+        const lx = ML + p * cellW
+        const vx = lx + labelW
+        cell(lx, yy, labelW, Hdata, [240, 241, 243])
+        cell(vx, yy, valorW, Hdata)
+        const campo = chunk[p]
+        const lbl = campo.etiqueta + ':'
+        const lblFS = lbl.length > 28 ? 6.5 : 7.5
+        txt(lbl, lx, yy, labelW, { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
+        txt(d[campo.coord] || '', vx, yy, valorW, { fs: 7.5, vcenter: true, py: 0, h: Hdata })
       }
     }
   }
@@ -959,23 +976,26 @@ export async function exportarExcelFicha(
   const filasCustom = Math.ceil(camposCustom.length / 3)
   for (let fi = 0; fi < filasCustom; fi++) {
     ws.getRow(fila).height = 18
-    for (let p = 0; p < 3; p++) {
-      const idx = fi * 3 + p
-      const lblCol = p * 2 + 1
-      const valCol = p * 2 + 2
+    const chunk = camposCustom.slice(fi * 3, fi * 3 + 3)
+    const M = chunk.length
+    const colsPerField = 6 / M
+    for (let p = 0; p < M; p++) {
+      const lblCol = p * colsPerField + 1
+      const valStartCol = lblCol + 1
+      const valEndCol = lblCol + colsPerField
       const cellLbl = ws.getCell(fila, lblCol)
+      cellLbl.value = chunk[p].etiqueta + ':'
       cellLbl.fill = fillLabel
       cellLbl.font = fontLabelBold
       cellLbl.alignment = { vertical: 'middle', wrapText: true }
       cellLbl.border = thinBorder
-      const cellVal = ws.getCell(fila, valCol)
+      if (valEndCol > valStartCol) {
+        ws.mergeCells(fila, valStartCol, fila, valEndCol)
+      }
+      const cellVal = ws.getCell(fila, valStartCol)
+      cellVal.value = d[chunk[p].coord] || ''
       cellVal.border = thinBorder
       cellVal.alignment = { vertical: 'middle', wrapText: true }
-      if (idx < camposCustom.length) {
-        const campo = camposCustom[idx]
-        cellLbl.value = campo.etiqueta + ':'
-        cellVal.value = d[campo.coord] || ''
-      }
     }
     fila++
   }
@@ -1392,14 +1412,17 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const eliminarCampoGrid = (coord: string) => {
-    setCamposCustom(prev => prev.filter(c => c.coord !== coord))
-    setValores(prev => {
-      if (!(coord in prev)) return prev
-      const copia = { ...prev }
-      delete copia[coord]
-      return copia
-    })
+  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string }>) => {
+    const coordsNuevos = new Set(nuevos.map(c => c.coord))
+    const removidos = camposCustom.filter(c => !coordsNuevos.has(c.coord)).map(c => c.coord)
+    setCamposCustom(nuevos)
+    if (removidos.length > 0) {
+      setValores(prev => {
+        const copia = { ...prev }
+        for (const coord of removidos) delete copia[coord]
+        return copia
+      })
+    }
   }
 
   const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
@@ -1632,7 +1655,7 @@ export function ModuloMateriales() {
                 )}
                 <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  Editar etiquetas
+                  Editar
                 </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
                   <DialogTrigger asChild>
@@ -1807,15 +1830,23 @@ export function ModuloMateriales() {
                   })}
                 </div>
               ))}
-              {camposCustom.length > 0 && (
-                <div className="grid gap-2 md:grid-cols-3">
-                  {camposCustom.map(campo => (
-                    <div key={campo.coord} className="space-y-1">
-                      <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>{campo.etiqueta}</span>
-                        <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
-                      </label>
-                      <div className="flex gap-1">
+              {camposCustom.length > 0 && (() => {
+                const grupos: Array<typeof camposCustom> = []
+                for (let i = 0; i < camposCustom.length; i += 3) {
+                  grupos.push(camposCustom.slice(i, i + 3))
+                }
+                return grupos.map((grupo, gi) => (
+                  <div
+                    key={gi}
+                    className="grid gap-2"
+                    style={{ gridTemplateColumns: `repeat(${grupo.length}, minmax(0, 1fr))` }}
+                  >
+                    {grupo.map(campo => (
+                      <div key={campo.coord} className="space-y-1">
+                        <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                          <span>{campo.etiqueta}</span>
+                          <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
+                        </label>
                         <Input
                           value={valores[campo.coord] || ''}
                           onChange={e => actualizarValor(campo.coord, e.target.value)}
@@ -1824,14 +1855,11 @@ export function ModuloMateriales() {
                           placeholder={campo.etiqueta}
                           className="px-2 py-1"
                         />
-                        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => eliminarCampoGrid(campo.coord)} title="Eliminar campo">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                ))
+              })()}
             </div>
 
             {/* Estado actual */}
@@ -2041,7 +2069,7 @@ export function ModuloMateriales() {
         overrideInicial={etiquetas}
         onSave={setEtiquetas}
         camposCustomInicial={camposCustom}
-        onSaveCamposCustom={(nuevos) => setCamposCustom(nuevos)}
+        onSaveCamposCustom={handleGuardarCamposCustom}
       />
     </ScrollArea>
   )

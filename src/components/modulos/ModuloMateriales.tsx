@@ -14,13 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
@@ -31,6 +24,7 @@ import {
   FileText,
   ImagePlus,
   LayoutTemplate,
+  Link2,
   MapPin,
   Pencil,
   RefreshCw,
@@ -90,6 +84,24 @@ const COORD_A_CAMPO: Record<string, string> = {
   '7-F': 'descripcion_derecha',
   '8-F': 'observaciones',
 }
+
+/**
+ * Catálogo de elementos que pueden usarse como origen de un campo personalizado.
+ * El valor `'__ninguno__'` es un centinela: Radix Select no permite items con
+ * value vacío, así que se mapea a `origen === ''` en el límite del componente.
+ */
+export const ELEMENTOS_DISPONIBLES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '__ninguno__', label: 'Ninguno (manual)' },
+  { value: 'clave', label: 'Clave (de carpeta)' },
+  { value: 'fecha', label: 'Fecha (de carpeta)' },
+  { value: 'coordenada_x', label: 'Coordenada GPS X (UTM Easting)' },
+  { value: 'coordenada_y', label: 'Coordenada GPS Y (UTM Northing)' },
+  { value: 'coordenada_z', label: 'Coordenada GPS Z (Elevación)' },
+  { value: 'observaciones', label: 'Descripción de la obra (del análisis)' },
+  { value: 'cadenamiento_inicio', label: 'Cadenamiento inicio' },
+  { value: 'cadenamiento_fin', label: 'Cadenamiento fin' },
+]
+
 
 /** Mapa de imágenes. */
 const IMAGEN_COORD: Record<string, string> = {
@@ -177,7 +189,7 @@ interface PlantillaLogos {
   logoIzq?: string
   logoDer?: string
   etiquetas?: Record<string, string>
-  camposCustom?: Array<{ coord: string; etiqueta: string }>
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string }>
   createdAt: string
 }
 
@@ -233,7 +245,7 @@ function calcularDistribucionEvidencias(n: number): { cols: number; rows: number
 // UTILIDADES DE EXTRACCIÓN (autocompletado desde otros módulos)
 // =====================================================
 
-function extraerValor(punto: unknown, campo: string): string {
+export function extraerValor(punto: unknown, campo: string): string {
   if (!punto || typeof punto !== 'object') return ''
   const p = punto as Record<string, unknown>
   const moduloData = p.moduloData as Record<string, unknown> | undefined
@@ -262,6 +274,11 @@ function extraerValor(punto: unknown, campo: string): string {
       }
       return ''
     }
+    case 'coordenada_z': {
+      const geo = moduloData?.georeferencia as Record<string, unknown> | undefined
+      const c = geo?.coordenadas as { x?: number; y?: number; z?: number } | undefined
+      return c?.z !== undefined ? String(c.z) : ''
+    }
     case 'observaciones': {
       const analisis = moduloData?.analisis as Record<string, unknown> | undefined
       const results = (analisis?.results || []) as Array<{ description?: string }>
@@ -273,11 +290,16 @@ function extraerValor(punto: unknown, campo: string): string {
   }
 }
 
+// ponytail: si el primer fetch a /api/nas-csv-rango da 404 (plugin inactivo o folder fuera de watchPath),
+// deshabilita los siguientes en esta sesión para no spamear la consola con 404s por cada render.
+let nasCsvRangoDisponible = true
+
 async function leerRangoCadenamiento(punto: unknown): Promise<{ inicio: string; fin: string } | null> {
   // ponytail: /api/nas-csv-rango solo existe en el dev server (vite-nas-bridge); en producción
   // (Vercel serverless) no existe y bombardearlo generaba una cascada de 404 que congelaba la app.
   // En prod se usa el cadenamiento ya guardado en el punto (fallback más abajo).
   if (!import.meta.env.DEV) return null
+  if (!nasCsvRangoDisponible) return null
   // ponytail: backend safeJoin rejects paths outside watchPath; absolute paths → 404 → null, no client-side normalization needed
   const p = (punto || {}) as { nasPath?: string; carpetaPath?: string }
   const rel = String(p.nasPath || p.carpetaPath || '').replace(/^[/\\]+|[/\\]+$/g, '')
@@ -286,6 +308,10 @@ async function leerRangoCadenamiento(punto: unknown): Promise<{ inicio: string; 
   const t = setTimeout(() => ctrl.abort(), 5000)
   try {
     const res = await fetch(`/api/nas-csv-rango?folder=${encodeURIComponent(rel)}`, { signal: ctrl.signal })
+    if (res.status === 404) {
+      nasCsvRangoDisponible = false
+      return null
+    }
     if (!res.ok) return null
     const data = (await res.json()) as { inicio?: number; fin?: number }
     return {
@@ -515,7 +541,7 @@ export async function exportarPdfFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string }> = [],
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -867,7 +893,7 @@ export async function exportarExcelFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string }> = [],
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -1251,10 +1277,9 @@ export function ModuloMateriales() {
   const [plantillasLogos, setPlantillasLogos] = useState<PlantillaLogos[]>([])
   const [dialogoPlantillasOpen, setDialogoPlantillasOpen] = useState(false)
   const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
-  const [plantillaSeleccionadaId, setPlantillaSeleccionadaId] = useState<string>('')
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
-  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string }>>([])
+  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string }>>([])
   const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1412,7 +1437,7 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string }>) => {
+  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string }>) => {
     const coordsNuevos = new Set(nuevos.map(c => c.coord))
     const removidos = camposCustom.filter(c => !coordsNuevos.has(c.coord)).map(c => c.coord)
     setCamposCustom(nuevos)
@@ -1443,6 +1468,13 @@ export function ModuloMateriales() {
           }
           if (val) nuevosValores[coord] = val
         }
+      }
+      // Campos personalizados con origen asignado: misma regla, solo llenar huecos.
+      for (const campo of camposCustom) {
+        if (!campo.origen) continue
+        if (nuevosValores[campo.coord]) continue
+        const val = extraerValor(livePunto, campo.origen)
+        if (val) nuevosValores[campo.coord] = val
       }
       const nuevasImagenes = { ...imagenes }
       for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
@@ -1495,10 +1527,6 @@ export function ModuloMateriales() {
       toast.error('Escribe un nombre para la plantilla')
       return
     }
-    if (!imagenes['logo-izq'] && !imagenes['logo-der']) {
-      toast.error('No hay logos cargados para guardar')
-      return
-    }
     const nuevasPlantillas = [
       ...plantillasLogos,
       {
@@ -1517,12 +1545,9 @@ export function ModuloMateriales() {
     toast.success(`Plantilla "${nombre}" guardada`)
   }
 
-  const cargarPlantillaLogos = () => {
-    const plantilla = plantillasLogos.find(p => p.id === plantillaSeleccionadaId)
-    if (!plantilla) {
-      toast.error('Selecciona una plantilla para cargar')
-      return
-    }
+  const cargarPlantillaPorId = (id: string) => {
+    const plantilla = plantillasLogos.find(p => p.id === id)
+    if (!plantilla) return
     setImagenes(prev => ({
       ...prev,
       ...(plantilla.logoIzq && { 'logo-izq': plantilla.logoIzq }),
@@ -1538,7 +1563,6 @@ export function ModuloMateriales() {
     const filtradas = plantillasLogos.filter(p => p.id !== id)
     setPlantillasLogos(filtradas)
     guardarPlantillasLogos(filtradas)
-    if (plantillaSeleccionadaId === id) setPlantillaSeleccionadaId('')
     toast.info('Plantilla eliminada')
   }
 
@@ -1681,64 +1705,47 @@ export function ModuloMateriales() {
                           />
                           <Button
                             onClick={guardarPlantillaLogos}
-                            disabled={
-                              !nombreNuevaPlantilla.trim() ||
-                              (!imagenes['logo-izq'] && !imagenes['logo-der'])
-                            }
+                            disabled={!nombreNuevaPlantilla.trim()}
                           >
                             Guardar
                           </Button>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                          Guarda logos, etiquetas editadas y campos personalizados.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Cargar plantilla guardada</Label>
-                        <div className="flex gap-2">
-                          <Select value={plantillaSeleccionadaId} onValueChange={setPlantillaSeleccionadaId}>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Seleccionar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {plantillasLogos.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.nombre}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="secondary"
-                            onClick={cargarPlantillaLogos}
-                            disabled={!plantillaSeleccionadaId}
-                          >
-                            Cargar
-                          </Button>
-                        </div>
-                      </div>
-
-                      {plantillasLogos.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Plantillas guardadas</Label>
-                          <div className="max-h-40 space-y-1 overflow-auto">
+                        <Label>Plantillas guardadas</Label>
+                        {plantillasLogos.length === 0 ? (
+                          <p className="py-4 text-center text-sm text-muted-foreground">
+                            Sin plantillas guardadas. Crea una arriba.
+                          </p>
+                        ) : (
+                          <div className="max-h-60 space-y-1 overflow-auto">
                             {plantillasLogos.map((p) => (
-                              <div
+                              <button
                                 key={p.id}
-                                className="flex items-center justify-between rounded border px-2 py-1"
+                                type="button"
+                                onClick={() => cargarPlantillaPorId(p.id)}
+                                className="flex w-full items-center justify-between rounded border px-3 py-2 text-left transition-colors hover:bg-accent"
                               >
-                                <span className="text-sm">{p.nombre}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => eliminarPlantillaLogos(p.id)}
+                                <span className="text-sm font-medium">{p.nombre}</span>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => { e.stopPropagation(); eliminarPlantillaLogos(p.id) }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); eliminarPlantillaLogos(p.id) } }}
+                                  className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                  aria-label={`Eliminar plantilla ${p.nombre}`}
                                 >
                                   <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                                </span>
+                              </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1802,9 +1809,8 @@ export function ModuloMateriales() {
                     const etiquetaResuelta = resolverLabel(coord, etiquetas)
                     return (
                       <div key={coord} className="space-y-1">
-                        <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                          <span>{etiquetaResuelta}</span>
-                          <span className="font-mono text-[10px] text-emerald-600">{coord}</span>
+                        <label className="block text-xs font-medium text-muted-foreground">
+                          {etiquetaResuelta}
                         </label>
                         {etiquetaCombo ? (
                           <CampoCombo
@@ -1844,7 +1850,14 @@ export function ModuloMateriales() {
                     {grupo.map(campo => (
                       <div key={campo.coord} className="space-y-1">
                         <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                          <span>{campo.etiqueta}</span>
+                          <span className="flex items-center gap-1">
+                            {campo.etiqueta}
+                            {campo.origen && (
+                              <span title={`Trae valor desde: ${ELEMENTOS_DISPONIBLES.find(e => e.value === campo.origen)?.label || campo.origen}`}>
+                                <Link2 className="h-3 w-3 text-blue-500" />
+                              </span>
+                            )}
+                          </span>
                           <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
                         </label>
                         <Input
@@ -1865,9 +1878,8 @@ export function ModuloMateriales() {
             {/* Estado actual */}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Estado actual - Lado izquierdo</span>
-                  <span className="font-mono text-[10px] text-emerald-600">7-D</span>
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Estado actual - Lado izquierdo
                 </label>
                 <Textarea
                   value={valores['7-D'] || ''}
@@ -1878,9 +1890,8 @@ export function ModuloMateriales() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Estado actual - Lado derecho</span>
-                  <span className="font-mono text-[10px] text-emerald-600">7-F</span>
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Estado actual - Lado derecho
                 </label>
                 <Textarea
                   value={valores['7-F'] || ''}
@@ -1897,7 +1908,7 @@ export function ModuloMateriales() {
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Croquis de localización <span className="font-mono text-[10px] text-emerald-600">img-croquis</span>
+                    Croquis de localización
                   </label>
                   <span className="text-[10px] text-muted-foreground">Auto: {punto.nombre}_*.png</span>
                 </div>
@@ -1909,9 +1920,8 @@ export function ModuloMateriales() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Observaciones</span>
-                  <span className="font-mono text-[10px] text-emerald-600">8-F</span>
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Observaciones
                 </label>
                 <Textarea
                   value={valores['8-F'] || ''}

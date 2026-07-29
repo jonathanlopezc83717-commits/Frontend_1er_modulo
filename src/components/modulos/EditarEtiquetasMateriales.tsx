@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Trash2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Trash2, GripVertical } from 'lucide-react'
+import { ELEMENTOS_DISPONIBLES } from './ModuloMateriales'
 
 interface FilaEditable { key: string; defaultLabel: string; grupo: 'fila' | 'seccion' }
 
-interface CampoCustom { coord: string; etiqueta: string }
+export interface CampoCustom { coord: string; etiqueta: string; origen?: string }
 
 /** Minta una coord `custom-N` (N>=1) que no esté ya usada, rellenando huecos. */
 export function nuevaCoordCustom(existentes: ReadonlyArray<{ coord: string }>): string {
@@ -45,18 +47,24 @@ export function EditarEtiquetasMateriales({
 
   const cambiar = (key: string, valor: string) => {
     setDraft(prev => {
+      // Decidir si descarta el override solo sobre el valor trimmeado,
+      // pero guardar el valor original para respetar espacios internos y al final.
       const limpio = valor.trim()
-      // Si el valor editado coincide con el default, removerlo del override (no persistir defaults).
       if (limpio === '' || limpio === filas.find(f => f.key === key)?.defaultLabel) {
         const { [key]: _omit, ...rest } = prev
         return rest
       }
-      return { ...prev, [key]: limpio }
+      return { ...prev, [key]: valor }
     })
   }
 
   const cambiarCampo = (coord: string, etiqueta: string) => {
     setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, etiqueta } : c))
+  }
+
+  const cambiarOrigen = (coord: string, origen: string) => {
+    // El centinela '__ninguno__' de ELEMENTOS_DISPONIBLES se traduce a sin origen.
+    setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, origen: origen === '__ninguno__' ? '' : origen } : c))
   }
 
   const agregarCampo = () => {
@@ -66,6 +74,22 @@ export function EditarEtiquetasMateriales({
   const eliminarCampo = (coord: string) => {
     setDraftCampos(prev => prev.filter(c => c.coord !== coord))
   }
+
+  // Drag & drop para reordenar campos custom (HTML5 nativo, sin dependencias).
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const onDragStart = (index: number) => setDragIndex(index)
+  const onDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    if (dragIndex === null || dragIndex === index) return
+    setDraftCampos(prev => {
+      const nuevos = [...prev]
+      const [movido] = nuevos.splice(dragIndex, 1)
+      nuevos.splice(index, 0, movido)
+      return nuevos
+    })
+    setDragIndex(index)
+  }
+  const onDragEnd = () => setDragIndex(null)
 
   const guardar = () => {
     onSave(draft)
@@ -108,10 +132,20 @@ export function EditarEtiquetasMateriales({
             </div>
             <div className="grid gap-2">
               {draftCampos.length === 0 && (
-                <p className="text-xs text-muted-foreground">Sin campos personalizados. Cada campo ocupa una fila completa del grid.</p>
+                <p className="text-xs text-muted-foreground">Sin campos personalizados. Arrastrá el ícono ≡ para reordenar.</p>
               )}
-              {draftCampos.map(c => (
-                <div key={c.coord} className="grid grid-cols-[80px_1fr_36px] items-center gap-2">
+              {draftCampos.map((c, idx) => (
+                <div
+                  key={c.coord}
+                  draggable
+                  onDragStart={() => onDragStart(idx)}
+                  onDragOver={(e) => onDragOver(e, idx)}
+                  onDragEnd={onDragEnd}
+                  className={`grid grid-cols-[20px_70px_1fr_180px_36px] items-center gap-2 ${dragIndex === idx ? 'opacity-40' : ''}`}
+                >
+                  <span className="cursor-move text-muted-foreground" aria-label="Arrastrar para reordenar">
+                    <GripVertical className="h-4 w-4" />
+                  </span>
                   <span className="font-mono text-xs text-muted-foreground">{c.coord}</span>
                   <Input
                     value={c.etiqueta}
@@ -119,6 +153,19 @@ export function EditarEtiquetasMateriales({
                     placeholder="Etiqueta del campo"
                     className="h-8"
                   />
+                  <Select
+                    value={c.origen || '__ninguno__'}
+                    onValueChange={(v) => cambiarOrigen(c.coord, v)}
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Origen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ELEMENTOS_DISPONIBLES.map(el => (
+                        <SelectItem key={el.value} value={el.value}>{el.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => eliminarCampo(c.coord)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>

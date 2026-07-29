@@ -66,20 +66,6 @@ const COORD_A_CAMPO: Record<string, string> = {
   '1-B': 'fecha',
   '1-D': 'segmento',
   '1-F': 'tramo',
-  '2-B': 'servicio',
-  '2-D': 'infraestructura',
-  '2-F': 'altura',
-  '3-B': 'tension',
-  '3-D': 'tipo_instalacion',
-  '3-F': 'ubicacion',
-  '4-B': 'elementos_afectos',
-  '4-D': 'numero_fases',
-  '4-F': 'numero_hilos',
-  '5-B': 'cadenamiento_inicio',
-  '5-D': 'cadenamiento_fin',
-  '5-F': 'estado_fisico',
-  '6-B': 'coordenada_x',
-  '6-D': 'coordenada_y',
   '7-D': 'descripcion_izquierda',
   '7-F': 'descripcion_derecha',
   '8-F': 'observaciones',
@@ -119,21 +105,6 @@ const LABELS_DEFAULT: Record<string, string> = {
   '1-B': 'Fecha',
   '1-D': 'Segmento',
   '1-F': 'Tramo',
-  '2-B': 'Servicio',
-  '2-D': 'Infraestructura',
-  '2-F': 'Altura',
-  '3-B': 'Tensión',
-  '3-D': 'Tipo de instalación',
-  '3-F': 'Ubicación respecto al eje',
-  '4-B': 'Elementos afectos',
-  '4-D': 'Número de Fases',
-  '4-F': 'Número de hilos',
-  '5-B': 'Cadenamiento inicio',
-  '5-D': 'Cadenamiento fin',
-  '5-F': 'Estado físico',
-  '6-B': 'Coordenada "X"',
-  '6-D': 'Coordenada "Y"',
-  '6-F': 'Operador',
   // Headers de sección (exporters)
   'sec:titulo': 'FICHA DE IDENTIFICACIÓN DE INFRAESTRUCTURA EXISTENTE',
   'sec:proyecto': 'Tren de Pasajeros Saltillo - Nuevo Laredo Segmentos 16 y 17',
@@ -159,11 +130,6 @@ const FILAS_EDITABLES = Object.entries(LABELS_DEFAULT).map(([key, defaultLabel])
 /** Filas de datos para el formulario (3 columnas por fila: etiqueta/valor). */
 const FILAS_DATOS: Array<Array<{ etiqueta: string; coord: string }>> = [
   [{ etiqueta: LABELS_DEFAULT['1-B'], coord: '1-B' }, { etiqueta: LABELS_DEFAULT['1-D'], coord: '1-D' }, { etiqueta: LABELS_DEFAULT['1-F'], coord: '1-F' }],
-  [{ etiqueta: LABELS_DEFAULT['2-B'], coord: '2-B' }, { etiqueta: LABELS_DEFAULT['2-D'], coord: '2-D' }, { etiqueta: LABELS_DEFAULT['2-F'], coord: '2-F' }],
-  [{ etiqueta: LABELS_DEFAULT['3-B'], coord: '3-B' }, { etiqueta: LABELS_DEFAULT['3-D'], coord: '3-D' }, { etiqueta: LABELS_DEFAULT['3-F'], coord: '3-F' }],
-  [{ etiqueta: LABELS_DEFAULT['4-B'], coord: '4-B' }, { etiqueta: LABELS_DEFAULT['4-D'], coord: '4-D' }, { etiqueta: LABELS_DEFAULT['4-F'], coord: '4-F' }],
-  [{ etiqueta: LABELS_DEFAULT['5-B'], coord: '5-B' }, { etiqueta: LABELS_DEFAULT['5-D'], coord: '5-D' }, { etiqueta: LABELS_DEFAULT['5-F'], coord: '5-F' }],
-  [{ etiqueta: LABELS_DEFAULT['6-B'], coord: '6-B' }, { etiqueta: LABELS_DEFAULT['6-D'], coord: '6-D' }, { etiqueta: LABELS_DEFAULT['6-F'], coord: '6-F' }],
 ]
 
 /** Número máximo de evidencias permitidas. */
@@ -573,8 +539,11 @@ export async function exportarPdfFicha(
   let y = MT
   const Ytitle = y; y += Htitle
   const Ysub = y; y += Hsub
+  const dataRows = [
+    { v: ['1-B', '1-D', '1-F'] },
+  ]
   const Ydata: number[] = []
-  for (let i = 0; i < 6; i++) { Ydata.push(y); y += Hdata }
+  for (let i = 0; i < dataRows.length; i++) { Ydata.push(y); y += Hdata }
   const filasCustom = Math.ceil(camposCustom.length / 3)
   const Ycustom: number[] = []
   for (let i = 0; i < filasCustom; i++) { Ycustom.push(y); y += Hdata }
@@ -701,16 +670,7 @@ export async function exportarPdfFicha(
   cell(CX[5], Ysub, C[5], Hsub)
   txt(d['0-F'] || '', CX[5], Ysub, C[5], { fs: 7.5, vcenter: true, py: 0, h: Hsub })
 
-  // 3. Filas de datos (6 filas × 6 columnas)
-  const dataRows = [
-    { v: ['1-B', '1-D', '1-F'] },
-    { v: ['2-B', '2-D', '2-F'] },
-    { v: ['3-B', '3-D', '3-F'] },
-    { v: ['4-B', '4-D', '4-F'] },
-    { v: ['5-B', '5-D', '5-F'] },
-    { v: ['6-B', '6-D', '6-F'] },
-  ]
-
+  // 3. Filas de datos (1 fila × 3 pares etiqueta/valor)
   dataRows.forEach((row, ri) => {
     const yy = Ydata[ri]
     for (let p = 0; p < 3; p++) {
@@ -968,14 +928,9 @@ export async function exportarExcelFicha(
   cellClaveVal.alignment = { vertical: 'middle' }
   ws.getRow(2).height = 18
 
-  // Filas 3-8: datos (6 filas × 6 columnas)
+  // Fila 3: datos (1 fila × 3 pares etiqueta/valor)
   const dataRows = [
     { v: ['1-B', '1-D', '1-F'] },
-    { v: ['2-B', '2-D', '2-F'] },
-    { v: ['3-B', '3-D', '3-F'] },
-    { v: ['4-B', '4-D', '4-F'] },
-    { v: ['5-B', '5-D', '5-F'] },
-    { v: ['6-B', '6-D', '6-F'] },
   ]
   dataRows.forEach((row, ri) => {
     const rowNumber = ri + 3

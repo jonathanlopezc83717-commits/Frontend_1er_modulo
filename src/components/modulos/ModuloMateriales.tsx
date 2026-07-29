@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
   Link2,
   MapPin,
   Pencil,
+  Plus,
   RefreshCw,
   Save,
   Trash2,
@@ -61,7 +63,7 @@ export interface FichaFormatoData {
 // =====================================================
 
 /** Mapa coordenada -> clave de campo del modelo de datos. */
-const COORD_A_CAMPO: Record<string, string> = {
+export const COORD_A_CAMPO: Record<string, string> = {
   '0-F': 'clave',
   '1-B': 'fecha',
   '1-D': 'segmento',
@@ -120,6 +122,32 @@ function resolverLabel(key: string, override: Record<string, string> | undefined
   return override?.[key] ?? LABELS_DEFAULT[key] ?? key
 }
 
+interface ParesCoord { x?: string; y?: string }
+interface CoordenadasValor { lado: string; pares: Record<string, ParesCoord> }
+
+function parseCoordenadas(raw: string): CoordenadasValor | null {
+  if (!raw) return null
+  try {
+    const p = JSON.parse(raw) as unknown
+    if (p && typeof p === 'object' && typeof (p as CoordenadasValor).lado === 'string' && (p as CoordenadasValor).pares && typeof (p as CoordenadasValor).pares === 'object') {
+      return { lado: (p as CoordenadasValor).lado, pares: (p as CoordenadasValor).pares as Record<string, ParesCoord> }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function formatearCoordenadas(raw: string): string {
+  const v = parseCoordenadas(raw)
+  if (!v || !v.lado) return ''
+  const tokens = v.lado.split('-')
+  return tokens.map(t => {
+    const p = v.pares[t] ?? {}
+    return `${t}: ${p.x ?? ''}, ${p.y ?? ''}`
+  }).join(' | ')
+}
+
 /** Filas editables derivadas de LABELS_DEFAULT: coords → grupo 'fila', sec:* → 'seccion'. */
 const FILAS_EDITABLES = Object.entries(LABELS_DEFAULT).map(([key, defaultLabel]) => ({
   key,
@@ -155,7 +183,8 @@ interface PlantillaLogos {
   logoIzq?: string
   logoDer?: string
   etiquetas?: Record<string, string>
-  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>
+  origenCoords?: Record<string, string>
   createdAt: string
 }
 
@@ -507,7 +536,7 @@ export async function exportarPdfFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -701,7 +730,7 @@ export async function exportarPdfFicha(
         const lbl = campo.etiqueta + ':'
         const lblFS = lbl.length > 28 ? 6.5 : 7.5
         txt(lbl, lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
-        txt(d[campo.coord] || '', vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+        txt(campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || ''), vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
       }
     } else {
       const cellW = PW / M
@@ -716,7 +745,7 @@ export async function exportarPdfFicha(
         const lbl = campo.etiqueta + ':'
         const lblFS = lbl.length > 28 ? 6.5 : 7.5
         txt(lbl, lx, yy, labelW, { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
-        txt(d[campo.coord] || '', vx, yy, valorW, { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+        txt(campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || ''), vx, yy, valorW, { fs: 7.5, vcenter: true, py: 0, h: Hdata })
       }
     }
   }
@@ -853,7 +882,7 @@ export async function exportarExcelFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -974,7 +1003,7 @@ export async function exportarExcelFicha(
         ws.mergeCells(fila, valStartCol, fila, valEndCol)
       }
       const cellVal = ws.getCell(fila, valStartCol)
-      cellVal.value = d[chunk[p].coord] || ''
+      cellVal.value = chunk[p].coordenadas ? formatearCoordenadas(d[chunk[p].coord] || '') : (d[chunk[p].coord] || '')
       cellVal.border = thinBorder
       cellVal.alignment = { vertical: 'middle', wrapText: true }
     }
@@ -1234,9 +1263,21 @@ export function ModuloMateriales() {
   const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
   const [plantillaActivaId, setPlantillaActivaId] = useState<string | null>(null)
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
+  const [origenCoords, setOrigenCoords] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
-  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>>([])
+  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>>([])
   const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
+  const masAccionesRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!masAccionesAbierto) return
+    const handler = (evento: MouseEvent) => {
+      if (masAccionesRef.current && !masAccionesRef.current.contains(evento.target as Node)) {
+        setMasAccionesAbierto(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [masAccionesAbierto])
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
@@ -1393,7 +1434,7 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>) => {
+  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>) => {
     const coordsNuevos = new Set(nuevos.map(c => c.coord))
     const removidos = camposCustom.filter(c => !coordsNuevos.has(c.coord)).map(c => c.coord)
     setCamposCustom(nuevos)
@@ -1406,13 +1447,45 @@ export function ModuloMateriales() {
     }
   }
 
+  const handleGuardarOrigenCoords = async (nuevoOverride: Record<string, string>) => {
+    const coordsCambiadas = Object.keys(COORD_A_CAMPO).filter(coord => {
+      const viejo = origenCoords[coord] ?? COORD_A_CAMPO[coord]
+      const nuevo = nuevoOverride[coord] ?? COORD_A_CAMPO[coord]
+      return viejo !== nuevo
+    })
+    setOrigenCoords(nuevoOverride)
+    if (coordsCambiadas.length === 0) return
+    const livePunto = store.getState().puntoActivo
+    if (!livePunto) return
+    try {
+      const rango = await leerRangoCadenamiento(livePunto)
+      setValores(prev => {
+        const copia = { ...prev }
+        for (const coord of coordsCambiadas) {
+          const campo = nuevoOverride[coord] ?? COORD_A_CAMPO[coord]
+          let val = ''
+          if (campo === 'cadenamiento_inicio') {
+            val = livePunto.cadenamiento || rango?.inicio || ''
+          } else if (campo === 'cadenamiento_fin') {
+            val = rango?.fin || ''
+          } else {
+            val = extraerValor(livePunto, campo)
+          }
+          copia[coord] = val
+        }
+        return copia
+      })
+    } catch { /* ignorar */ }
+  }
+
   const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
     const livePunto = store.getState().puntoActivo
     if (!livePunto) return
     try {
       const rango = await leerRangoCadenamiento(livePunto)
       const nuevosValores = { ...valores }
-      for (const [coord, campo] of Object.entries(COORD_A_CAMPO)) {
+      for (const coord of Object.keys(COORD_A_CAMPO)) {
+        const campo = origenCoords[coord] ?? COORD_A_CAMPO[coord]
         if (!nuevosValores[coord]) {
           let val: string
           if (campo === 'cadenamiento_inicio') {
@@ -1427,7 +1500,7 @@ export function ModuloMateriales() {
       }
       // Campos personalizados con origen asignado: misma regla, solo llenar huecos.
       for (const campo of camposCustom) {
-        if (!campo.origen) continue
+        if (!campo.origen || campo.coordenadas) continue
         if (nuevosValores[campo.coord]) continue
         const val = extraerValor(livePunto, campo.origen)
         if (val) nuevosValores[campo.coord] = val
@@ -1473,6 +1546,7 @@ export function ModuloMateriales() {
       logoDer: imagenes['logo-der'] || undefined,
       etiquetas: { ...etiquetas },
       camposCustom: camposCustom.map(c => ({ ...c })),
+      origenCoords: { ...origenCoords },
       createdAt: new Date().toISOString(),
     }
     const nuevasPlantillas = [...plantillasLogos, nuevaPlantilla]
@@ -1493,6 +1567,7 @@ export function ModuloMateriales() {
     }))
     setEtiquetas(plantilla.etiquetas ? { ...plantilla.etiquetas } : {})
     setCamposCustom(plantilla.camposCustom ? plantilla.camposCustom.map(c => ({ ...c })) : [])
+    setOrigenCoords(plantilla.origenCoords ? { ...plantilla.origenCoords } : {})
     setPlantillaActivaId(id)
     toast.success(`Plantilla "${plantilla.nombre}" cargada`)
     setDialogoPlantillasOpen(false)
@@ -1520,6 +1595,7 @@ export function ModuloMateriales() {
       logoDer: imagenes['logo-der'] || undefined,
       etiquetas: { ...etiquetas },
       camposCustom: camposCustom.map(c => ({ ...c })),
+      origenCoords: { ...origenCoords },
       createdAt: p.createdAt,
     } : p)
     setPlantillasLogos(nuevas)
@@ -1613,32 +1689,34 @@ export function ModuloMateriales() {
                 <CardTitle>Formato LMT-T11-02</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setMasAccionesAbierto(v => !v)}>
-                  <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${masAccionesAbierto ? 'rotate-180' : ''}`} />
-                  Más acciones
-                </Button>
-                {masAccionesAbierto && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={limpiarFicha}>
-                      <Eraser className="mr-2 h-4 w-4" />
-                      Limpiar
-                    </Button>
-                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
-                      <input
-                        type="checkbox"
-                        checked={quitarFondoLogos}
-                        onChange={e => setQuitarFondoLogos(e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      <Eraser className="h-4 w-4" />
-                      <span>Quitar fondo</span>
-                    </label>
-                    <Button size="sm" onClick={handleExportarTodo} disabled={exportando}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      {exportando ? 'Exportando...' : 'PDF + Excel'}
-                    </Button>
-                  </div>
-                )}
+                <div ref={masAccionesRef} className="relative inline-block">
+                  <Button variant="outline" size="sm" onClick={() => setMasAccionesAbierto(v => !v)}>
+                    <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${masAccionesAbierto ? 'rotate-180' : ''}`} />
+                    Más acciones
+                  </Button>
+                  {masAccionesAbierto && (
+                    <div className="absolute right-0 top-full z-50 mt-1 flex w-56 flex-col gap-2 rounded-md border bg-popover p-2 shadow-md">
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={limpiarFicha}>
+                        <Eraser className="mr-2 h-4 w-4" />
+                        Limpiar
+                      </Button>
+                      <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
+                        <input
+                          type="checkbox"
+                          checked={quitarFondoLogos}
+                          onChange={e => setQuitarFondoLogos(e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        <Eraser className="h-4 w-4" />
+                        <span>Quitar fondo</span>
+                      </label>
+                      <Button size="sm" className="w-full justify-start" onClick={handleExportarTodo} disabled={exportando}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        {exportando ? 'Exportando...' : 'PDF + Excel'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar
@@ -1711,6 +1789,10 @@ export function ModuloMateriales() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <Button variant="outline" size="sm" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true) }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nueva plantilla
+                </Button>
                 <Button size="sm" onClick={handleGuardarPrincipal} title="Guardar plantilla en curso">
                   <Save className="mr-2 h-4 w-4" />
                   Guardar
@@ -1733,7 +1815,7 @@ export function ModuloMateriales() {
                   </div>
                   <Input
                     value={resolverLabel('sec:titulo', etiquetas)}
-                    readOnly
+                    onChange={e => setEtiquetas(prev => ({ ...prev, 'sec:titulo': e.target.value }))}
                     className="min-w-0 flex-1 border-0 bg-transparent px-0 text-center font-semibold text-white"
                   />
                   <div className="w-1/4 shrink-0">
@@ -1749,7 +1831,7 @@ export function ModuloMateriales() {
               <div className="grid gap-2 p-3 md:grid-cols-[1fr_220px]">
                 <Input
                   value={resolverLabel('sec:proyecto', etiquetas)}
-                  readOnly
+                  onChange={e => setEtiquetas(prev => ({ ...prev, 'sec:proyecto': e.target.value }))}
                   className="border-0 px-0 py-0 text-sm"
                 />
                 <CoordInput
@@ -1816,7 +1898,7 @@ export function ModuloMateriales() {
                         <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                           <span className="flex items-center gap-1">
                             {campo.etiqueta}
-                            {campo.origen && !campo.combo && (
+                            {campo.origen && !campo.combo && !campo.coordenadas && (
                               <span title={`Trae valor desde: ${ELEMENTOS_DISPONIBLES.find(e => e.value === campo.origen)?.label || campo.origen}`}>
                                 <Link2 className="h-3 w-3 text-blue-500" />
                               </span>
@@ -1824,7 +1906,16 @@ export function ModuloMateriales() {
                           </span>
                           <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
                         </label>
-                        {campo.combo ? (
+                        {campo.coordenadas ? (
+                          <CoordenadasDuales
+                            value={valores[campo.coord] || ''}
+                            lados={campo.lados || []}
+                            onChange={v => actualizarValor(campo.coord, v)}
+                            onFocus={() => setCoordActiva(campo.coord)}
+                            onCommit={guardarEnPunto}
+                            placeholder={campo.etiqueta}
+                          />
+                        ) : campo.combo ? (
                           <CampoCombo
                             value={valores[campo.coord] || ''}
                             onChange={v => actualizarValor(campo.coord, v)}
@@ -2058,6 +2149,8 @@ export function ModuloMateriales() {
         onSave={setEtiquetas}
         camposCustomInicial={camposCustom}
         onSaveCamposCustom={handleGuardarCamposCustom}
+        origenCoordsInicial={origenCoords}
+        onSaveOrigenCoords={handleGuardarOrigenCoords}
       />
     </ScrollArea>
   )
@@ -2090,6 +2183,94 @@ function CoordInput({
         placeholder={placeholder}
         className="px-2 py-1"
       />
+    </div>
+  )
+}
+
+function CoordenadasDuales({
+  value,
+  lados,
+  onChange,
+  onFocus,
+  onCommit,
+  placeholder,
+}: {
+  value: string
+  lados: string[]
+  onChange: (json: string) => void
+  onFocus: () => void
+  onCommit: () => void
+  placeholder?: string
+}) {
+  const parsed = parseCoordenadas(value)
+  const ladoActual = parsed?.lado ?? ''
+  const pares = parsed?.pares ?? {}
+
+  const escribir = (nuevo: CoordenadasValor) => {
+    onChange(JSON.stringify(nuevo))
+  }
+
+  const cambiarLadoValor = (nuevoLado: string) => {
+    const tokens = nuevoLado ? nuevoLado.split('-') : []
+    const nuevosPares: Record<string, ParesCoord> = {}
+    for (const tok of tokens) {
+      nuevosPares[tok] = pares[tok] ? { ...pares[tok] } : { x: '', y: '' }
+    }
+    escribir({ lado: nuevoLado, pares: nuevosPares })
+    onCommit()
+  }
+
+  const cambiarPar = (token: string, eje: 'x' | 'y', val: string) => {
+    const actual = pares[token] ?? { x: '', y: '' }
+    escribir({ lado: ladoActual, pares: { ...pares, [token]: { ...actual, [eje]: val } } })
+  }
+
+  if (lados.length === 0) {
+    return <p className="px-1 py-1 text-xs text-muted-foreground">Sin lados configurados.</p>
+  }
+
+  const tokens = ladoActual ? ladoActual.split('-') : []
+
+  return (
+    <div className="space-y-1" onFocus={onFocus}>
+      <Select value={ladoActual} onValueChange={cambiarLadoValor}>
+        <SelectTrigger className="h-8 px-2 py-1">
+          <SelectValue placeholder={placeholder ?? 'Lado'} />
+        </SelectTrigger>
+        <SelectContent>
+          {lados.map(l => (
+            <SelectItem key={l} value={l}>{l}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {tokens.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Elegí un lado.</p>
+      ) : (
+        <div className="space-y-1">
+          {tokens.map(tok => {
+            const p = pares[tok] ?? { x: '', y: '' }
+            return (
+              <div key={tok} className="flex items-center gap-1">
+                <span className="w-20 shrink-0 truncate text-[10px] text-muted-foreground" title={tok}>{tok}</span>
+                <Input
+                  value={p.x ?? ''}
+                  onChange={e => cambiarPar(tok, 'x', e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onCommit() }}
+                  placeholder="X"
+                  className="h-7 px-1 py-0"
+                />
+                <Input
+                  value={p.y ?? ''}
+                  onChange={e => cambiarPar(tok, 'y', e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onCommit() }}
+                  placeholder="Y"
+                  className="h-7 px-1 py-0"
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

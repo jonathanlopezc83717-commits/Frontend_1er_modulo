@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, GripVertical } from 'lucide-react'
-import { ELEMENTOS_DISPONIBLES } from './ModuloMateriales'
+import { ELEMENTOS_DISPONIBLES, COORD_A_CAMPO } from './ModuloMateriales'
 
 interface FilaEditable { key: string; defaultLabel: string; grupo: 'fila' | 'seccion' }
 
-export interface CampoCustom { coord: string; etiqueta: string; origen?: string; combo?: boolean }
+export interface CampoCustom { coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }
 
 /** Minta una coord `custom-N` (N>=1) que no esté ya usada, rellenando huecos. */
 export function nuevaCoordCustom(existentes: ReadonlyArray<{ coord: string }>): string {
@@ -26,6 +26,8 @@ export function EditarEtiquetasMateriales({
   onSave,
   camposCustomInicial,
   onSaveCamposCustom,
+  origenCoordsInicial,
+  onSaveOrigenCoords,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -34,16 +36,20 @@ export function EditarEtiquetasMateriales({
   onSave: (override: Record<string, string>) => void
   camposCustomInicial: CampoCustom[]
   onSaveCamposCustom: (campos: CampoCustom[]) => void
+  origenCoordsInicial: Record<string, string>
+  onSaveOrigenCoords: (override: Record<string, string>) => void
 }) {
   const [draft, setDraft] = useState<Record<string, string>>(overrideInicial)
   const [draftCampos, setDraftCampos] = useState<CampoCustom[]>(camposCustomInicial)
+  const [draftOrigen, setDraftOrigen] = useState<Record<string, string>>(origenCoordsInicial)
 
   useEffect(() => {
     if (open) {
       setDraft(overrideInicial)
       setDraftCampos(camposCustomInicial.map(c => ({ ...c })))
+      setDraftOrigen({ ...origenCoordsInicial })
     }
-  }, [open, overrideInicial, camposCustomInicial])
+  }, [open, overrideInicial, camposCustomInicial, origenCoordsInicial])
 
   const cambiar = (key: string, valor: string) => {
     setDraft(prev => {
@@ -62,15 +68,43 @@ export function EditarEtiquetasMateriales({
     setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, etiqueta } : c))
   }
 
+  const cambiarOrigenCoord = (coord: string, origen: string) => {
+    setDraftOrigen(prev => ({ ...prev, [coord]: origen }))
+  }
+
   const cambiarOrigen = (coord: string, origen: string) => {
     // El centinela '__ninguno__' de ELEMENTOS_DISPONIBLES se traduce a sin origen.
     setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, origen: origen === '__ninguno__' ? '' : origen } : c))
   }
 
-  const cambiarTipo = (coord: string, tipo: 'vinculado' | 'opciones-multiples') => {
+  const cambiarTipo = (coord: string, tipo: 'vinculado' | 'opciones-multiples' | 'coordenadas') => {
     setDraftCampos(prev => prev.map(c => {
       if (c.coord !== coord) return c
-      return tipo === 'vinculado' ? { ...c, combo: false } : { ...c, combo: true }
+      if (tipo === 'coordenadas') {
+        return { ...c, coordenadas: true, combo: false, origen: '', lados: c.lados ? [...c.lados] : [] }
+      }
+      const base = { ...c, coordenadas: false }
+      return tipo === 'vinculado' ? { ...base, combo: false } : { ...base, combo: true }
+    }))
+  }
+
+  const agregarLado = (coord: string) => {
+    setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, lados: [...(c.lados ?? []), ''] } : c))
+  }
+
+  const cambiarLado = (coord: string, index: number, valor: string) => {
+    setDraftCampos(prev => prev.map(c => {
+      if (c.coord !== coord || !c.lados) return c
+      const copia = [...c.lados]
+      copia[index] = valor
+      return { ...c, lados: copia }
+    }))
+  }
+
+  const eliminarLado = (coord: string, index: number) => {
+    setDraftCampos(prev => prev.map(c => {
+      if (c.coord !== coord || !c.lados) return c
+      return { ...c, lados: c.lados.filter((_, i) => i !== index) }
     }))
   }
 
@@ -99,11 +133,29 @@ export function EditarEtiquetasMateriales({
   const onDragEnd = () => setDragIndex(null)
 
   const guardar = () => {
-    const limpios = draftCampos.filter(c => c.etiqueta.trim() !== '')
+    const limpios = draftCampos
+      .filter(c => c.etiqueta.trim() !== '')
+      .map(c => {
+        if (!c.lados) return c
+        const ladosLimpios = c.lados.map(l => l.trim()).filter(l => l !== '')
+        return { ...c, lados: ladosLimpios.length > 0 ? ladosLimpios : undefined }
+      })
+    const origenPersistido: Record<string, string> = {}
+    for (const [key, val] of Object.entries(draftOrigen)) {
+      const limpio = val.trim()
+      if (limpio === '' || limpio === '__ninguno__') continue
+      if (limpio === COORD_A_CAMPO[key]) continue
+      origenPersistido[key] = val
+    }
     onSave(draft)
     onSaveCamposCustom(limpios)
+    onSaveOrigenCoords(origenPersistido)
     onOpenChange(false)
   }
+
+  const filaPorKey = new Map(
+    filas.filter(f => f.grupo === 'fila').map(f => [f.key, f.defaultLabel] as const)
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,17 +170,37 @@ export function EditarEtiquetasMateriales({
           <div>
             <h4 className="mb-2 text-sm font-semibold">Campos del grid</h4>
             <div className="grid gap-2">
-              {filas.filter(f => f.grupo === 'fila').map(f => (
-                <div key={f.key} className="grid grid-cols-[80px_1fr] items-center gap-2">
-                  <span className="font-mono text-xs text-muted-foreground">{f.key}</span>
-                  <Input
-                    value={draft[f.key] ?? f.defaultLabel}
-                    onChange={e => cambiar(f.key, e.target.value)}
-                    placeholder={f.defaultLabel}
-                    className="h-8"
-                  />
+              {Object.entries(COORD_A_CAMPO).map(([coord, campoPorDefecto]) => {
+                const label = filaPorKey.get(coord)
+                return (
+                <div key={coord} className="grid grid-cols-[80px_1fr_180px] items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">{coord}</span>
+                  {label !== undefined ? (
+                    <Input
+                      value={draft[coord] ?? label}
+                      onChange={e => cambiar(coord, e.target.value)}
+                      placeholder={label}
+                      className="h-8"
+                    />
+                  ) : (
+                    <span className="text-xs capitalize text-muted-foreground">{campoPorDefecto.replace(/_/g, ' ')}</span>
+                  )}
+                  <Select
+                    value={draftOrigen[coord] ?? campoPorDefecto ?? '__ninguno__'}
+                    onValueChange={(v) => cambiarOrigenCoord(coord, v)}
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Origen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ELEMENTOS_DISPONIBLES.map(el => (
+                        <SelectItem key={el.value} value={el.value}>{el.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
           <div>
@@ -143,7 +215,7 @@ export function EditarEtiquetasMateriales({
                 <p className="text-xs text-muted-foreground">Sin campos personalizados. Arrastrá el ícono ≡ para reordenar.</p>
               )}
               {draftCampos.map((c, idx) => {
-                const tipo = c.combo === true ? 'opciones-multiples' : 'vinculado'
+                const tipo = c.coordenadas ? 'coordenadas' : (c.combo === true ? 'opciones-multiples' : 'vinculado')
                 return (
                 <div
                   key={c.coord}
@@ -166,7 +238,7 @@ export function EditarEtiquetasMateriales({
                     />
                     <Select
                       value={tipo}
-                      onValueChange={(v) => cambiarTipo(c.coord, v as 'vinculado' | 'opciones-multiples')}
+                      onValueChange={(v) => cambiarTipo(c.coord, v as 'vinculado' | 'opciones-multiples' | 'coordenadas')}
                     >
                       <SelectTrigger className="h-8">
                         <SelectValue />
@@ -174,13 +246,14 @@ export function EditarEtiquetasMateriales({
                       <SelectContent>
                         <SelectItem value="vinculado">Vinculado</SelectItem>
                         <SelectItem value="opciones-multiples">Opciones múltiples</SelectItem>
+                        <SelectItem value="coordenadas">Coordenadas duales</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => eliminarCampo(c.coord)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {tipo === 'vinculado' ? (
+                  {tipo === 'vinculado' && (
                     <div className="grid grid-cols-[20px_70px_1fr_180px_36px] items-center gap-2 pl-2">
                       <span className="text-[10px] text-muted-foreground">Origen</span>
                       <span />
@@ -198,10 +271,30 @@ export function EditarEtiquetasMateriales({
                         </SelectContent>
                       </Select>
                     </div>
-                  ) : (
+                  )}
+                  {tipo === 'opciones-multiples' && (
                     <p className="pl-2 text-sm text-muted-foreground">
                       Las opciones se definen al usar el campo y se comparten con el módulo Ficha.
                     </p>
+                  )}
+                  {tipo === 'coordenadas' && (
+                    <div className="space-y-1 pl-2">
+                      <span className="text-[10px] text-muted-foreground">Lados (usar "-" para sub-lados, ej: Izquierda-Derecha)</span>
+                      {(c.lados ?? []).map((lado, li) => (
+                        <div key={li} className="grid grid-cols-[1fr_36px] items-center gap-2">
+                          <Input
+                            value={lado}
+                            onChange={e => cambiarLado(c.coord, li, e.target.value)}
+                            placeholder="Ej: Izquierda-Derecha"
+                            className="h-8"
+                          />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => eliminarLado(c.coord, li)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => agregarLado(c.coord)}>+ Agregar lado</Button>
+                    </div>
                   )}
                 </div>
                 )

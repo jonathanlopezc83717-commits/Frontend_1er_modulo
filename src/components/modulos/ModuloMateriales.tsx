@@ -80,8 +80,8 @@ export const ELEMENTOS_DISPONIBLES: ReadonlyArray<{ value: string; label: string
   { value: '__ninguno__', label: 'Ninguno (manual)' },
   { value: 'clave', label: 'Clave (de carpeta)' },
   { value: 'fecha', label: 'Fecha (de carpeta)' },
-  { value: 'coordenada_x', label: 'Coordenada GPS X (UTM Easting)' },
-  { value: 'coordenada_y', label: 'Coordenada GPS Y (UTM Northing)' },
+  { value: 'coordenada_x', label: 'Coordenada GPS X (UTM)' },
+  { value: 'coordenada_y', label: 'Coordenada GPS Y (UTM)' },
   { value: 'coordenada_z', label: 'Coordenada GPS Z (Elevación)' },
   { value: 'observaciones', label: 'Descripción de la obra (del análisis)' },
   { value: 'cadenamiento_inicio', label: 'Cadenamiento inicio' },
@@ -155,7 +155,7 @@ interface PlantillaLogos {
   logoIzq?: string
   logoDer?: string
   etiquetas?: Record<string, string>
-  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string }>
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>
   createdAt: string
 }
 
@@ -507,7 +507,7 @@ export async function exportarPdfFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }> = [],
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -853,7 +853,7 @@ export async function exportarExcelFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }> = [],
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -1221,7 +1221,7 @@ export function ModuloMateriales() {
   const store = useAppStore()
 
   const [valores, setValores] = useState<Record<string, string>>({})
-  const { opciones: opcionesCombo, registrar: registrarCombo } = useOpcionesCampos()
+  const { opciones: opcionesCombo, registrar: registrarCombo, eliminarOpcion: eliminarOpcionCombo } = useOpcionesCampos()
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
   const [coordActiva, setCoordActiva] = useState<string | null>(null)
   const [exportando, setExportando] = useState(false)
@@ -1232,9 +1232,10 @@ export function ModuloMateriales() {
   const [plantillasLogos, setPlantillasLogos] = useState<PlantillaLogos[]>([])
   const [dialogoPlantillasOpen, setDialogoPlantillasOpen] = useState(false)
   const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
+  const [plantillaActivaId, setPlantillaActivaId] = useState<string | null>(null)
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
-  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string }>>([])
+  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>>([])
   const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1392,7 +1393,7 @@ export function ModuloMateriales() {
     setValores(prev => ({ ...prev, [coord]: valor }))
   }
 
-  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string }>) => {
+  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean }>) => {
     const coordsNuevos = new Set(nuevos.map(c => c.coord))
     const removidos = camposCustom.filter(c => !coordsNuevos.has(c.coord)).map(c => c.coord)
     setCamposCustom(nuevos)
@@ -1459,43 +1460,25 @@ export function ModuloMateriales() {
     toast.info('Formulario limpiado')
   }
 
-  const guardar = () => {
-    if (!punto) return
-    actualizarPunto(punto.id, {
-      moduloData: {
-        ...(store.getState().puntoActivo?.moduloData),
-        materiales: {
-          valores,
-          imagenes,
-          numEvidencias,
-          quitarFondoLogos,
-          updatedAt: new Date().toISOString(),
-        },
-      },
-    })
-    toast.success('Ficha guardada')
-  }
-
   const guardarPlantillaLogos = () => {
     const nombre = nombreNuevaPlantilla.trim()
     if (!nombre) {
       toast.error('Escribe un nombre para la plantilla')
       return
     }
-    const nuevasPlantillas = [
-      ...plantillasLogos,
-      {
-        id: crypto.randomUUID(),
-        nombre,
-        logoIzq: imagenes['logo-izq'] || undefined,
-        logoDer: imagenes['logo-der'] || undefined,
-        etiquetas: { ...etiquetas },
-        camposCustom: camposCustom.map(c => ({ ...c })),
-        createdAt: new Date().toISOString(),
-      },
-    ]
+    const nuevaPlantilla: PlantillaLogos = {
+      id: crypto.randomUUID(),
+      nombre,
+      logoIzq: imagenes['logo-izq'] || undefined,
+      logoDer: imagenes['logo-der'] || undefined,
+      etiquetas: { ...etiquetas },
+      camposCustom: camposCustom.map(c => ({ ...c })),
+      createdAt: new Date().toISOString(),
+    }
+    const nuevasPlantillas = [...plantillasLogos, nuevaPlantilla]
     setPlantillasLogos(nuevasPlantillas)
     guardarPlantillasLogos(nuevasPlantillas)
+    setPlantillaActivaId(nuevaPlantilla.id)
     setNombreNuevaPlantilla('')
     toast.success(`Plantilla "${nombre}" guardada`)
   }
@@ -1510,6 +1493,7 @@ export function ModuloMateriales() {
     }))
     setEtiquetas(plantilla.etiquetas ? { ...plantilla.etiquetas } : {})
     setCamposCustom(plantilla.camposCustom ? plantilla.camposCustom.map(c => ({ ...c })) : [])
+    setPlantillaActivaId(id)
     toast.success(`Plantilla "${plantilla.nombre}" cargada`)
     setDialogoPlantillasOpen(false)
   }
@@ -1518,7 +1502,34 @@ export function ModuloMateriales() {
     const filtradas = plantillasLogos.filter(p => p.id !== id)
     setPlantillasLogos(filtradas)
     guardarPlantillasLogos(filtradas)
+    if (id === plantillaActivaId) setPlantillaActivaId(null)
     toast.info('Plantilla eliminada')
+  }
+
+  const actualizarPlantillaActiva = () => {
+    if (!plantillaActivaId) return
+    const encontrada = plantillasLogos.find(p => p.id === plantillaActivaId)
+    if (!encontrada) {
+      setDialogoPlantillasOpen(true)
+      return
+    }
+    const nuevas = plantillasLogos.map(p => p.id === plantillaActivaId ? {
+      id: p.id,
+      nombre: p.nombre,
+      logoIzq: imagenes['logo-izq'] || undefined,
+      logoDer: imagenes['logo-der'] || undefined,
+      etiquetas: { ...etiquetas },
+      camposCustom: camposCustom.map(c => ({ ...c })),
+      createdAt: p.createdAt,
+    } : p)
+    setPlantillasLogos(nuevas)
+    guardarPlantillasLogos(nuevas)
+    toast.success(`Plantilla "${encontrada.nombre}" actualizada`)
+  }
+
+  const handleGuardarPrincipal = () => {
+    if (plantillaActivaId) actualizarPlantillaActiva()
+    else setDialogoPlantillasOpen(true)
   }
 
   const handleExportarTodo = async () => {
@@ -1608,10 +1619,6 @@ export function ModuloMateriales() {
                 </Button>
                 {masAccionesAbierto && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos()}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Autocompletar
-                    </Button>
                     <Button variant="outline" size="sm" onClick={limpiarFicha}>
                       <Eraser className="mr-2 h-4 w-4" />
                       Limpiar
@@ -1704,7 +1711,7 @@ export function ModuloMateriales() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button size="sm" onClick={guardar}>
+                <Button size="sm" onClick={handleGuardarPrincipal} title="Guardar plantilla en curso">
                   <Save className="mr-2 h-4 w-4" />
                   Guardar
                 </Button>
@@ -1776,6 +1783,7 @@ export function ModuloMateriales() {
                             onFocus={() => setCoordActiva(coord)}
                             placeholder={etiquetaResuelta}
                             className="px-2 py-1"
+                            onEliminarOpcion={v => eliminarOpcionCombo(etiquetaCombo, v)}
                           />
                         ) : (
                           <CoordInput
@@ -1802,12 +1810,13 @@ export function ModuloMateriales() {
                     className="grid gap-2"
                     style={{ gridTemplateColumns: `repeat(${grupo.length}, minmax(0, 1fr))` }}
                   >
-                    {grupo.map(campo => (
+                    {grupo.map(campo => {
+                      return (
                       <div key={campo.coord} className="space-y-1">
                         <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                           <span className="flex items-center gap-1">
                             {campo.etiqueta}
-                            {campo.origen && (
+                            {campo.origen && !campo.combo && (
                               <span title={`Trae valor desde: ${ELEMENTOS_DISPONIBLES.find(e => e.value === campo.origen)?.label || campo.origen}`}>
                                 <Link2 className="h-3 w-3 text-blue-500" />
                               </span>
@@ -1815,16 +1824,30 @@ export function ModuloMateriales() {
                           </span>
                           <span className="font-mono text-[10px] text-emerald-600">{campo.coord}</span>
                         </label>
-                        <Input
-                          value={valores[campo.coord] || ''}
-                          onChange={e => actualizarValor(campo.coord, e.target.value)}
-                          onFocus={() => setCoordActiva(campo.coord)}
-                          onKeyDown={e => { if (e.key === 'Enter') guardarEnPunto() }}
-                          placeholder={campo.etiqueta}
-                          className="px-2 py-1"
-                        />
+                        {campo.combo ? (
+                          <CampoCombo
+                            value={valores[campo.coord] || ''}
+                            onChange={v => actualizarValor(campo.coord, v)}
+                            onCommit={v => { registrarCombo(campo.etiqueta, v); guardarEnPunto() }}
+                            opciones={opcionesCombo[campo.etiqueta] || []}
+                            onFocus={() => setCoordActiva(campo.coord)}
+                            placeholder={campo.etiqueta}
+                            className="px-2 py-1"
+                            onEliminarOpcion={v => eliminarOpcionCombo(campo.etiqueta, v)}
+                          />
+                        ) : (
+                          <Input
+                            value={valores[campo.coord] || ''}
+                            onChange={e => actualizarValor(campo.coord, e.target.value)}
+                            onFocus={() => setCoordActiva(campo.coord)}
+                            onKeyDown={e => { if (e.key === 'Enter') guardarEnPunto() }}
+                            placeholder={campo.etiqueta}
+                            className="px-2 py-1"
+                          />
+                        )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ))
               })()}

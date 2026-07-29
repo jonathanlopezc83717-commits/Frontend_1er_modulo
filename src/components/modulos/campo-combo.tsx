@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { OPCIONES_UBICACION } from './ubicacion-opciones'
@@ -35,27 +35,38 @@ export const COORDS_CON_OPCIONES: Record<string, string> = {
 export function useOpcionesCampos(): {
   opciones: Record<string, string[]>
   registrar: (etiqueta: string, valor: string) => void
+  eliminarOpcion: (etiqueta: string, valor: string) => void
 } {
   const [opciones, setOpciones] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     const cargadas: Record<string, string[]> = {}
-    for (const etiqueta of CAMPOS_CON_OPCIONES) {
-      const porDefecto = OPCIONES_POR_DEFECTO[etiqueta] || []
+    const PREFIJO = 'ficha-opciones:'
+    for (let i = 0; i < localStorage.length; i++) {
+      const clave = localStorage.key(i)
+      if (!clave || !clave.startsWith(PREFIJO)) continue
+      const etiqueta = clave.slice(PREFIJO.length)
       let guardadas: string[] = []
       try {
-        const raw = localStorage.getItem(`ficha-opciones:${etiqueta}`)
+        const raw = localStorage.getItem(clave)
         guardadas = raw ? (JSON.parse(raw) as string[]) : []
       } catch {
         guardadas = []
       }
       const vistos = new Set<string>()
-      cargadas[etiqueta] = [...porDefecto, ...guardadas].filter(op => {
-        const clave = op.toLowerCase()
-        if (vistos.has(clave)) return false
-        vistos.add(clave)
-        return true
-      })
+      const unicas: string[] = []
+      for (const op of guardadas) {
+        const claveDedup = op.toLowerCase()
+        if (vistos.has(claveDedup)) continue
+        vistos.add(claveDedup)
+        unicas.push(op)
+      }
+      cargadas[etiqueta] = unicas
+    }
+    for (const etiqueta of CAMPOS_CON_OPCIONES) {
+      if (cargadas[etiqueta] === undefined) {
+        cargadas[etiqueta] = OPCIONES_POR_DEFECTO[etiqueta] || []
+      }
     }
     setOpciones(cargadas)
   }, [])
@@ -76,7 +87,20 @@ export function useOpcionesCampos(): {
     })
   }
 
-  return { opciones, registrar }
+  const eliminarOpcion = (etiqueta: string, valor: string) => {
+    setOpciones(prev => {
+      const actuales = prev[etiqueta] || []
+      const nuevas = actuales.filter(op => op !== valor)
+      try {
+        localStorage.setItem(`ficha-opciones:${etiqueta}`, JSON.stringify(nuevas))
+      } catch {
+        // ponytail: cuota de localStorage agotada, se ignora
+      }
+      return { ...prev, [etiqueta]: nuevas }
+    })
+  }
+
+  return { opciones, registrar, eliminarOpcion }
 }
 
 // Combobox de texto libre: tipea cualquier valor Y elegi de la lista
@@ -91,6 +115,7 @@ export function CampoCombo({
   placeholder,
   className,
   restrictTo,
+  onEliminarOpcion,
 }: {
   value: string
   onChange: (valor: string) => void
@@ -100,9 +125,12 @@ export function CampoCombo({
   placeholder?: string
   className?: string
   restrictTo?: readonly string[]
+  onEliminarOpcion?: (valor: string) => void
 }) {
   const [abierto, setAbierto] = useState(false)
   const contenedorRef = useRef<HTMLDivElement>(null)
+  const [gestorAbierto, setGestorAbierto] = useState(false)
+  const gestorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!abierto) return
@@ -114,6 +142,17 @@ export function CampoCombo({
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [abierto])
+
+  useEffect(() => {
+    if (!gestorAbierto) return
+    const handler = (evento: MouseEvent) => {
+      if (gestorRef.current && !gestorRef.current.contains(evento.target as Node)) {
+        setGestorAbierto(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [gestorAbierto])
 
   const elegir = (opcion: string) => {
     onChange(opcion)
@@ -137,8 +176,8 @@ export function CampoCombo({
     )
   }
 
-  return (
-    <div ref={contenedorRef} className="relative">
+  const comboEl = (
+    <div ref={contenedorRef} className={cn('relative', onEliminarOpcion && 'flex-1 min-w-0')}>
       <Input
         value={value}
         onChange={(evento) => onChange(evento.target.value)}
@@ -163,13 +202,61 @@ export function CampoCombo({
               key={opcion}
               type="button"
               onMouseDown={(evento) => { evento.preventDefault(); elegir(opcion) }}
-              className={`flex w-full items-center px-2 py-1.5 text-left text-sm hover:bg-accent ${opcion === value ? 'bg-accent/60' : ''}`}
+              className={`flex w-full items-center px-2 py-1.5 text-left text-sm text-blue-600 hover:bg-accent ${opcion === value ? 'bg-accent/60' : ''}`}
             >
               {opcion}
             </button>
           ))}
         </div>
       )}
+    </div>
+  )
+
+  if (!onEliminarOpcion) return comboEl
+
+  return (
+    <div className="flex items-center gap-1">
+      {comboEl}
+      <div ref={gestorRef} className="relative shrink-0">
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={(evento) => {
+            evento.preventDefault()
+            setGestorAbierto(a => {
+              const next = !a
+              if (next) setAbierto(false)
+              return next
+            })
+          }}
+          className="text-muted-foreground hover:text-foreground"
+          aria-label="Gestionar opciones"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        {gestorAbierto && (
+          <div className="absolute right-0 z-50 mt-1 max-h-60 min-w-44 overflow-auto rounded-md border bg-popover shadow-md">
+            {opciones.length === 0 ? (
+              <p className="px-2 py-1.5 text-sm text-muted-foreground">Sin opciones guardadas</p>
+            ) : (
+              opciones.map(opcion => (
+                <div key={opcion} className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm hover:bg-accent">
+                  <span className="truncate">{opcion}</span>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onMouseDown={(evento) => { evento.preventDefault(); onEliminarOpcion(opcion) }}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Eliminar opción ${opcion}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

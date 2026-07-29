@@ -85,7 +85,7 @@ export const ELEMENTOS_DISPONIBLES: ReadonlyArray<{ value: string; label: string
   { value: 'coordenada_x', label: 'Coordenada GPS X (UTM)' },
   { value: 'coordenada_y', label: 'Coordenada GPS Y (UTM)' },
   { value: 'coordenada_z', label: 'Coordenada GPS Z (Elevación)' },
-  { value: 'observaciones', label: 'Descripción de la obra (del análisis)' },
+  { value: 'observaciones', label: 'Descripción de la obra' },
   { value: 'cadenamiento_inicio', label: 'Cadenamiento inicio' },
   { value: 'cadenamiento_fin', label: 'Cadenamiento fin' },
 ]
@@ -2203,7 +2203,8 @@ function CoordenadasDuales({
   placeholder?: string
 }) {
   const parsed = parseCoordenadas(value)
-  const ladoActual = parsed?.lado ?? ''
+  const ladoFijo = lados.length === 1 ? lados[0] : null
+  const ladoActual = ladoFijo ?? parsed?.lado ?? ''
   const pares = parsed?.pares ?? {}
 
   const escribir = (nuevo: CoordenadasValor) => {
@@ -2225,6 +2226,15 @@ function CoordenadasDuales({
     escribir({ lado: ladoActual, pares: { ...pares, [token]: { ...actual, [eje]: val } } })
   }
 
+  useEffect(() => {
+    if (!ladoFijo) return
+    if (parsed?.lado) return
+    const tokens = ladoFijo.split('-').map(t => t.trim()).filter(t => t !== '')
+    const paresInit: Record<string, ParesCoord> = {}
+    for (const tok of tokens) paresInit[tok] = { x: '', y: '' }
+    onChange(JSON.stringify({ lado: ladoFijo, pares: paresInit }))
+  }, [ladoFijo, parsed?.lado, onChange])
+
   if (lados.length === 0) {
     return <p className="px-1 py-1 text-xs text-muted-foreground">Sin lados configurados.</p>
   }
@@ -2233,16 +2243,18 @@ function CoordenadasDuales({
 
   return (
     <div className="space-y-1" onFocus={onFocus}>
-      <Select value={ladoActual} onValueChange={cambiarLadoValor}>
-        <SelectTrigger className="h-8 px-2 py-1">
-          <SelectValue placeholder={placeholder ?? 'Lado'} />
-        </SelectTrigger>
-        <SelectContent>
-          {lados.map(l => (
-            <SelectItem key={l} value={l}>{l}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {!ladoFijo && (
+        <Select value={ladoActual} onValueChange={cambiarLadoValor}>
+          <SelectTrigger className="h-8 px-2 py-1">
+            <SelectValue placeholder={placeholder ?? 'Lado'} />
+          </SelectTrigger>
+          <SelectContent>
+            {lados.map(l => (
+              <SelectItem key={l} value={l}>{l}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       {tokens.length === 0 ? (
         <p className="text-xs text-muted-foreground">Elegí un lado.</p>
       ) : (

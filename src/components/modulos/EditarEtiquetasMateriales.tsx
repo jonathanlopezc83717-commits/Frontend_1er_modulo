@@ -108,6 +108,28 @@ export function EditarEtiquetasMateriales({
     }))
   }
 
+  const separarEnCampos = (coord: string) => {
+    setDraftCampos(prev => {
+      const campo = prev.find(c => c.coord === coord)
+      if (!campo || !campo.coordenadas || !campo.lados) return prev
+      const tokens: string[] = []
+      for (const lado of campo.lados) {
+        for (const tok of lado.split('-')) {
+          const t = tok.trim()
+          if (t !== '') tokens.push(t)
+        }
+      }
+      if (tokens.length === 0) return prev
+      const base = prev.filter(c => c.coord !== coord)
+      const nuevos: CampoCustom[] = []
+      for (const tok of tokens) {
+        const coordNueva = nuevaCoordCustom([...base, ...nuevos])
+        nuevos.push({ coord: coordNueva, etiqueta: tok, coordenadas: true, lados: [tok] })
+      }
+      return [...base, ...nuevos]
+    })
+  }
+
   const agregarCampo = () => {
     setDraftCampos(prev => [...prev, { coord: nuevaCoordCustom(prev), etiqueta: '' }])
   }
@@ -293,7 +315,12 @@ export function EditarEtiquetasMateriales({
                           </Button>
                         </div>
                       ))}
-                      <Button variant="outline" size="sm" onClick={() => agregarLado(c.coord)}>+ Agregar lado</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => agregarLado(c.coord)}>+ Agregar lado</Button>
+                        {(c.lados ?? []).some(l => l.trim()) && (
+                          <Button variant="outline" size="sm" onClick={() => separarEnCampos(c.coord)}>Separar en campos</Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -10,7 +10,6 @@ const CHECKLIST_MODULOS = [
   { id: 'georeferencia', label: 'Georeferenciacion', aliases: ['georeferencia', 'georeferenciacion'] },
   { id: 'documentacion', label: 'Documentacion', aliases: ['documentacion'] },
   { id: 'materiales', label: 'Formato', aliases: ['materiales'] },
-  { id: 'ficha', label: 'Ficha', aliases: ['ficha'] },
 ]
 
 export function ModuloReportes() {

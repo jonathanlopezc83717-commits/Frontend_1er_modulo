@@ -37,7 +37,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { EditarEtiquetasMateriales } from './EditarEtiquetasMateriales'
-import { separarDigitos } from '@/lib/excel-sync'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
 
 // =====================================================
@@ -54,6 +53,11 @@ export interface FichaFormatoData {
   numEvidencias?: number
   /** Indica si se debe quitar el fondo blanco de los logos. */
   quitarFondoLogos?: boolean
+  /** Configuración de la plantilla del Formato (persistida para sobrevivir recargas). */
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>
+  etiquetas?: Record<string, string>
+  origenCoords?: Record<string, string>
+  plantillaActivaId?: string | null
   updatedAt?: string
 }
 
@@ -88,6 +92,7 @@ export const ELEMENTOS_DISPONIBLES: ReadonlyArray<{ value: string; label: string
   { value: 'observaciones', label: 'Descripción de la obra' },
   { value: 'cadenamiento_inicio', label: 'Cadenamiento inicio' },
   { value: 'cadenamiento_fin', label: 'Cadenamiento fin' },
+  { value: 'cadenamiento', label: 'Cadenamiento (del punto)' },
 ]
 
 
@@ -274,6 +279,9 @@ export function extraerValor(punto: unknown, campo: string): string {
       const c = geo?.coordenadas as { x?: number; y?: number; z?: number } | undefined
       return c?.z !== undefined ? String(c.z) : ''
     }
+    case 'cadenamiento': {
+      return String(p.cadenamiento || '')
+    }
     case 'observaciones': {
       const analisis = moduloData?.analisis as Record<string, unknown> | undefined
       const results = (analisis?.results || []) as Array<{ description?: string }>
@@ -285,38 +293,13 @@ export function extraerValor(punto: unknown, campo: string): string {
   }
 }
 
-// ponytail: si el primer fetch a /api/nas-csv-rango da 404 (plugin inactivo o folder fuera de watchPath),
-// deshabilita los siguientes en esta sesión para no spamear la consola con 404s por cada render.
-let nasCsvRangoDisponible = true
-
-async function leerRangoCadenamiento(punto: unknown): Promise<{ inicio: string; fin: string } | null> {
-  // ponytail: /api/nas-csv-rango solo existe en el dev server (vite-nas-bridge); en producción
-  // (Vercel serverless) no existe y bombardearlo generaba una cascada de 404 que congelaba la app.
-  // En prod se usa el cadenamiento ya guardado en el punto (fallback más abajo).
-  if (!import.meta.env.DEV) return null
-  if (!nasCsvRangoDisponible) return null
-  // ponytail: backend safeJoin rejects paths outside watchPath; absolute paths → 404 → null, no client-side normalization needed
-  const p = (punto || {}) as { nasPath?: string; carpetaPath?: string }
-  const rel = String(p.nasPath || p.carpetaPath || '').replace(/^[/\\]+|[/\\]+$/g, '')
-  if (!rel) return null
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), 5000)
-  try {
-    const res = await fetch(`/api/nas-csv-rango?folder=${encodeURIComponent(rel)}`, { signal: ctrl.signal })
-    if (res.status === 404) {
-      nasCsvRangoDisponible = false
-      return null
-    }
-    if (!res.ok) return null
-    const data = (await res.json()) as { inicio?: number; fin?: number }
-    return {
-      inicio: separarDigitos(Number(data.inicio), 2).separado,
-      fin: separarDigitos(Number(data.fin), 2).separado,
-    }
-  } catch {
-    return null
-  } finally {
-    clearTimeout(t)
+// Cadenamiento inicio/fin se definen desde los puntos: el del punto 1 (primero
+// por numeroSerie) es "inicio", y el del último punto registrado es "fin".
+function calcularRangoCadenamiento(puntos: ReadonlyArray<{ cadenamiento?: string }>): { inicio: string; fin: string } {
+  if (puntos.length === 0) return { inicio: '', fin: '' }
+  return {
+    inicio: puntos[0]?.cadenamiento || '',
+    fin: puntos[puntos.length - 1]?.cadenamiento || '',
   }
 }
 
@@ -906,9 +889,16 @@ export async function exportarExcelFicha(
   const fillLabel = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF0F1F3' } }
   const fillDark = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1A1A1A' } }
   const fillSub = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2D2D2D' } }
-  const fontWhiteBold = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 }
-  const fontWhite = { color: { argb: 'FFFFFFFF' }, size: 8 }
-  const fontLabelBold = { bold: true, size: 9 }
+  // Parámetros de texto AJUSTABLES (alineados al PDF: título 10, subtítulo 8, etiquetas/valores 7.5).
+  // Modificá estos valores para cambiar el tamaño de todo el texto del Excel de una vez.
+  const FS_TITULO = 10
+  const FS_SUBTITULO = 8
+  const FS_ETIQUETA = 7.5
+  const FS_VALOR = 7.5
+  const fontWhiteBold = { color: { argb: 'FFFFFFFF' }, bold: true, size: FS_TITULO }
+  const fontWhite = { color: { argb: 'FFFFFFFF' }, size: FS_SUBTITULO }
+  const fontLabelBold = { bold: true, size: FS_ETIQUETA }
+  const fontValor = { size: FS_VALOR }
   const thinBorder = {
     top: { style: 'thin' as const, color: { argb: 'FF000000' } },
     left: { style: 'thin' as const, color: { argb: 'FF000000' } },
@@ -954,8 +944,9 @@ export async function exportarExcelFicha(
   const cellClaveVal = ws.getCell('F2')
   cellClaveVal.value = d['0-F'] || ''
   cellClaveVal.border = thinBorder
+  cellClaveVal.font = fontValor
   cellClaveVal.alignment = { vertical: 'middle' }
-  ws.getRow(2).height = 18
+  ws.getRow(2).height = 23
 
   // Fila 3: datos (1 fila × 3 pares etiqueta/valor)
   const dataRows = [
@@ -963,7 +954,7 @@ export async function exportarExcelFicha(
   ]
   dataRows.forEach((row, ri) => {
     const rowNumber = ri + 3
-    ws.getRow(rowNumber).height = 18
+    ws.getRow(rowNumber).height = 23
     for (let p = 0; p < 3; p++) {
       const lblCol = p * 2 + 1
       const valCol = p * 2 + 2
@@ -977,35 +968,35 @@ export async function exportarExcelFicha(
       const cellVal = ws.getCell(rowNumber, valCol)
       cellVal.value = d[row.v[p]] || ''
       cellVal.border = thinBorder
+      cellVal.font = fontValor
       cellVal.alignment = { vertical: 'middle', wrapText: true }
     }
   })
 
-  // Filas adicionales: campos personalizados (3 por fila, mismo formato que dataRows)
-  let fila = 9
+  // Filas adicionales: campos personalizados. Misma grilla que la fila de datos
+  // (Fecha/Segmento/Tramo): 3 casillas de 1/3 c/u (etiqueta + valor). Solo se
+  // dibujan las casillas definidas; las que falten en la última fila quedan libres.
+  let fila = 3 + dataRows.length
   const filasCustom = Math.ceil(camposCustom.length / 3)
   for (let fi = 0; fi < filasCustom; fi++) {
-    ws.getRow(fila).height = 18
+    ws.getRow(fila).height = 23
     const chunk = camposCustom.slice(fi * 3, fi * 3 + 3)
-    const M = chunk.length
-    const colsPerField = 6 / M
-    for (let p = 0; p < M; p++) {
-      const lblCol = p * colsPerField + 1
-      const valStartCol = lblCol + 1
-      const valEndCol = lblCol + colsPerField
+    for (let p = 0; p < 3; p++) {
+      const campo = chunk[p]
+      if (!campo) continue
+      const lblCol = p * 2 + 1
+      const valCol = p * 2 + 2
       const cellLbl = ws.getCell(fila, lblCol)
-      cellLbl.value = chunk[p].etiqueta + ':'
+      cellLbl.value = campo.etiqueta + ':'
       cellLbl.fill = fillLabel
       cellLbl.font = fontLabelBold
       cellLbl.alignment = { vertical: 'middle', wrapText: true }
       cellLbl.border = thinBorder
-      if (valEndCol > valStartCol) {
-        ws.mergeCells(fila, valStartCol, fila, valEndCol)
-      }
-      const cellVal = ws.getCell(fila, valStartCol)
-      cellVal.value = chunk[p].coordenadas ? formatearCoordenadas(d[chunk[p].coord] || '') : (d[chunk[p].coord] || '')
-      cellVal.border = thinBorder
+      const cellVal = ws.getCell(fila, valCol)
+      cellVal.value = campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || '')
+      cellVal.font = fontValor
       cellVal.alignment = { vertical: 'middle', wrapText: true }
+      cellVal.border = thinBorder
     }
     fila++
   }
@@ -1032,15 +1023,17 @@ export async function exportarExcelFicha(
   ws.mergeCells(`A${fila}:C${fila}`)
   const cellEstIzqVal = ws.getCell(`A${fila}`)
   cellEstIzqVal.value = d['7-D'] || ''
+  cellEstIzqVal.font = fontValor
   cellEstIzqVal.alignment = { vertical: 'top', wrapText: true }
   cellEstIzqVal.border = thinBorder
 
   ws.mergeCells(`D${fila}:F${fila}`)
   const cellEstDerVal = ws.getCell(`D${fila}`)
   cellEstDerVal.value = d['7-F'] || ''
+  cellEstDerVal.font = fontValor
   cellEstDerVal.alignment = { vertical: 'top', wrapText: true }
   cellEstDerVal.border = thinBorder
-  ws.getRow(fila).height = 80
+  ws.getRow(fila).height = 99
   fila++
 
   // Croquis / Observaciones: etiquetas
@@ -1066,15 +1059,17 @@ export async function exportarExcelFicha(
   ws.mergeCells(`A${crValRow}:C${crValRow}`)
   const cellCrVal = ws.getCell(`A${crValRow}`)
   cellCrVal.value = imagenes.croquis ? '[Ver croquis adjunto]' : ''
+  cellCrVal.font = fontValor
   cellCrVal.alignment = { vertical: 'top', wrapText: true }
   cellCrVal.border = thinBorder
 
   ws.mergeCells(`D${crValRow}:F${crValRow}`)
   const cellObsVal = ws.getCell(`D${crValRow}`)
   cellObsVal.value = d['8-F'] || ''
+  cellObsVal.font = fontValor
   cellObsVal.alignment = { vertical: 'top', wrapText: true }
   cellObsVal.border = thinBorder
-  ws.getRow(crValRow).height = 120
+  ws.getRow(crValRow).height = 156
   fila++
 
   // === Imágenes en Excel ===
@@ -1143,17 +1138,21 @@ export async function exportarExcelFicha(
       const rowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
       const segHpx = rowHeightPx * rowSpan
       const fit = calcularAjusteContain(dim.w, dim.h, segWpx, segHpx)
+      // Escalado AJUSTABLE: la imagen se agranda y se re-centra, sin deformarla
+      // (w y h escalan igual → se conserva la relación de aspecto).
+      const ESCALA_IMAGEN = 1.2
+      const imgW = fit.w * ESCALA_IMAGEN
+      const imgH = fit.h * ESCALA_IMAGEN
 
-      // Posición del tl en fracciones de celda
+      // Re-centrado dentro del recuadro para el nuevo tamaño
       const colWidthPx = (ws.getColumn(col + 1).width || 30) * PX_POR_CARACTER
-      const offsetCol = fit.offsetX / colWidthPx
-      const offsetRow = fit.offsetY / rowHeightPx
+      const offsetCol = (segWpx - imgW) / 2 / colWidthPx
+      const offsetRow = (segHpx - imgH) / 2 / rowHeightPx
 
       const id = workbook.addImage({ base64, extension: ext })
-      // ext: tamaño EXACTO en píxeles → Excel no estira ni contrae
       ws.addImage(id, {
         tl: { col: col + offsetCol, row: row + offsetRow },
-        ext: { width: Math.round(fit.w), height: Math.round(fit.h) },
+        ext: { width: Math.round(imgW), height: Math.round(imgH) },
         editAs: 'oneCell',
       } as never)
     } catch (e) {
@@ -1246,7 +1245,7 @@ export function ModuloMateriales() {
   // Las evidencias/croquis se alimentan del análisis (otro slice). Suscripción
   // estrecha: solo re-renderiza cuando cambia el análisis, no en cada edición.
   const analisis = useAppSelector((s) => s.puntoActivo?.moduloData?.analisis)
-  const { actualizarPunto } = useAppActions()
+  const { actualizarPunto, dispatch } = useAppActions()
   const store = useAppStore()
 
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -1312,6 +1311,10 @@ export function ModuloMateriales() {
     setImagenes(imagenesIniciales)
     setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
     setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
+    setCamposCustom(data?.camposCustom ? data.camposCustom.map(c => ({ ...c })) : [])
+    setEtiquetas(data?.etiquetas ? { ...data.etiquetas } : {})
+    setOrigenCoords(data?.origenCoords ? { ...data.origenCoords } : {})
+    setPlantillaActivaId(data?.plantillaActivaId ?? null)
     setCargado(true)
   }, [punto?.id])
 
@@ -1358,11 +1361,15 @@ export function ModuloMateriales() {
           imagenes,
           numEvidencias,
           quitarFondoLogos,
+          camposCustom,
+          etiquetas,
+          origenCoords,
+          plantillaActivaId,
           updatedAt: new Date().toISOString(),
         },
       },
     })
-  }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos])
+  }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos, camposCustom, etiquetas, origenCoords, plantillaActivaId])
 
   // Autoguardado: persistir cambios en el punto (con debounce corto)
   useEffect(() => {
@@ -1392,6 +1399,15 @@ export function ModuloMateriales() {
       }
       guardarRef.current()
     }
+  }, [])
+
+  // Flush del guardado al recargar/cerrar la página: el cleanup de unmount no se
+  // ejecuta de forma confiable en beforeunload, así que forzamos el flush acá
+  // para no perder los datos ingresados en los últimos 300ms (debounce del autoguardado).
+  useEffect(() => {
+    const flush = () => guardarRef.current()
+    window.addEventListener('beforeunload', flush)
+    return () => window.removeEventListener('beforeunload', flush)
   }, [])
 
   // Importa automáticamente las primeras N imágenes disponibles del reconocimiento
@@ -1458,16 +1474,16 @@ export function ModuloMateriales() {
     const livePunto = store.getState().puntoActivo
     if (!livePunto) return
     try {
-      const rango = await leerRangoCadenamiento(livePunto)
+      const rango = calcularRangoCadenamiento(store.getState().puntos)
       setValores(prev => {
         const copia = { ...prev }
         for (const coord of coordsCambiadas) {
           const campo = nuevoOverride[coord] ?? COORD_A_CAMPO[coord]
           let val = ''
           if (campo === 'cadenamiento_inicio') {
-            val = livePunto.cadenamiento || rango?.inicio || ''
+            val = rango.inicio
           } else if (campo === 'cadenamiento_fin') {
-            val = rango?.fin || ''
+            val = rango.fin
           } else {
             val = extraerValor(livePunto, campo)
           }
@@ -1478,45 +1494,48 @@ export function ModuloMateriales() {
     } catch { /* ignorar */ }
   }
 
-  const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean }) => {
+  const autocompletarDesdeModulos = async (opciones?: { silencioso?: boolean; forzar?: boolean }) => {
     const livePunto = store.getState().puntoActivo
     if (!livePunto) return
+    const forzar = opciones?.forzar ?? false
     try {
-      const rango = await leerRangoCadenamiento(livePunto)
+      const rango = calcularRangoCadenamiento(store.getState().puntos)
+      const resolver = (campo: string): string => {
+        if (campo === 'cadenamiento_inicio') return rango.inicio
+        if (campo === 'cadenamiento_fin') return rango.fin
+        return extraerValor(livePunto, campo)
+      }
       const nuevosValores = { ...valores }
+      // forzar=true (botón "Rellenar") sobrescribe los campos con origen asignado;
+      // forzar=false (autocompletar silencioso) solo llena huecos vacíos.
       for (const coord of Object.keys(COORD_A_CAMPO)) {
         const campo = origenCoords[coord] ?? COORD_A_CAMPO[coord]
-        if (!nuevosValores[coord]) {
-          let val: string
-          if (campo === 'cadenamiento_inicio') {
-            val = livePunto.cadenamiento || rango?.inicio || ''
-          } else if (campo === 'cadenamiento_fin') {
-            val = rango?.fin || ''
-          } else {
-            val = extraerValor(livePunto, campo)
-          }
-          if (val) nuevosValores[coord] = val
-        }
+        if (campo === '__ninguno__') continue
+        if (!forzar && nuevosValores[coord]) continue
+        const val = resolver(campo)
+        if (val) nuevosValores[coord] = val
       }
-      // Campos personalizados con origen asignado: misma regla, solo llenar huecos.
+      // Campos personalizados con origen asignado: misma regla (usa resolver
+      // para que cadenamiento_inicio/fin tomen el rango calculado de los puntos).
       for (const campo of camposCustom) {
-        if (!campo.origen || campo.coordenadas) continue
-        if (nuevosValores[campo.coord]) continue
-        const val = extraerValor(livePunto, campo.origen)
+        if (!campo.origen || campo.coordenadas || campo.origen === '__ninguno__') continue
+        if (!forzar && nuevosValores[campo.coord]) continue
+        const val = resolver(campo.origen)
         if (val) nuevosValores[campo.coord] = val
       }
       const nuevasImagenes = { ...imagenes }
       for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
-        if (!nuevasImagenes[key]) {
-          const val = extraerImagen(livePunto, campo)
-          if (val) nuevasImagenes[key] = val
-        }
+        if (!forzar && nuevasImagenes[key]) continue
+        const val = extraerImagen(livePunto, campo)
+        if (val) nuevasImagenes[key] = val
       }
       setValores(nuevosValores)
       setImagenes(nuevasImagenes)
-      if (!opciones?.silencioso) toast.success('Datos autocompletados desde otros módulos')
+      if (!opciones?.silencioso) {
+        toast.success(forzar ? 'Datos rellenados desde los módulos' : 'Datos autocompletados desde otros módulos')
+      }
     } catch (e) {
-      if (!opciones?.silencioso) toast.error('No se pudo autocompletar cadenamiento: ' + String(e))
+      if (!opciones?.silencioso) toast.error('No se pudo rellenar: ' + String(e))
     }
   }
 
@@ -1621,6 +1640,7 @@ export function ModuloMateriales() {
         numEvidencias,
         imagenesReconocimiento: imagenesReconocimientoDisponibles,
       }, etiquetas, camposCustom)
+      dispatch({ type: 'SET_HA_EXPORTADO_PLANTILLA', payload: true })
       toast.success('PDF y Excel exportados')
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -1720,6 +1740,10 @@ export function ModuloMateriales() {
                 <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos({ forzar: true })} title="Volver a rellenar desde los módulos">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Rellenar
                 </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
                   <DialogTrigger asChild>

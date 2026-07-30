@@ -19,7 +19,7 @@ export interface FilaSincronizacion {
   z: number
   /** Código de nomenclatura leído de la columna E */
   codigo: string
-  /** Cadenamiento: 2 primeros dígitos del entero de X (calculado al parsear) */
+  /** Cadenamiento: 2 primeros dígitos del entero de Y (calculado al parsear) */
   cadenamiento?: string
   /** Dígitos separados del entero de X (prefijo) si se aplicó separación */
   sepX?: string
@@ -109,7 +109,7 @@ export async function parsearExcelSincronizacion(
       y: y ?? 0,
       z: z ?? 0,
       codigo,
-      cadenamiento: separarDigitos(x ?? 0, 2).separado,
+      cadenamiento: separarDigitos(y ?? 0, 2).separado,
     })
   }
 
@@ -169,23 +169,17 @@ export function compararSincronizacion(
       }
     }
 
+    // Verificación principal del estado: ¿el código (omitiendo la numeración)
+    // existe en la base de nomenclaturas? Se evalúa antes que la coincidencia
+    // de punto para que el estado siempre refleje la nomenclatura.
     const nomenclatura = buscarNomenclatura(fila.codigo, nomenclaturas)
-
-    if (!punto) {
-      return {
-        fila,
-        filaIndex,
-        nomenclatura,
-        estado: 'punto_no_encontrado',
-      }
-    }
 
     if (!nomenclatura) {
       return {
         fila,
         filaIndex,
-        puntoId: punto.id,
-        puntoNombre: punto.nombre,
+        puntoId: punto?.id,
+        puntoNombre: punto?.nombre,
         estado: 'nomenclatura_no_encontrada',
       }
     }
@@ -194,10 +188,19 @@ export function compararSincronizacion(
       return {
         fila,
         filaIndex,
-        puntoId: punto.id,
-        puntoNombre: punto.nombre,
+        puntoId: punto?.id,
+        puntoNombre: punto?.nombre,
         nomenclatura,
         estado: 'coordenadas_invalidas',
+      }
+    }
+
+    if (!punto) {
+      return {
+        fila,
+        filaIndex,
+        nomenclatura,
+        estado: 'punto_no_encontrado',
       }
     }
 
@@ -262,12 +265,13 @@ export function aplicarSincronizacion(
 
     let puntoModificado = puntosModificadosMap.get(puntoId) ?? { ...punto, moduloData: { ...punto.moduloData } }
 
-    const cadenamiento = fila.cadenamiento ?? fila.sepX ?? fila.sepY ?? fila.sepZ
+    const cadenamiento = fila.cadenamiento ?? fila.sepY ?? fila.sepX ?? fila.sepZ
     if (cadenamiento) {
       puntoModificado = { ...puntoModificado, cadenamiento }
     }
 
-    if (actualizarCoordenadas && resultado.estado !== 'coordenadas_invalidas') {
+    const coordsValidas = Number.isFinite(fila.x) && Number.isFinite(fila.y) && Number.isFinite(fila.z)
+    if (actualizarCoordenadas && coordsValidas) {
       puntoModificado = {
         ...puntoModificado,
         coordenadas: {

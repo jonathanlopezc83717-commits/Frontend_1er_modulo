@@ -14,3 +14,14 @@ describe('extraerValor — coordenada_z', () => {
     expect(extraerValor(null, 'coordenada_z')).toBe('')
   })
 })
+
+describe('extraerValor — cadenamiento (del punto)', () => {
+  it('devuelve el cadenamiento del punto', () => {
+    expect(extraerValor({ cadenamiento: '56' }, 'cadenamiento')).toBe('56')
+  })
+
+  it('devuelve string vacío si no hay cadenamiento', () => {
+    expect(extraerValor({}, 'cadenamiento')).toBe('')
+    expect(extraerValor({ cadenamiento: '' }, 'cadenamiento')).toBe('')
+  })
+})

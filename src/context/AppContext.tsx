@@ -30,6 +30,7 @@ const initialState: AppState = {
   plantillasFormato: [],
   plantillasPdfFormato: [],
   estadosGuardados: [],
+  haExportadoPlantilla: false,
 }
 
 const BACKUP_INTERVAL_MS = 2 * 60 * 60 * 1000
@@ -86,6 +87,7 @@ function getInitialState(): AppState {
       plantillasFormato,
       plantillasPdfFormato,
       estadosGuardados: estadosGuardados.slice(0, MAX_ESTADOS_GUARDADOS),
+      haExportadoPlantilla: stored.haExportadoPlantilla ?? false,
     }
   }
   return initialState
@@ -188,9 +190,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.nomenclaturasGlobales,
       state.plantillasFormato,
       state.plantillasPdfFormato,
-      state.estadosGuardados
+      state.estadosGuardados,
+      state.haExportadoPlantilla
     )
-  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.estadosGuardados, estadoRestaurado])
+  }, [state.puntos, state.puntoActivo, state.moduloActivo, state.modulosOrden, state.nomenclaturasGlobales, state.plantillasFormato, state.plantillasPdfFormato, state.estadosGuardados, state.haExportadoPlantilla, estadoRestaurado])
 
   const agregarPunto = useCallback((posicion: number, punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'createdAt' | 'updatedAt'>, id?: string) => {
     dispatch({ type: 'AGREGAR_PUNTO', payload: { posicion, punto, id } })
@@ -244,6 +247,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nomenclaturasGlobales: JSON.parse(JSON.stringify(s.nomenclaturasGlobales)),
         plantillasFormato: JSON.parse(JSON.stringify(s.plantillasFormato)),
         plantillasPdfFormato: JSON.parse(JSON.stringify(s.plantillasPdfFormato)),
+        haExportadoPlantilla: s.haExportadoPlantilla,
       },
     }
 
@@ -364,6 +368,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         obtenerUltimoEstadoAppDesdeNube(),
         obtenerEstadosAppDesdeNube(MAX_ESTADOS_GUARDADOS),
       ])
+
+      // La nube es FALLBACK: solo restaura puntos si NO hay estado local.
+      // Al recargar, IndexedDB/localStorage ya trae el estado actual (con la
+      // plantilla del Formato); pisarlo con un snapshot de nube stale (el
+      // auto-backup es cada 2h) reiniciaría la plantilla y los datos.
+      if (appStore.getState().puntos.length > 0) return
 
       if (ultimoEstado) {
         dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: ultimoEstado.snapshot })

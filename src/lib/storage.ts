@@ -23,6 +23,7 @@ export interface StoredState {
   plantillasFormato?: unknown[]
   plantillasPdfFormato?: unknown[]
   estadosGuardados?: unknown[]
+  haExportadoPlantilla?: boolean
   timestamp: number
 }
 
@@ -191,7 +192,8 @@ export function guardarEstado(
   nomenclaturasGlobales: unknown[] = [],
   plantillasFormato: unknown[] = [],
   plantillasPdfFormato: unknown[] = [],
-  estadosGuardados: unknown[] = []
+  estadosGuardados: unknown[] = [],
+  haExportadoPlantilla: boolean = false
 ): void {
   const state: StoredState = {
     puntos,
@@ -202,6 +204,7 @@ export function guardarEstado(
     plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
     plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),
     estadosGuardados: quitarArchivosDeSnapshots(estadosGuardados),
+    haExportadoPlantilla,
     timestamp: Date.now(),
   }
 
@@ -235,6 +238,7 @@ export function guardarEstado(
         plantillasFormato: quitarArchivosPlantilla(plantillasFormato),
         plantillasPdfFormato: quitarArchivosPlantilla(plantillasPdfFormato),
         estadosGuardados: [],
+        haExportadoPlantilla,
         timestamp: Date.now(),
       } satisfies StoredState))
     } catch (fallbackError) {

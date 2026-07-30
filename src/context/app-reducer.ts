@@ -1,9 +1,19 @@
-import type { AppState, AppAction, PuntoFerroviario } from '@/types'
+import type { AppState, AppAction, EstadoGuardado, PuntoFerroviario } from '@/types'
 import { MAX_VERSIONES_PUNTO } from '@/types'
 import { generarUUID } from '@/lib/utils'
 import { consolidarNomenclaturas } from '@/lib/nomenclaturas'
 
-export const MAX_ESTADOS_GUARDADOS = 24
+// Tope de respaldos: manuales (los del usuario) se conservan separados de los
+// automáticos, así un backup manual nunca es desplazado por uno automático.
+export const MAX_MANUALES = 3
+export const MAX_AUTOMATICOS = 3
+export const MAX_ESTADOS_GUARDADOS = MAX_MANUALES + MAX_AUTOMATICOS
+
+function aplicarTopeEstados(estados: EstadoGuardado[]): EstadoGuardado[] {
+  const manuales = estados.filter((e) => e.tipo === 'manual').slice(0, MAX_MANUALES)
+  const automaticos = estados.filter((e) => e.tipo === 'automatico').slice(0, MAX_AUTOMATICOS)
+  return [...manuales, ...automaticos].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
 
 function generarId(): string {
   return generarUUID()
@@ -193,12 +203,11 @@ function historialSlice(state: AppState, action: AppAction): AppState | undefine
     case 'SET_ESTADOS_GUARDADOS':
       return {
         ...state,
-        estadosGuardados: action.payload.slice(0, MAX_ESTADOS_GUARDADOS),
+        estadosGuardados: aplicarTopeEstados(action.payload),
       }
 
     case 'AGREGAR_ESTADO_GUARDADO': {
-      const estadosGuardados = [action.payload, ...state.estadosGuardados]
-        .slice(0, MAX_ESTADOS_GUARDADOS)
+      const estadosGuardados = aplicarTopeEstados([action.payload, ...state.estadosGuardados])
       return {
         ...state,
         estadosGuardados,
@@ -218,6 +227,7 @@ function historialSlice(state: AppState, action: AppAction): AppState | undefine
         nomenclaturasGlobales: consolidarNomenclaturas([action.payload.nomenclaturasGlobales]),
         plantillasFormato: action.payload.plantillasFormato || state.plantillasFormato,
         plantillasPdfFormato: action.payload.plantillasPdfFormato || state.plantillasPdfFormato,
+        haExportadoPlantilla: action.payload.haExportadoPlantilla ?? state.haExportadoPlantilla,
       }
     }
 
@@ -245,6 +255,12 @@ function configSlice(state: AppState, action: AppAction): AppState | undefined {
       return {
         ...state,
         plantillasPdfFormato: action.payload,
+      }
+
+    case 'SET_HA_EXPORTADO_PLANTILLA':
+      return {
+        ...state,
+        haExportadoPlantilla: action.payload,
       }
 
     case 'SET_MODULO_ACTIVO':

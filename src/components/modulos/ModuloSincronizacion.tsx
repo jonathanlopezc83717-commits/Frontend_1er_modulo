@@ -29,20 +29,11 @@ import {
   Upload,
   AlertCircle,
   AlertTriangle,
-  MapPin,
   Trash2,
   Download,
   FileCode,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-
-const ESTADO_LABEL: Record<ResultadoSincronizacion['estado'], { texto: string; variante: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  ok: { texto: 'OK', variante: 'default' },
-  punto_no_encontrado: { texto: 'Punto no encontrado', variante: 'destructive' },
-  nomenclatura_no_encontrada: { texto: 'Nomenclatura no encontrada', variante: 'destructive' },
-  coordenadas_invalidas: { texto: 'Coordenadas inválidas', variante: 'secondary' },
-  codigo_vacio: { texto: 'Sin código', variante: 'outline' },
-}
 
 interface SincronizacionData {
   archivoNombre?: string
@@ -535,19 +526,9 @@ export function ModuloSincronizacion() {
             {resultados.length > 0 && (
               <>
                 <div className="flex flex-wrap gap-2">
-                  {conteoEstados.ok > 0 && (
-                    <Badge variant="default" className="gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> {conteoEstados.ok} OK
-                    </Badge>
-                  )}
                   {conteoEstados.nomenclatura_no_encontrada > 0 && (
                     <Badge variant="destructive" className="gap-1">
                       <AlertCircle className="h-3 w-3" /> {conteoEstados.nomenclatura_no_encontrada} sin nomenclatura
-                    </Badge>
-                  )}
-                  {conteoEstados.punto_no_encontrado > 0 && (
-                    <Badge variant="destructive" className="gap-1">
-                      <MapPin className="h-3 w-3" /> {conteoEstados.punto_no_encontrado} punto no encontrado
                     </Badge>
                   )}
                   {conteoEstados.coordenadas_invalidas > 0 && (
@@ -572,14 +553,12 @@ export function ModuloSincronizacion() {
                         <th className="px-2 py-2 text-left font-medium">Y</th>
                         <th className="px-2 py-2 text-left font-medium">Z</th>
                         <th className="px-2 py-2 text-left font-medium">Código</th>
-                        <th className="px-2 py-2 text-left font-medium">Punto</th>
                         <th className="px-2 py-2 text-left font-medium">Nomenclatura</th>
                         <th className="px-2 py-2 text-left font-medium">Estado</th>
                       </tr>
                     </thead>
                     <tbody>
                       {resultados.map((item) => {
-                        const estado = ESTADO_LABEL[item.estado]
                         return (
                           <tr key={item.filaIndex} className="border-t">
                             <td className="px-2 py-1">
@@ -624,10 +603,11 @@ export function ModuloSincronizacion() {
                                 onChange={(e) => editarFila(item.filaIndex, 'codigo', e.target.value)}
                               />
                             </td>
-                            <td className="px-3 py-2">{item.puntoNombre || '—'}</td>
                             <td className="px-3 py-2">{item.nomenclatura?.definicion || '—'}</td>
                             <td className="px-3 py-2">
-                              <Badge variant={estado.variante}>{estado.texto}</Badge>
+                              <Badge variant={item.nomenclatura ? 'default' : 'destructive'}>
+                                {item.nomenclatura ? 'ok' : 'nok'}
+                              </Badge>
                             </td>
                           </tr>
                         )

@@ -18,6 +18,7 @@ const { stateRef, actions } = vi.hoisted(() => ({
       plantillasFormato: [] as unknown[],
       plantillasPdfFormato: [] as unknown[],
       estadosGuardados: [] as unknown[],
+      haExportadoPlantilla: false,
     },
   },
   actions: {
@@ -28,11 +29,13 @@ const { stateRef, actions } = vi.hoisted(() => ({
     setNomenclaturasGlobales: vi.fn(),
     moverPunto: vi.fn(),
     toggleBloquearPunto: vi.fn(),
+    crearCopiaSeguridad: vi.fn(() => ({ id: 'snap', tipo: 'manual', descripcion: '', createdAt: '', snapshot: {} })),
   },
 }))
 
 vi.mock('@/context/AppContext', () => ({
-  useApp: () => ({ state: stateRef.current, ...actions }),
+  useAppSelector: (selector: (s: typeof stateRef.current) => unknown) => selector(stateRef.current),
+  useAppActions: () => actions,
 }))
 
 const { GestorPuntos } = await import('@/components/GestorPuntos')

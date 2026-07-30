@@ -4,13 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { BarChart3, Download, Printer } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-
-const CHECKLIST_MODULOS = [
-  { id: 'analisis', label: 'Analisis de Imagenes', aliases: ['analisis'] },
-  { id: 'georeferencia', label: 'Georeferenciacion', aliases: ['georeferencia', 'georeferenciacion'] },
-  { id: 'documentacion', label: 'Documentacion', aliases: ['documentacion'] },
-  { id: 'materiales', label: 'Formato', aliases: ['materiales'] },
-]
+import { CHECKLIST_MODULOS } from '@/components/gestor-puntos-logica'
 
 export function ModuloReportes() {
   const { state } = useApp()

@@ -42,6 +42,7 @@ const baseState: AppState = {
   plantillasFormato: [],
   plantillasPdfFormato: [],
   estadosGuardados: [],
+  haExportadoPlantilla: false,
 }
 
 function renderWithStore(ui: React.ReactNode) {

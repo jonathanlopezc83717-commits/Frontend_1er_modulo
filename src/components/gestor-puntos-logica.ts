@@ -63,3 +63,17 @@ export function ordenarPuntos(puntos: PuntoFerroviario[], sortKey: SortKey): Pun
       return copia.sort((a, b) => a.numeroSerie - b.numeroSerie)
   }
 }
+
+// Mismos módulos que usa el checklist de Reportes. Centralizado aquí para que
+// GestorPuntos pueda filtrar puntos "exportables" sin duplicar la lista.
+export const CHECKLIST_MODULOS = [
+  { id: 'analisis', label: 'Analisis de Imagenes', aliases: ['analisis'] },
+  { id: 'georeferencia', label: 'Georeferenciacion', aliases: ['georeferencia', 'georeferenciacion'] },
+  { id: 'documentacion', label: 'Documentacion', aliases: ['documentacion'] },
+  { id: 'materiales', label: 'Formato', aliases: ['materiales'] },
+]
+
+export function checklistCompleto(punto: PuntoFerroviario): boolean {
+  const modulos = Object.keys(punto.moduloData || {})
+  return CHECKLIST_MODULOS.every((m) => m.aliases.some((alias) => modulos.includes(alias)))
+}

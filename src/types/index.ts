@@ -234,6 +234,7 @@ export interface AppState {
   plantillasFormato: PlantillaFormato[]
   plantillasPdfFormato: PlantillaPdfFormato[]
   estadosGuardados: EstadoGuardado[]
+  haExportadoPlantilla: boolean
 }
 
 export interface PlantillaCampoFormato {
@@ -295,6 +296,7 @@ export interface EstadoGuardado {
     nomenclaturasGlobales: AppState['nomenclaturasGlobales']
     plantillasFormato?: PlantillaFormato[]
     plantillasPdfFormato?: PlantillaPdfFormato[]
+    haExportadoPlantilla?: boolean
   }
 }
 
@@ -303,6 +305,7 @@ export type AppAction =
   | { type: 'SET_NOMENCLATURAS_GLOBALES'; payload: AppState['nomenclaturasGlobales'] }
   | { type: 'SET_PLANTILLAS_FORMATO'; payload: PlantillaFormato[] }
   | { type: 'SET_PLANTILLAS_PDF_FORMATO'; payload: PlantillaPdfFormato[] }
+  | { type: 'SET_HA_EXPORTADO_PLANTILLA'; payload: boolean }
   | { type: 'SET_ESTADOS_GUARDADOS'; payload: EstadoGuardado[] }
   | { type: 'AGREGAR_ESTADO_GUARDADO'; payload: EstadoGuardado }
   | { type: 'RESTAURAR_ESTADO_GUARDADO'; payload: EstadoGuardado['snapshot'] }

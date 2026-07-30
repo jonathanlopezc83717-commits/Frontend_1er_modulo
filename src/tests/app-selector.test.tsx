@@ -36,6 +36,7 @@ const baseState: AppState = {
   plantillasFormato: [],
   plantillasPdfFormato: [],
   estadosGuardados: [],
+  haExportadoPlantilla: false,
 }
 
 function makePunto(id: string, numeroSerie: number): PuntoFerroviario {

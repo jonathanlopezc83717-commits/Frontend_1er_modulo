@@ -137,8 +137,8 @@ export function GestorPuntos() {
     try {
       for (const p of conFicha) {
         const m = (p.moduloData as Record<string, unknown>).materiales as DatosFicha
-        const safeNombre = (p.nombre || 'punto').replace(/[\\/:*?"<>|]/g, '')
-        const base = `Ficha_${p.cadenamiento ?? p.numeroSerie}_${safeNombre}`
+        const nombreCarpeta = (p.nombre || 'punto').replace(/^\s*\d+[\s._:,)-]+/, '').replace(/[\\/:*?"<>|]/g, '').trim()
+        const base = `${p.numeroSerie}. ${nombreCarpeta}`
         try {
           await exportarPdfFicha(m.valores, m.imagenes || {}, base, {
             numEvidencias: m.numEvidencias,

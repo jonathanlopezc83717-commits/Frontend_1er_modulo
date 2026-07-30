@@ -1629,7 +1629,8 @@ export function ModuloMateriales() {
 
   const handleExportarTodo = async () => {
     setExportando(true)
-    const nombre = `Ficha_LMT-T11-02-${punto?.nombre || 'punto'}`
+    const nombreCarpeta = (punto?.nombre || 'punto').replace(/^\s*\d+[\s._:,)-]+/, '').trim()
+    const nombre = `${punto?.numeroSerie ?? ''}. ${nombreCarpeta}`.replace(/[\\/:*?"<>|]/g, '').trim()
     try {
       await exportarPdfFicha(valores, imagenes, nombre, {
         quitarFondoLogos,

@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { useAppSelector, useAppActions } from '@/context/AppContext'
 import { ordenarPuntos, checklistCompleto, type SortKey } from '@/components/gestor-puntos-logica'
-import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta, type ProgresoImport } from '@/components/gestor-puntos-hooks'
+import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -48,7 +48,6 @@ import {
   Upload,
   Loader2,
   FileDown,
-  RotateCcw,
 } from 'lucide-react'
 
 interface DatosFicha {
@@ -214,7 +213,7 @@ export function GestorPuntos() {
   }
 
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: puntos, puntoActivo: puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
-  const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos, reanudarCarga, cargaPendiente } = usePuntoCarpeta({ puntoActivo: puntoActivo, nomenclaturasGlobales: nomenclaturasGlobales, puntosLength: puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
+  const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: puntoActivo, nomenclaturasGlobales: nomenclaturasGlobales, puntosLength: puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   const abrirCargaResumen = (puntoId: string, tipo: 'kmz' | 'txt' | 'excel' | 'fotos') => {
     setCargaPendienteId(puntoId)
@@ -387,14 +386,10 @@ export function GestorPuntos() {
             {procesandoCarpeta && progreso && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span className="truncate">
-                    Carpeta {progreso.carpetaIdx}/{progreso.totalCarpetas}
-                    {progreso.totalCarpetas > 1 && progreso.nombreCarpetaActual ? ` · ${progreso.nombreCarpetaActual}` : ''}
-                  </span>
-                  <span className="tabular-nums ml-2 shrink-0">
-                    {progreso.fotosHechas}/{progreso.totalFotos || '?'} fotos
-                    {progreso.omitidas > 0 && ` · ${progreso.omitidas} omit.`}
-                    {progreso.totalFotos > 0 && progreso.fotosHechas > 0 && (
+                  <span>Procesando fotos</span>
+                  <span className="tabular-nums">
+                    {progreso.actual}/{progreso.total || '?'}
+                    {progreso.total > 0 && progreso.actual > 0 && (
                       <> · {formatearTasa(progreso)}</>
                     )}
                   </span>
@@ -403,26 +398,10 @@ export function GestorPuntos() {
                   <div
                     className="h-full bg-primary transition-all duration-150 ease-out"
                     style={{
-                      width: `${progreso.totalFotos > 0 ? Math.min(100, (progreso.fotosHechas / progreso.totalFotos) * 100) : 0}%`,
+                      width: `${progreso.total > 0 ? Math.min(100, (progreso.actual / progreso.total) * 100) : 0}%`,
                     }}
                   />
                 </div>
-              </div>
-            )}
-
-            {cargaPendiente && !procesandoCarpeta && (
-              <div className="space-y-1.5">
-                <Button
-                  className="w-full"
-                  onClick={reanudarCarga}
-                  size="sm"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Reanudar carga
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Quedó una carga sin terminar. Reanudar continúa desde donde se cortó.
-                </p>
               </div>
             )}
 
@@ -1244,18 +1223,9 @@ export function GestorPuntos() {
   )
 }
 
-function formatearSeg(seg: number): string {
-  if (seg <= 0) return '0s'
-  const m = Math.floor(seg / 60)
-  const s = Math.round(seg % 60)
-  return m > 0 ? `${m}m ${s}s` : `${s}s`
-}
-
-function formatearTasa(p: ProgresoImport): string {
-  const elapsed = (Date.now() - p.inicio) / 1000
-  if (elapsed <= 0) return ''
-  const tasa = p.fotosHechas / elapsed
-  const restantes = Math.max(0, p.totalFotos - p.fotosHechas)
-  const etaSeg = tasa > 0 ? restantes / tasa : 0
-  return `${formatearSeg(elapsed)} · ${tasa.toFixed(1)} fotos/s · falta ${formatearSeg(etaSeg)}`
+function formatearTasa(p: { actual: number; total: number; inicio: number }): string {
+  const seg = (Date.now() - p.inicio) / 1000
+  if (seg <= 0) return ''
+  const tasa = p.actual / seg
+  return `${seg.toFixed(1)}s · ${tasa.toFixed(1)} fotos/s`
 }

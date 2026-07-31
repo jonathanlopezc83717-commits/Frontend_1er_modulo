@@ -78,17 +78,10 @@ def _render_a_dataurl(dxf_path: str, x: float, y: float, size: float) -> str:
 
 
 def _abrir_cad_como_dxf(archivo_cad: str) -> tuple[str, bool]:
-    """Devuelve (ruta_dxf, es_temporal_a_borrar).
-
-    dwg_a_dxf puede fallar si no hay dwg2dxf (LibreDWG) ni AutoCAD COM.
-    Se convierte en 503 para no matar el worker de uvicorn ni devolver 500 opaco.
-    """
-    try:
-        if archivo_cad.lower().endswith(".dwg"):
-            return dwg_a_dxf(archivo_cad), True
-        return archivo_cad, False
-    except RuntimeError as e:
-        raise HTTPException(503, str(e))
+    """Devuelve (ruta_dxf, es_temporal_a_borrar)."""
+    if archivo_cad.lower().endswith(".dwg"):
+        return dwg_a_dxf(archivo_cad), True
+    return archivo_cad, False
 
 
 @app.post("/api/indexar")

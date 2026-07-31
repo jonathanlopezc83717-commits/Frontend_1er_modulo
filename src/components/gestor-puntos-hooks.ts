@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type TouchEvent, type MouseEvent } from 'react'
-import { toast } from 'sonner'
 import type { PuntoFerroviario } from '@/types'
 import type { SortKey } from '@/components/gestor-puntos-logica'
-import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta } from '@/lib/folder-parser'
+import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta, type ProgresoCarga } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
@@ -12,8 +11,6 @@ import {
   parsearNomenclaturasDesdeTexto,
   type NomenclaturaEntry,
 } from '@/lib/nomenclaturas'
-import { fingerprintCarpeta, carpetaYaProcesada, marcarCarpetaProcesada } from '@/lib/carpetas-procesadas'
-import { guardarSesionImport, cargarSesionImport, haySesionImport, limpiarSesionImport } from '@/lib/import-session-store'
 
 export function useSeleccionPuntos(puntos: PuntoFerroviario[]) {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -420,27 +417,6 @@ function claveCache(nombreCarpeta: string, files: FileList | File[]): string {
   return `${nombreCarpeta}:${totalSize}`
 }
 
-export type ProgresoImport = {
-  fotosHechas: number
-  totalFotos: number
-  carpetaIdx: number
-  totalCarpetas: number
-  nombreCarpetaActual: string
-  omitidas: number
-  inicio: number
-}
-
-const EXTENSIONES_FOTO = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff']
-
-function contarFotos(files: FileList | File[]): number {
-  let n = 0
-  for (let i = 0; i < files.length; i++) {
-    const ext = files[i].name.split('.').pop()?.toLowerCase() ?? ''
-    if (EXTENSIONES_FOTO.includes(ext)) n++
-  }
-  return n
-}
-
 export function usePuntoCarpeta({
   puntoActivo,
   nomenclaturasGlobales,
@@ -459,23 +435,29 @@ export function usePuntoCarpeta({
   setEditarPuntoCreado: (valor: boolean) => void
 }) {
   const [procesandoCarpeta, setProcesandoCarpeta] = useState(false)
-  const [progreso, setProgreso] = useState<ProgresoImport | null>(null)
+  const [progreso, setProgreso] = useState<{ actual: number; total: number; inicio: number } | null>(null)
   const [datosCarpetaPreview, setDatosCarpetaPreview] = useState<DatosPuntoCarpeta | null>(null)
   const [mostrarRouting, setMostrarRouting] = useState(false)
   const [routingActual, setRoutingActual] = useState<FileRouting | null>(null)
   const [resumenMultiple, setResumenMultiple] = useState<ResumenCarpeta[] | null>(null)
   const [previewsSubcarpetas, setPreviewsSubcarpetas] = useState<PreviewSubcarpeta[] | null>(null)
-  const [cargaPendiente, setCargaPendiente] = useState(false)
-  const ultimoFileListRef = useRef<FileList | null>(null)
 
-  useEffect(() => {
-    haySesionImport().then((existe) => {
-      if (existe) setCargaPendiente(true)
-    })
-  }, [])
+  const onProgressCarga = (p: ProgresoCarga) =>
+    setProgreso(prev => prev ? { actual: p.actual, total: p.total, inicio: prev.inicio } : { actual: p.actual, total: p.total, inicio: Date.now() })
 
-  const procesarImportacion = async (files: FileList) => {
-    void guardarSesionImport(files).catch(() => {})
+  const runConProgreso = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    setProgreso({ actual: 0, total: 0, inicio: Date.now() })
+    try {
+      return await fn()
+    } finally {
+      setProgreso(null)
+    }
+  }
+
+  const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
     setProcesandoCarpeta(true)
     setResumenMultiple(null)
 
@@ -489,10 +471,7 @@ export function usePuntoCarpeta({
 
     try {
       if (grupos.size <= 1) {
-        const totalFotos = contarFotos(files)
-        setProgreso({ fotosHechas: 0, totalFotos, carpetaIdx: 1, totalCarpetas: 1, nombreCarpetaActual: '', omitidas: 0, inicio: Date.now() })
-        const datos = await procesarCarpetaPunto(files, (p) =>
-          setProgreso(prev => prev ? { ...prev, fotosHechas: p.actual } : prev))
+        const datos = await runConProgreso(() => procesarCarpetaPunto(files, onProgressCarga))
         const excelEnRaiz = buscarExcelEnRaiz(files)
         if (excelEnRaiz) datos.excel = excelEnRaiz
 
@@ -506,37 +485,16 @@ export function usePuntoCarpeta({
 
         await agregarDesdeDatos(datos)
         setMostrarRouting(true)
-        setCargaPendiente(false)
-        void limpiarSesionImport()
       } else {
-        const carpetas = Array.from(grupos.keys())
-        const totalCarpetas = carpetas.length
-        const totalFotos = Array.from(grupos.values()).reduce((acc, fs) => acc + contarFotos(fs), 0)
-        setProgreso({ fotosHechas: 0, totalFotos, carpetaIdx: 0, totalCarpetas, nombreCarpetaActual: '', omitidas: 0, inicio: Date.now() })
         const resumen: ResumenCarpeta[] = []
         let i = 0
-        let fotosHechasPrevias = 0
-        let omitidas = 0
-        for (let k = 0; k < carpetas.length; k++) {
-          const nombreRaiz = carpetas[k]
-          setProgreso(prev => prev ? { ...prev, carpetaIdx: k + 1, nombreCarpetaActual: nombreRaiz } : prev)
+        for (const [nombreRaiz] of grupos) {
           const fileListFiltrada = filtrarPorCarpetaRaiz(files, nombreRaiz)
-          const fp = fingerprintCarpeta(nombreRaiz, fileListFiltrada)
-          if (carpetaYaProcesada(fp)) {
-            omitidas++
-            fotosHechasPrevias += contarFotos(fileListFiltrada)
-            setProgreso(prev => prev ? { ...prev, fotosHechas: fotosHechasPrevias, omitidas } : prev)
-            continue
-          }
-          const datos = await procesarCarpetaPunto(fileListFiltrada, (p) => {
-            const base = fotosHechasPrevias
-            setProgreso(prev => prev ? { ...prev, fotosHechas: base + p.actual } : prev)
-          })
+          const datos = await runConProgreso(() => procesarCarpetaPunto(fileListFiltrada, onProgressCarga))
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
           const nuevoId = generarUUID()
           await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId, false)
-          marcarCarpetaProcesada(fp, datos.nombreCarpeta)
           resumen.push({
             nombre: datos.nombreCarpeta,
             puntoId: nuevoId,
@@ -546,44 +504,17 @@ export function usePuntoCarpeta({
             fotos: datos.fotos.length,
           })
           i++
-          fotosHechasPrevias += datos.fotos.length
         }
-        setProgreso(null)
         setRoutingActual(null)
         setResumenMultiple(resumen)
-        toast.success(`Carga completada · ${resumen.length} ${resumen.length === 1 ? 'carpeta' : 'carpetas'} · ${resumen.reduce((a, r) => a + r.fotos, 0)} fotos`)
         setMostrarRouting(true)
-        setCargaPendiente(false)
-        void limpiarSesionImport()
       }
     } catch (error) {
       console.error('Error procesando carpeta:', error)
-      toast.error('Error al procesar la carpeta')
-      if (ultimoFileListRef.current) setCargaPendiente(true)
+      alert('Error al procesar la carpeta')
     } finally {
       setProcesandoCarpeta(false)
-      setProgreso(null)
     }
-  }
-
-  const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    ultimoFileListRef.current = files
-    setCargaPendiente(false)
-    await procesarImportacion(files)
-  }
-
-  const reanudarCarga = async () => {
-    setCargaPendiente(false)
-    const inMemory = ultimoFileListRef.current
-    if (inMemory) {
-      await procesarImportacion(inMemory)
-      return
-    }
-    const files = await cargarSesionImport()
-    if (!files) return
-    await procesarImportacion(files)
   }
 
   const handleSeleccionarRaizMultipunto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -650,16 +581,9 @@ export function usePuntoCarpeta({
         items.sort((a, b) => a.numero - b.numero)
       }
 
-      const totalCarpetas = items.length
-      const totalFotos = items.reduce((acc, item) => acc + contarFotos(item.preview.files), 0)
-      setProgreso({ fotosHechas: 0, totalFotos, carpetaIdx: 0, totalCarpetas, nombreCarpetaActual: '', omitidas: 0, inicio: Date.now() })
       const resumen: ResumenCarpeta[] = []
-      let fotosHechasPrevias = 0
-      let omitidas = 0
-      for (let k = 0; k < items.length; k++) {
-        const item = items[k]
+      for (const item of items) {
         const preview = item.preview
-        setProgreso(prev => prev ? { ...prev, carpetaIdx: k + 1, nombreCarpetaActual: preview.nombre } : prev)
         const dt = new DataTransfer()
         for (const f of preview.files) {
           const parts = (f.webkitRelativePath || f.name).split('/')
@@ -676,30 +600,19 @@ export function usePuntoCarpeta({
           dt.items.add(clon)
         }
         const fileList = dt.files
-        const fp = fingerprintCarpeta(item.preview.nombre, fileList)
-        if (carpetaYaProcesada(fp)) {
-          omitidas++
-          fotosHechasPrevias += contarFotos(fileList)
-          setProgreso(prev => prev ? { ...prev, fotosHechas: fotosHechasPrevias, omitidas } : prev)
-          continue
-        }
         const clave = claveCache(item.preview.nombre, fileList)
         const cacheado = cacheCarpetasProcesadas.get(clave)
         let datos: DatosPuntoCarpeta
         if (cacheado && Date.now() - cacheado.timestamp < CACHE_TTL_MS) {
           datos = cacheado.datos
         } else {
-          datos = await procesarCarpetaPunto(fileList, (p) => {
-            const base = fotosHechasPrevias
-            setProgreso(prev => prev ? { ...prev, fotosHechas: base + p.actual } : prev)
-          })
+          datos = await runConProgreso(() => procesarCarpetaPunto(fileList, onProgressCarga))
           cacheCarpetasProcesadas.set(clave, { datos, timestamp: Date.now() })
         }
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
         if (excelEnRaiz) datos.excel = excelEnRaiz
         const nuevoId = generarUUID()
         await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false)
-        marcarCarpetaProcesada(fp, datos.nombreCarpeta)
         resumen.push({
           nombre: datos.nombreCarpeta,
           puntoId: nuevoId,
@@ -708,21 +621,16 @@ export function usePuntoCarpeta({
           excel: !!datos.excel,
           fotos: datos.fotos.length,
         })
-        fotosHechasPrevias += datos.fotos.length
       }
 
-      setProgreso(null)
       setPreviewsSubcarpetas(null)
       setResumenMultiple(resumen)
-      toast.success(`Carga completada · ${resumen.length} ${resumen.length === 1 ? 'carpeta' : 'carpetas'} · ${resumen.reduce((a, r) => a + r.fotos, 0)} fotos`)
       setMostrarRouting(true)
     } catch (error) {
       console.error('Error agregando selección:', error)
-      toast.error('Error al agregar los puntos seleccionados')
-      if (ultimoFileListRef.current) setCargaPendiente(true)
+      alert('Error al agregar los puntos seleccionados')
     } finally {
       setProcesandoCarpeta(false)
-      setProgreso(null)
     }
   }
 
@@ -733,10 +641,7 @@ export function usePuntoCarpeta({
     setProcesandoCarpeta(true)
 
     try {
-      const totalFotos = contarFotos(files)
-      setProgreso({ fotosHechas: 0, totalFotos, carpetaIdx: 1, totalCarpetas: 1, nombreCarpetaActual: '', omitidas: 0, inicio: Date.now() })
-      const datos = await procesarCarpetaPunto(files, (p) =>
-        setProgreso(prev => prev ? { ...prev, fotosHechas: p.actual } : prev))
+      const datos = await runConProgreso(() => procesarCarpetaPunto(files, onProgressCarga))
 
       if (!puntoActivo) {
         alert('Selecciona un punto primero para asignarle los archivos')
@@ -828,7 +733,6 @@ export function usePuntoCarpeta({
       alert('Error al procesar la carpeta')
     } finally {
       setProcesandoCarpeta(false)
-      setProgreso(null)
     }
   }
 
@@ -1039,7 +943,5 @@ export function usePuntoCarpeta({
     handleRoutingManual,
     cargarArchivoIndividual,
     cargarFotos,
-    reanudarCarga,
-    cargaPendiente,
   }
 }

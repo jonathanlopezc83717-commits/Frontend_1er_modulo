@@ -59,7 +59,6 @@ def _seleccionar_puntos(parent, raiz):
 
     bb = tk.Frame(top)
     bb.pack(pady=6)
-    tk.Button(bb, text="Seleccionar todo", command=lambda: lb.selection_set(0, "end")).pack(side="left", padx=4)
     tk.Button(bb, text="Cancelar", command=top.destroy).pack(side="left", padx=4)
     tk.Button(bb, text="Generar croquis", command=_ok).pack(side="left", padx=4)
     top.grab_set()

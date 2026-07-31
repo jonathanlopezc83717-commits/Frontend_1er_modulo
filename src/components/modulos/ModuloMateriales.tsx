@@ -177,6 +177,17 @@ function logoDerStorageKey(puntoId: string): string {
   return `${LOGO_DER_STORAGE_PREFIX}_${puntoId}`
 }
 
+/**
+ * Cache local SINCRÓNICO por punto de los datos del Formato (valores + config,
+ * SIN imágenes). Se escribe directo en localStorage en cada guardado para que
+ * sobreviva a recargas incluso si el effect de persistencia global no alcanza
+ * a correr antes del unload (caso típico: editar y recargar rápido).
+ */
+const MATERIALES_STORAGE_PREFIX = 'ferroviario_formato_materiales'
+function materialesStorageKey(puntoId: string): string {
+  return `${MATERIALES_STORAGE_PREFIX}_${puntoId}`
+}
+
 // =====================================================
 // PLANTILLAS DE LOGOS
 // =====================================================
@@ -1284,6 +1295,18 @@ export function ModuloMateriales() {
   useEffect(() => {
     const livePunto = store.getState().puntoActivo
     const data = livePunto?.moduloData?.materiales as FichaFormatoData | undefined
+
+    // Cache local sincrónico: respaldo confiable de valores+config ante recargas.
+    let cache: Partial<FichaFormatoData> = {}
+    if (livePunto) {
+      try {
+        const raw = localStorage.getItem(materialesStorageKey(livePunto.id))
+        if (raw) cache = JSON.parse(raw) as Partial<FichaFormatoData>
+      } catch {
+        // cache corrupto: se ignora
+      }
+    }
+
     const imagenesGuardadas = data?.imagenes || {}
     let imagenesIniciales = { ...imagenesGuardadas }
 
@@ -1307,14 +1330,21 @@ export function ModuloMateriales() {
       if (croquis) imagenesIniciales['croquis'] = croquis
     }
 
-    setValores(data?.valores || {})
+    // Preferir el cache local (sincrónico, confiable) para valores+config;
+    // las imágenes vienen del store (data).
+    const valoresSrc = cache.valores ?? (data?.valores || {})
+    const camposSrc = cache.camposCustom ?? data?.camposCustom
+    const etiquetasSrc = cache.etiquetas ?? data?.etiquetas
+    const origenSrc = cache.origenCoords ?? data?.origenCoords
+
+    setValores(valoresSrc)
     setImagenes(imagenesIniciales)
-    setNumEvidencias(data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
-    setQuitarFondoLogos(data?.quitarFondoLogos ?? false)
-    setCamposCustom(data?.camposCustom ? data.camposCustom.map(c => ({ ...c })) : [])
-    setEtiquetas(data?.etiquetas ? { ...data.etiquetas } : {})
-    setOrigenCoords(data?.origenCoords ? { ...data.origenCoords } : {})
-    setPlantillaActivaId(data?.plantillaActivaId ?? null)
+    setNumEvidencias(cache.numEvidencias ?? data?.numEvidencias ?? EVIDENCIAS_DEFECTO)
+    setQuitarFondoLogos(cache.quitarFondoLogos ?? data?.quitarFondoLogos ?? false)
+    setCamposCustom(camposSrc ? camposSrc.map(c => ({ ...c })) : [])
+    setEtiquetas(etiquetasSrc ? { ...etiquetasSrc } : {})
+    setOrigenCoords(origenSrc ? { ...origenSrc } : {})
+    setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
     setCargado(true)
   }, [punto?.id])
 
@@ -1369,6 +1399,15 @@ export function ModuloMateriales() {
         },
       },
     })
+    // Cache local sincrónico (valores + config, sin imágenes): sobrevive a recargas
+    // aunque el effect global de persistencia no llegue a correr antes del unload.
+    try {
+      localStorage.setItem(materialesStorageKey(punto.id), JSON.stringify({
+        valores, camposCustom, etiquetas, origenCoords, plantillaActivaId, numEvidencias, quitarFondoLogos,
+      }))
+    } catch {
+      // Cuota llena: se ignora; el guardado del punto (store) queda como respaldo.
+    }
   }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos, camposCustom, etiquetas, origenCoords, plantillaActivaId])
 
   // Autoguardado: persistir cambios en el punto (con debounce corto)

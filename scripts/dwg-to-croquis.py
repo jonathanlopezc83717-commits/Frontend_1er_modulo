@@ -90,13 +90,13 @@ def dwg_a_dxf(dwg_path: str) -> str:
         _com_busy(lambda: doc.SaveAs(os.path.abspath(tmp), 1))  # 1 = acR12_dxf
         return tmp
     except Exception as e:
-        sys.exit(
+        raise RuntimeError(
             "ERROR: dwg2dxf (LibreDWG) no esta en PATH y AutoCAD COM fallo:\n"
             f"  {e}\n"
             "  - Instala LibreDWG: https://www.gnu.org/software/libredwg/\n"
             "  - O abre AutoCAD y reintenta (fallback COM usa la instancia activa)\n"
             "  - O exporta el DXF desde AutoCAD (Archivo > Guardar como > DXF)"
-        )
+        ) from e
 
 
 def renderizar(dxf_path: str, x: float, y: float, size: float,
@@ -258,6 +258,7 @@ def _seleccionar_multiple(titulo, opciones, parent):
         top.destroy()
     fr = tk.Frame(top)
     fr.pack(pady=4)
+    tk.Button(fr, text="Seleccionar todo", command=lambda: lb.selection_set(0, "end")).pack(side="left", padx=8)
     tk.Button(fr, text="Procesar", command=ok).pack(side="left", padx=8)
     tk.Button(fr, text="Cancelar", command=top.destroy).pack(side="left", padx=8)
     top.grab_set()
@@ -388,7 +389,10 @@ def main() -> None:
         if req is None:
             sys.exit(f"Falta {nombre}. Usa --self-test para verificar.")
     es_dwg = a.input.lower().endswith(".dwg")
-    dxf = dwg_a_dxf(a.input) if es_dwg else a.input
+    try:
+        dxf = dwg_a_dxf(a.input) if es_dwg else a.input
+    except RuntimeError as e:
+        sys.exit(str(e))
     try:
         renderizar(dxf, a.x, a.y, a.size, a.out, a.dpi, a.esquina)
     finally:

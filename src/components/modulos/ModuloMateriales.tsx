@@ -58,6 +58,8 @@ export interface FichaFormatoData {
   etiquetas?: Record<string, string>
   origenCoords?: Record<string, string>
   plantillaActivaId?: string | null
+  /** Coordenadas rellenadas a mano; un apply global nunca las sobrescribe. */
+  coordsManuales?: string[]
   updatedAt?: string
 }
 
@@ -1276,6 +1278,8 @@ export function ModuloMateriales() {
   const [origenCoords, setOrigenCoords] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
   const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>>([])
+  const [coordsManuales, setCoordsManuales] = useState<string[]>([])
+  const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
   const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
   const masAccionesRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -1336,6 +1340,7 @@ export function ModuloMateriales() {
     const camposSrc = cache.camposCustom ?? data?.camposCustom
     const etiquetasSrc = cache.etiquetas ?? data?.etiquetas
     const origenSrc = cache.origenCoords ?? data?.origenCoords
+    const coordsManualesSrc = cache.coordsManuales ?? data?.coordsManuales ?? []
 
     setValores(valoresSrc)
     setImagenes(imagenesIniciales)
@@ -1345,6 +1350,7 @@ export function ModuloMateriales() {
     setEtiquetas(etiquetasSrc ? { ...etiquetasSrc } : {})
     setOrigenCoords(origenSrc ? { ...origenSrc } : {})
     setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
+    setCoordsManuales(coordsManualesSrc)
     setCargado(true)
   }, [punto?.id])
 
@@ -1395,6 +1401,7 @@ export function ModuloMateriales() {
           etiquetas,
           origenCoords,
           plantillaActivaId,
+          coordsManuales,
           updatedAt: new Date().toISOString(),
         },
       },
@@ -1403,12 +1410,12 @@ export function ModuloMateriales() {
     // aunque el effect global de persistencia no llegue a correr antes del unload.
     try {
       localStorage.setItem(materialesStorageKey(punto.id), JSON.stringify({
-        valores, camposCustom, etiquetas, origenCoords, plantillaActivaId, numEvidencias, quitarFondoLogos,
+        valores, camposCustom, etiquetas, origenCoords, plantillaActivaId, numEvidencias, quitarFondoLogos, coordsManuales,
       }))
     } catch {
       // Cuota llena: se ignora; el guardado del punto (store) queda como respaldo.
     }
-  }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos, camposCustom, etiquetas, origenCoords, plantillaActivaId])
+  }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos, camposCustom, etiquetas, origenCoords, plantillaActivaId, coordsManuales])
 
   // Autoguardado: persistir cambios en el punto (con debounce corto)
   useEffect(() => {
@@ -1487,6 +1494,7 @@ export function ModuloMateriales() {
 
   const actualizarValor = (coord: string, valor: string) => {
     setValores(prev => ({ ...prev, [coord]: valor }))
+    setCoordsManuales(prev => prev.includes(coord) ? prev : [...prev, coord])
   }
 
   const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>) => {
@@ -1575,6 +1583,110 @@ export function ModuloMateriales() {
       }
     } catch (e) {
       if (!opciones?.silencioso) toast.error('No se pudo rellenar: ' + String(e))
+    }
+  }
+
+  const rellenarGlobal = async () => {
+    if (!punto) return
+    setAplicandoGlobal(true)
+    try {
+      guardarRef.current()
+      await new Promise(r => setTimeout(r, 0))
+      const rango = calcularRangoCadenamiento(store.getState().puntos)
+      let count = 0
+      let activeValores: Record<string, string> | null = null
+      let activeImagenes: Record<string, string> | null = null
+      for (const p of store.getState().puntos) {
+        const mat = p.moduloData?.materiales as FichaFormatoData | undefined
+        const valores = { ...(mat?.valores) }
+        const imagenes = { ...(mat?.imagenes) }
+        const manuales = mat?.coordsManuales ?? []
+        const pOrigen = mat?.origenCoords ?? {}
+        const pCampos = mat?.camposCustom ?? []
+        const resolver = (campo: string): string => {
+          if (campo === 'cadenamiento_inicio') return rango.inicio
+          if (campo === 'cadenamiento_fin') return rango.fin
+          return extraerValor(p, campo)
+        }
+        for (const coord of Object.keys(COORD_A_CAMPO)) {
+          if (manuales.includes(coord)) continue
+          const campo = pOrigen[coord] ?? COORD_A_CAMPO[coord]
+          if (campo === '__ninguno__') continue
+          const val = resolver(campo)
+          if (val) valores[coord] = val
+        }
+        for (const campo of pCampos) {
+          if (!campo.origen || campo.coordenadas || campo.origen === '__ninguno__') continue
+          if (manuales.includes(campo.coord)) continue
+          const val = resolver(campo.origen)
+          if (val) valores[campo.coord] = val
+        }
+        for (const [key, imgCampo] of Object.entries(IMAGEN_COORD)) {
+          const val = extraerImagen(p, imgCampo)
+          if (val) imagenes[key] = val
+        }
+        actualizarPunto(p.id, {
+          moduloData: {
+            ...p.moduloData,
+            materiales: { ...mat, valores, imagenes, updatedAt: new Date().toISOString() },
+          },
+        })
+        count++
+        if (p.id === punto.id) {
+          activeValores = valores
+          activeImagenes = imagenes
+        }
+      }
+      if (activeValores) setValores(activeValores)
+      if (activeImagenes) setImagenes(activeImagenes)
+      toast.success(`Rellenados ${count} puntos`)
+    } catch (e) {
+      toast.error('No se pudo rellenar todos los puntos: ' + String(e))
+    } finally {
+      setAplicandoGlobal(false)
+    }
+  }
+
+  const aplicarPlantillaGlobal = async () => {
+    if (!punto) return
+    setAplicandoGlobal(true)
+    try {
+      guardarRef.current()
+      await new Promise(r => setTimeout(r, 0))
+      const sourceValores = { ...valores }
+      let count = 0
+      for (const p of store.getState().puntos) {
+        const mat = p.moduloData?.materiales as FichaFormatoData | undefined
+        const targetValores = mat?.valores ?? {}
+        const targetManuales = mat?.coordsManuales ?? []
+        const merged: Record<string, string> = { ...sourceValores }
+        for (const coord of targetManuales) {
+          if (targetValores[coord] !== undefined) merged[coord] = targetValores[coord]
+        }
+        actualizarPunto(p.id, {
+          moduloData: {
+            ...p.moduloData,
+            materiales: {
+              ...mat,
+              camposCustom,
+              etiquetas,
+              origenCoords,
+              plantillaActivaId,
+              quitarFondoLogos,
+              numEvidencias,
+              valores: merged,
+              coordsManuales: targetManuales,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })
+        count++
+      }
+      toast.success(`Plantilla aplicada a ${count} puntos`)
+    } catch (e) {
+      toast.error('No se pudo aplicar la plantilla: ' + String(e))
+    } finally {
+      setAplicandoGlobal(false)
     }
   }
 
@@ -1785,6 +1897,18 @@ export function ModuloMateriales() {
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Rellenar
                 </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={aplicandoGlobal}
+                  onClick={() => {
+                    if (window.confirm('¿Rellenar TODOS los puntos desde los módulos? Se conservan los campos escritos manualmente.')) rellenarGlobal()
+                  }}
+                  title="Rellenar desde los módulos para todos los puntos (conserva los manuales)"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {aplicandoGlobal ? 'Aplicando...' : 'Rellenar todos'}
+                </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -1853,6 +1977,18 @@ export function ModuloMateriales() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={aplicandoGlobal}
+                  onClick={() => {
+                    if (window.confirm('¿Aplicar la plantilla actual a TODOS los puntos? Se conservan los campos escritos manualmente y las fotos de cada punto.')) aplicarPlantillaGlobal()
+                  }}
+                  title="Aplica la configuración y valores actuales a todos los puntos (conserva manuales y fotos)"
+                >
+                  <LayoutTemplate className="mr-2 h-4 w-4" />
+                  {aplicandoGlobal ? 'Aplicando...' : 'Plantilla a todos'}
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true) }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Nueva plantilla

@@ -390,7 +390,7 @@ export function GestorPuntos() {
                   <span className="tabular-nums">
                     {progreso.actual}/{progreso.total || '?'}
                     {progreso.total > 0 && progreso.actual > 0 && (
-                      <> · {formatearTasa(progreso)}</>
+                      <> · {formatearRestante(progreso)} · {formatearTasa(progreso)}</>
                     )}
                   </span>
                 </div>
@@ -1228,4 +1228,18 @@ function formatearTasa(p: { actual: number; total: number; inicio: number }): st
   if (seg <= 0) return ''
   const tasa = p.actual / seg
   return `${seg.toFixed(1)}s · ${tasa.toFixed(1)} fotos/s`
+}
+
+function formatearRestante(p: { actual: number; total: number; inicio: number }): string {
+  if (p.actual <= 0 || p.total <= 0 || p.actual >= p.total) return ''
+  const seg = (Date.now() - p.inicio) / 1000
+  if (seg <= 0) return ''
+  const restante = ((p.total - p.actual) * seg) / p.actual
+  if (!isFinite(restante) || restante <= 0) return ''
+  if (restante < 60) return `falta ~${Math.ceil(restante)}s`
+  const m = Math.floor(restante / 60)
+  const s = Math.round(restante % 60)
+  if (restante < 3600) return `falta ~${m}m${s > 0 ? ` ${s}s` : ''}`
+  const h = Math.floor(m / 60)
+  return `falta ~${h}h ${m % 60}m`
 }

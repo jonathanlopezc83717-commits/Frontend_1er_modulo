@@ -5,6 +5,7 @@ import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCo
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
+import { toast } from 'sonner'
 import {
   consolidarNomenclaturas,
   fusionarNomenclaturas,
@@ -417,6 +418,17 @@ function claveCache(nombreCarpeta: string, files: FileList | File[]): string {
   return `${nombreCarpeta}:${totalSize}`
 }
 
+// ponytail: mismo criterio de imagen que leerCarpeta en folder-parser (duplicado para no cruzar archivos)
+const EXT_FOTOS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'])
+function contarFotosImagen(files: FileList | File[]): number {
+  let n = 0
+  for (const f of Array.from(files)) {
+    const ext = f.name.toLowerCase().split('.').pop()
+    if (ext && EXT_FOTOS.has(ext)) n++
+  }
+  return n
+}
+
 export function usePuntoCarpeta({
   puntoActivo,
   nomenclaturasGlobales,
@@ -484,13 +496,19 @@ export function usePuntoCarpeta({
         })
 
         await agregarDesdeDatos(datos)
+        toast.success(`Carga completada: ${datos.fotos.length} fotos`)
         setMostrarRouting(true)
       } else {
         const resumen: ResumenCarpeta[] = []
+        const inicio = Date.now()
+        const granTotal = contarFotosImagen(files)
+        let offset = 0
         let i = 0
+        setProgreso({ actual: 0, total: granTotal, inicio })
         for (const [nombreRaiz] of grupos) {
           const fileListFiltrada = filtrarPorCarpetaRaiz(files, nombreRaiz)
-          const datos = await runConProgreso(() => procesarCarpetaPunto(fileListFiltrada, onProgressCarga))
+          const onProg = (p: ProgresoCarga) => setProgreso({ actual: offset + p.actual, total: granTotal, inicio })
+          const datos = await procesarCarpetaPunto(fileListFiltrada, onProg)
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
           const nuevoId = generarUUID()
@@ -503,10 +521,13 @@ export function usePuntoCarpeta({
             excel: !!datos.excel,
             fotos: datos.fotos.length,
           })
+          offset += datos.fotos.length
           i++
         }
+        setProgreso(null)
         setRoutingActual(null)
         setResumenMultiple(resumen)
+        toast.success(`Carga completada: ${resumen.length} puntos · ${granTotal} fotos`)
         setMostrarRouting(true)
       }
     } catch (error) {
@@ -582,6 +603,10 @@ export function usePuntoCarpeta({
       }
 
       const resumen: ResumenCarpeta[] = []
+      const inicio = Date.now()
+      const granTotal = items.reduce((n, it) => n + contarFotosImagen(it.preview.files), 0)
+      let offset = 0
+      setProgreso({ actual: 0, total: granTotal, inicio })
       for (const item of items) {
         const preview = item.preview
         const dt = new DataTransfer()
@@ -602,11 +627,12 @@ export function usePuntoCarpeta({
         const fileList = dt.files
         const clave = claveCache(item.preview.nombre, fileList)
         const cacheado = cacheCarpetasProcesadas.get(clave)
+        const onProg = (p: ProgresoCarga) => setProgreso({ actual: offset + p.actual, total: granTotal, inicio })
         let datos: DatosPuntoCarpeta
         if (cacheado && Date.now() - cacheado.timestamp < CACHE_TTL_MS) {
           datos = cacheado.datos
         } else {
-          datos = await runConProgreso(() => procesarCarpetaPunto(fileList, onProgressCarga))
+          datos = await procesarCarpetaPunto(fileList, onProg)
           cacheCarpetasProcesadas.set(clave, { datos, timestamp: Date.now() })
         }
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
@@ -621,10 +647,13 @@ export function usePuntoCarpeta({
           excel: !!datos.excel,
           fotos: datos.fotos.length,
         })
+        offset += datos.fotos.length
       }
 
+      setProgreso(null)
       setPreviewsSubcarpetas(null)
       setResumenMultiple(resumen)
+      toast.success(`Carga completada: ${resumen.length} puntos · ${granTotal} fotos`)
       setMostrarRouting(true)
     } catch (error) {
       console.error('Error agregando selección:', error)

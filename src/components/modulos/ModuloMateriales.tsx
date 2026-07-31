@@ -13,7 +13,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
@@ -34,7 +33,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { EditarEtiquetasMateriales } from './EditarEtiquetasMateriales'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
@@ -1280,18 +1279,6 @@ export function ModuloMateriales() {
   const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>>([])
   const [coordsManuales, setCoordsManuales] = useState<string[]>([])
   const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
-  const [masAccionesAbierto, setMasAccionesAbierto] = useState(false)
-  const masAccionesRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!masAccionesAbierto) return
-    const handler = (evento: MouseEvent) => {
-      if (masAccionesRef.current && !masAccionesRef.current.contains(evento.target as Node)) {
-        setMasAccionesAbierto(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [masAccionesAbierto])
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
@@ -1654,6 +1641,10 @@ export function ModuloMateriales() {
       guardarRef.current()
       await new Promise(r => setTimeout(r, 0))
       const sourceValores = { ...valores }
+      // Logos del punto origen: viajan a todos los destinos (conservando evidencias/croquis propios).
+      const sourceLogos: Record<string, string> = {}
+      if (imagenes['logo-izq']) sourceLogos['logo-izq'] = imagenes['logo-izq']
+      if (imagenes['logo-der']) sourceLogos['logo-der'] = imagenes['logo-der']
       let count = 0
       for (const p of store.getState().puntos) {
         const mat = p.moduloData?.materiales as FichaFormatoData | undefined
@@ -1663,6 +1654,9 @@ export function ModuloMateriales() {
         for (const coord of targetManuales) {
           if (targetValores[coord] !== undefined) merged[coord] = targetValores[coord]
         }
+        // Sobrescribe los logos del origen sobre las imágenes del destino.
+        const targetImagenes = { ...(mat?.imagenes ?? {}) }
+        for (const [k, v] of Object.entries(sourceLogos)) targetImagenes[k] = v
         actualizarPunto(p.id, {
           moduloData: {
             ...p.moduloData,
@@ -1676,10 +1670,18 @@ export function ModuloMateriales() {
               numEvidencias,
               valores: merged,
               coordsManuales: targetManuales,
+              imagenes: targetImagenes,
               updatedAt: new Date().toISOString(),
             },
           },
         })
+        // El cache localStorage del destino queda stale (la carga usa `cache ?? data`,
+        // y `??` no descarta []) y ocultaría campos custom/etiquetas nuevos: invalidarlo.
+        try { localStorage.removeItem(materialesStorageKey(p.id)) } catch { /* cuota/modo privado */ }
+        // El logo derecho tiene respaldo en localStorage por punto (copia ligera del store).
+        if (sourceLogos['logo-der']) {
+          try { localStorage.setItem(logoDerStorageKey(p.id), sourceLogos['logo-der']) } catch { /* cuota */ }
+        }
         count++
       }
       toast.success(`Plantilla aplicada a ${count} puntos`)
@@ -1861,14 +1863,10 @@ export function ModuloMateriales() {
                 <CardTitle>Formato LMT-T11-02</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div ref={masAccionesRef} className="relative inline-block">
-                  <Button variant="outline" size="sm" onClick={() => setMasAccionesAbierto(v => !v)}>
-                    <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${masAccionesAbierto ? 'rotate-180' : ''}`} />
-                    Más acciones
-                  </Button>
-                  {masAccionesAbierto && (
-                    <div className="absolute right-0 top-full z-50 mt-1 flex w-56 flex-col gap-2 rounded-md border bg-popover p-2 shadow-md">
-                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={limpiarFicha}>
+                <MenuAcciones label="Más acciones">
+                  {close => (
+                    <>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { limpiarFicha(); close() }}>
                         <Eraser className="mr-2 h-4 w-4" />
                         Limpiar
                       </Button>
@@ -1882,40 +1880,72 @@ export function ModuloMateriales() {
                         <Eraser className="h-4 w-4" />
                         <span>Quitar fondo</span>
                       </label>
-                      <Button size="sm" className="w-full justify-start" onClick={handleExportarTodo} disabled={exportando}>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setEditarEtiquetasAbierto(true); close() }}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true); close() }}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nueva plantilla
+                      </Button>
+                      <Button size="sm" className="w-full justify-start" onClick={() => { handleExportarTodo(); close() }} disabled={exportando}>
                         <FileText className="mr-2 h-4 w-4" />
                         {exportando ? 'Exportando...' : 'PDF + Excel'}
                       </Button>
-                    </div>
+                    </>
                   )}
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setEditarEtiquetasAbierto(true)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => autocompletarDesdeModulos({ forzar: true })} title="Volver a rellenar desde los módulos">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Rellenar
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={aplicandoGlobal}
-                  onClick={() => {
-                    if (window.confirm('¿Rellenar TODOS los puntos desde los módulos? Se conservan los campos escritos manualmente.')) rellenarGlobal()
-                  }}
-                  title="Rellenar desde los módulos para todos los puntos (conserva los manuales)"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {aplicandoGlobal ? 'Aplicando...' : 'Rellenar todos'}
+                </MenuAcciones>
+                <MenuAcciones label="Rellenar" icon={<RefreshCw className="mr-2 h-4 w-4" />}>
+                  {close => (
+                    <>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { autocompletarDesdeModulos({ forzar: true }); close() }}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Rellenar este punto
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={aplicandoGlobal}
+                        onClick={() => {
+                          if (window.confirm('¿Rellenar TODOS los puntos desde los módulos? Se conservan los campos escritos manualmente.')) rellenarGlobal()
+                          close()
+                        }}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        {aplicandoGlobal ? 'Aplicando...' : 'Rellenar todos'}
+                      </Button>
+                    </>
+                  )}
+                </MenuAcciones>
+                <MenuAcciones label="Plantillas" icon={<LayoutTemplate className="mr-2 h-4 w-4" />}>
+                  {close => (
+                    <>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setDialogoPlantillasOpen(true); close() }}>
+                        <LayoutTemplate className="mr-2 h-4 w-4" />
+                        Plantillas guardadas
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={aplicandoGlobal}
+                        onClick={() => {
+                          if (window.confirm('¿Aplicar la plantilla actual a TODOS los puntos? Se conservan los campos escritos manualmente y las fotos de cada punto.')) aplicarPlantillaGlobal()
+                          close()
+                        }}
+                      >
+                        <LayoutTemplate className="mr-2 h-4 w-4" />
+                        {aplicandoGlobal ? 'Aplicando...' : 'Plantilla a todos'}
+                      </Button>
+                    </>
+                  )}
+                </MenuAcciones>
+                <Button size="sm" onClick={handleGuardarPrincipal} title="Guardar plantilla en curso">
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar
                 </Button>
                 <Dialog open={dialogoPlantillasOpen} onOpenChange={setDialogoPlantillasOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <LayoutTemplate className="mr-2 h-4 w-4" />
-                      Plantillas
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Plantillas de logos</DialogTitle>
@@ -1977,26 +2007,6 @@ export function ModuloMateriales() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={aplicandoGlobal}
-                  onClick={() => {
-                    if (window.confirm('¿Aplicar la plantilla actual a TODOS los puntos? Se conservan los campos escritos manualmente y las fotos de cada punto.')) aplicarPlantillaGlobal()
-                  }}
-                  title="Aplica la configuración y valores actuales a todos los puntos (conserva manuales y fotos)"
-                >
-                  <LayoutTemplate className="mr-2 h-4 w-4" />
-                  {aplicandoGlobal ? 'Aplicando...' : 'Plantilla a todos'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true) }}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nueva plantilla
-                </Button>
-                <Button size="sm" onClick={handleGuardarPrincipal} title="Guardar plantilla en curso">
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -2359,6 +2369,38 @@ export function ModuloMateriales() {
 // =====================================================
 // SUBCOMPONENTES
 // =====================================================
+
+function MenuAcciones({ label, icon, children }: {
+  label: string
+  icon?: ReactNode
+  children: (close: () => void) => ReactNode
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!abierto) return
+    const handler = (evento: MouseEvent) => {
+      if (ref.current && !ref.current.contains(evento.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [abierto])
+  const close = () => setAbierto(false)
+  return (
+    <div ref={ref} className="relative inline-block">
+      <Button variant="outline" size="sm" onClick={() => setAbierto(v => !v)}>
+        {icon}
+        {label}
+        <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </Button>
+      {abierto && (
+        <div className="absolute right-0 top-full z-50 mt-1 flex w-56 flex-col gap-2 rounded-md border bg-popover p-2 shadow-md">
+          {children(close)}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function CoordInput({
   coord,

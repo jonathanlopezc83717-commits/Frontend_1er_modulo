@@ -39,6 +39,21 @@ export interface ImageToAnalyze extends ImageItem {
   error: string | null
 }
 
+// Resultado del análisis IA ejecutado en la Edge Function (per-image + consolidación)
+export interface ResultadoAnalisisIA {
+  resultadosPorImagen: Array<{ descripcion: string; objetos: string[]; mood: string; quality: string }>
+  descripcionGeneral: string
+  modeloUsado: string
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+}
+
+// Contexto opcional de la obra que se inyecta en los prompts server-side
+export interface ContextoAnalisis {
+  categoria?: string
+  nomenclaturas?: string[]
+  materiales?: string
+}
+
 // Tipos para el historial de Supabase
 export interface AnalysisHistory {
   id: string

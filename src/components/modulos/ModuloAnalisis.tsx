@@ -13,6 +13,7 @@ import {
   getEstimatedTime,
 } from '@/lib/openrouter'
 import { supabase } from '@/lib/supabase'
+import type { ContextoAnalisis } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +23,76 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Images, Brain, AlertCircle, Trash2, Camera, Play, Square, Eye, FileText } from 'lucide-react'
 import type { AnalysisProgress } from '@/types'
+
+const PREPROCESS_MAX_SIDE = 1536
+const PREPROCESS_JPEG_QUALITY = 0.8
+const UPLOAD_CONCURRENCY = 3
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('No se pudo cargar la imagen'))
+    img.src = src
+  })
+}
+
+async function preprocesarImagen(dataUrl: string): Promise<string> {
+  let img: HTMLImageElement
+  try {
+    img = await loadImage(dataUrl)
+  } catch {
+    return dataUrl
+  }
+  const longest = Math.max(img.naturalWidth, img.naturalHeight)
+  let width = img.naturalWidth
+  let height = img.naturalHeight
+  if (longest > PREPROCESS_MAX_SIDE) {
+    const scale = PREPROCESS_MAX_SIDE / longest
+    width = Math.round(width * scale)
+    height = Math.round(height * scale)
+  }
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return dataUrl
+  ctx.drawImage(img, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', PREPROCESS_JPEG_QUALITY)
+}
+
+async function runPool<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++
+      results[index] = await fn(items[index], index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+function derivarContexto(moduloData: Record<string, unknown> | undefined): ContextoAnalisis {
+  const ctx: ContextoAnalisis = {}
+  if (!moduloData) return ctx
+  const doc = moduloData.documentacion as
+    | { nomenclaturas?: Array<{ codigo?: string }> }
+    | undefined
+  const codes = doc?.nomenclaturas
+    ?.map((n) => n.codigo)
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+  if (codes && codes.length > 0) ctx.nomenclaturas = codes
+  const ficha = moduloData.ficha as Record<string, unknown> | undefined
+  const cat = ficha?.categoria
+  if (typeof cat === 'string' && cat.trim()) ctx.categoria = cat
+  return ctx
+}
 
 export function ModuloAnalisis() {
   const punto = useAppSelector((s) => {
@@ -136,7 +207,6 @@ export function ModuloAnalisis() {
       setError(null)
       setAnalysisResults([])
 
-      // Crear AbortController para poder cancelar
       abortControllerRef.current = new AbortController()
 
       const estimatedTime = getEstimatedTime(selectedModel, images.length)
@@ -145,82 +215,88 @@ export function ModuloAnalisis() {
       try {
         handleProgressUpdate(
           5,
-          'Subiendo imágenes...',
+          'Preparando imágenes...',
           estimatedTime * 0.95,
-          'Subiendo a Supabase'
+          'Optimizando'
         )
 
-        const uploadPromises = images.map(async (image) => {
-          const fileExt = image.file.name.split('.').pop()
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-
+        const processed = await runPool(images, UPLOAD_CONCURRENCY, async (image) => {
+          if (/^https?:\/\//i.test(image.preview)) {
+            return { url: image.preview, nombre: image.file.name }
+          }
+          const dataUrl = await preprocesarImagen(image.preview)
+          const mime = dataUrl.match(/^data:([^;]+)/)?.[1] || 'image/jpeg'
+          const ext = mime === 'image/png' ? 'png' : 'jpg'
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+          const blob = await (await fetch(dataUrl)).blob()
           const { error: uploadError } = await supabase.storage
             .from('images')
-            .upload(fileName, image.file)
-
+            .upload(fileName, blob, { contentType: mime })
           if (uploadError) {
-            console.warn('Storage upload failed:', uploadError)
-            return null
+            throw new Error(`Storage: ${uploadError.message}`)
           }
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('images')
-            .getPublicUrl(fileName)
-
-          return publicUrl
+          const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName)
+          return { url: publicUrl, nombre: image.file.name }
         })
 
-        const uploadedUrls = await Promise.all(uploadPromises)
-        const displayUrls = images.map((image, index) => image.preview || uploadedUrls[index] || '')
-          .filter(Boolean)
-        setImageUrls(displayUrls)
+        const imageUrls = processed.map((p) => p.url)
+        setImageUrls(imageUrls)
 
-        handleProgressUpdate(
-          20,
-          'Enviando a IA...',
-          estimatedTime * 0.8,
-          'Enviando a OpenRouter'
+        const liveModuloPre = store.getState().puntoActivo?.moduloData
+        const contexto = derivarContexto(liveModuloPre as Record<string, unknown> | undefined)
+
+        const result = await analyzeImages(imageUrls, {
+          modelo: selectedModel,
+          contexto,
+          onProgress: handleProgressUpdate,
+          signal: abortControllerRef.current.signal,
+        })
+
+        const mappedResultados = result.resultadosPorImagen.map((r, i) => ({
+          fotoId: images[i]?.id ?? `foto-${i}`,
+          fotoNombre: processed[i]?.nombre ?? `Imagen ${i + 1}`,
+          descripcion: r.descripcion,
+          objetos: r.objetos,
+        }))
+        setResultadosPorImagen(mappedResultados)
+        setDescripcionGeneral(result.descripcionGeneral)
+
+        const mergedObjects = Array.from(
+          new Set(result.resultadosPorImagen.flatMap((r) => r.objetos))
         )
+        const consolidated: ImageAnalysisResult = {
+          description:
+            result.descripcionGeneral ||
+            result.resultadosPorImagen[0]?.descripcion ||
+            'Sin descripción',
+          objects: mergedObjects,
+          mood: result.resultadosPorImagen.map((r) => r.mood).filter(Boolean).join('; '),
+          quality: result.resultadosPorImagen.map((r) => r.quality).filter(Boolean).join('; '),
+          rawResponse: JSON.stringify(result),
+          modelUsed: result.modeloUsado,
+        }
+        setAnalysisResults([consolidated])
 
-
-        const results = await analyzeImages(
-          images.map((img) => ({
-            ...img,
-            result: null,
-            isAnalyzing: false,
-            error: null,
-          })),
-          selectedModel,
-          handleProgressUpdate
-        )
-
-        setAnalysisResults(results)
-
-        // Guardar automáticamente en el punto
-        if (results.length > 0) {
-          const result = results[0]
-          
-          // Guardar en el estado local del punto
-          const liveModulo = store.getState().puntoActivo?.moduloData
-          actualizarPunto(punto.id, {
-            moduloData: {
-              ...liveModulo,
-              analisis: {
-                ...liveModulo?.analisis,
-                results: results,
-                imageUrls: displayUrls,
-                modelUsed: selectedModel,
-                analyzedAt: new Date().toISOString(),
-              },
+        const liveModulo = store.getState().puntoActivo?.moduloData
+        actualizarPunto(punto.id, {
+          moduloData: {
+            ...liveModulo,
+            analisis: {
+              ...liveModulo?.analisis,
+              results: [consolidated],
+              imageUrls,
+              resultadosPorImagen: mappedResultados,
+              descripcionGeneral: result.descripcionGeneral,
+              modelUsed: result.modeloUsado,
+              analyzedAt: new Date().toISOString(),
             },
-          })
+          },
+        })
 
-          // Guardar en Supabase
-          try {
-            await guardarAnalisisDB(punto.id, result, displayUrls)
-          } catch (dbError) {
-            console.error('Error guardando análisis en DB:', dbError)
-          }
+        try {
+          await guardarAnalisisDB(punto.id, consolidated, imageUrls)
+        } catch (dbError) {
+          console.error('Error guardando análisis en DB:', dbError)
         }
 
         handleProgressUpdate(100, 'Completado', 0, 'Finalizado')

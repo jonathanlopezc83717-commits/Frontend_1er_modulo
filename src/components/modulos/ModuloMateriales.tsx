@@ -1246,6 +1246,44 @@ export async function exportarExcelFicha(
 }
 
 // =====================================================
+// DIARIO DE OPERACIONES (resumibilidad tras recarga)
+// =====================================================
+
+const DIARIO_OPERACIONES_KEY = 'ferroviario_formato_diario'
+const DIARIO_VIGENCIA_MS = 10 * 60 * 1000
+
+interface EntradaDiario {
+  tipo: 'aplicar-plantilla' | 'rellenar-todos'
+  inicio: number
+  fin: number | null
+  completada: boolean
+}
+
+function leerDiario(): EntradaDiario | null {
+  try {
+    const raw = localStorage.getItem(DIARIO_OPERACIONES_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as EntradaDiario
+  } catch { return null }
+}
+
+function escribirDiario(entrada: EntradaDiario | null): void {
+  try {
+    if (entrada) localStorage.setItem(DIARIO_OPERACIONES_KEY, JSON.stringify(entrada))
+    else localStorage.removeItem(DIARIO_OPERACIONES_KEY)
+  } catch { /* cuota llena: se ignora */ }
+}
+
+function registrarInicioOperacion(tipo: EntradaDiario['tipo']): void {
+  escribirDiario({ tipo, inicio: Date.now(), fin: null, completada: false })
+}
+
+function registrarFinOperacion(): void {
+  const actual = leerDiario()
+  if (actual && !actual.completada) escribirDiario({ ...actual, fin: Date.now(), completada: true })
+}
+
+// =====================================================
 // COMPONENTE PRINCIPAL
 // =====================================================
 
@@ -1273,6 +1311,8 @@ export function ModuloMateriales() {
   const [dialogoPlantillasOpen, setDialogoPlantillasOpen] = useState(false)
   const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('')
   const [plantillaActivaId, setPlantillaActivaId] = useState<string | null>(null)
+  // Flag para encadenar aplicar+rellenar global tras cargar plantilla, cuando el estado ya flushó.
+  const [cadenaPlantillaPendiente, setCadenaPlantillaPendiente] = useState(false)
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
   const [origenCoords, setOrigenCoords] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
@@ -1286,6 +1326,7 @@ export function ModuloMateriales() {
   useEffect(() => {
     const livePunto = store.getState().puntoActivo
     const data = livePunto?.moduloData?.materiales as FichaFormatoData | undefined
+    console.log('[FORMATO] carga — punto:', livePunto ? { id: livePunto.id, nombre: livePunto.nombre, carpetaPath: livePunto.carpetaPath } : null, '| store.materiales:', !!data, '| data.valores:', data ? Object.keys(data.valores ?? {}) : [], '| data.origenCoords:', data ? Object.keys(data.origenCoords ?? {}) : [])
 
     // Cache local sincrónico: respaldo confiable de valores+config ante recargas.
     let cache: Partial<FichaFormatoData> = {}
@@ -1321,13 +1362,15 @@ export function ModuloMateriales() {
       if (croquis) imagenesIniciales['croquis'] = croquis
     }
 
-    // Preferir el cache local (sincrónico, confiable) para valores+config;
-    // las imágenes vienen del store (data).
-    const valoresSrc = cache.valores ?? (data?.valores || {})
-    const camposSrc = cache.camposCustom ?? data?.camposCustom
-    const etiquetasSrc = cache.etiquetas ?? data?.etiquetas
-    const origenSrc = cache.origenCoords ?? data?.origenCoords
-    const coordsManualesSrc = cache.coordsManuales ?? data?.coordsManuales ?? []
+    // Fuente de verdad: el store (data). El cache local es respaldo solo si el
+    // store aún no tiene materiales para este punto. Evita mostrar datos de otra
+    // carpeta cuando el cache localStorage quedó stale tras aplicar plantilla.
+    const valoresSrc = data?.valores ?? cache.valores ?? {}
+    const camposSrc = data?.camposCustom ?? cache.camposCustom
+    const etiquetasSrc = data?.etiquetas ?? cache.etiquetas
+    const origenSrc = data?.origenCoords ?? cache.origenCoords
+    const coordsManualesSrc = data?.coordsManuales ?? cache.coordsManuales ?? []
+    console.log('[FORMATO] fuentes resueltas — valores:', { deStore: !!data?.valores, deCache: !data?.valores && !!cache.valores, keysCount: Object.keys(valoresSrc).length }, '| origenCoords count:', origenSrc ? Object.keys(origenSrc).length : 0, '| camposCustom count:', camposSrc?.length ?? 0)
 
     setValores(valoresSrc)
     setImagenes(imagenesIniciales)
@@ -1339,7 +1382,24 @@ export function ModuloMateriales() {
     setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
     setCoordsManuales(coordsManualesSrc)
     setCargado(true)
-  }, [punto?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [punto?.id, store])
+
+  // Al montar: resetear flags transitorios que pueden quedar trabados tras recarga
+  // y avisar si una operación global quedó interrumpida.
+  useEffect(() => {
+    setAplicandoGlobal(false)
+    setCadenaPlantillaPendiente(false)
+    const diario = leerDiario()
+    if (diario && !diario.completada && (Date.now() - diario.inicio) < DIARIO_VIGENCIA_MS) {
+      const hace = Math.max(1, Math.round((Date.now() - diario.inicio) / 60000))
+      const etiqueta = diario.tipo === 'aplicar-plantilla' ? 'aplicar plantilla a todos' : 'rellenar todos los puntos'
+      toast(`Operación interrumpida: "${etiqueta}" hace ${hace} min. Usá "Re-aplicar última" en el menú Plantillas si necesitás completarla.`)
+    } else if (diario) {
+      escribirDiario(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!cargado || !punto) return
@@ -1416,6 +1476,10 @@ export function ModuloMateriales() {
       if (guardarTimeoutRef.current) {
         clearTimeout(guardarTimeoutRef.current)
         guardarTimeoutRef.current = null
+        // Flush del guardado pendiente: este closure cierra sobre el punto que
+        // se está dejando (punto.id y valores correctos). Sin esto, cambiar de
+        // punto antes del debounce pierde la edición del punto de origen.
+        guardarEnPunto()
       }
     }
   }, [valores, imagenes, numEvidencias, quitarFondoLogos, cargado, punto?.id, guardarEnPunto])
@@ -1547,15 +1611,19 @@ export function ModuloMateriales() {
         if (campo === '__ninguno__') continue
         if (!forzar && nuevosValores[coord]) continue
         const val = resolver(campo)
-        if (val) nuevosValores[coord] = val
+        // forzar limpia valores stale (ej: coordenadas del punto anterior);
+        // sin forzar solo llena huecos vacíos.
+        if (forzar) nuevosValores[coord] = val
+        else if (val) nuevosValores[coord] = val
       }
       // Campos personalizados con origen asignado: misma regla (usa resolver
       // para que cadenamiento_inicio/fin tomen el rango calculado de los puntos).
       for (const campo of camposCustom) {
-        if (!campo.origen || campo.coordenadas || campo.origen === '__ninguno__') continue
+        if (!campo.origen || campo.origen === '__ninguno__') continue
         if (!forzar && nuevosValores[campo.coord]) continue
         const val = resolver(campo.origen)
-        if (val) nuevosValores[campo.coord] = val
+        if (forzar) nuevosValores[campo.coord] = val
+        else if (val) nuevosValores[campo.coord] = val
       }
       const nuevasImagenes = { ...imagenes }
       for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
@@ -1576,6 +1644,7 @@ export function ModuloMateriales() {
   const rellenarGlobal = async () => {
     if (!punto) return
     setAplicandoGlobal(true)
+    registrarInicioOperacion('rellenar-todos')
     try {
       guardarRef.current()
       await new Promise(r => setTimeout(r, 0))
@@ -1599,14 +1668,13 @@ export function ModuloMateriales() {
           if (manuales.includes(coord)) continue
           const campo = pOrigen[coord] ?? COORD_A_CAMPO[coord]
           if (campo === '__ninguno__') continue
-          const val = resolver(campo)
-          if (val) valores[coord] = val
+          // siempre asignar: limpia valores stale de otra carpeta.
+          valores[coord] = resolver(campo)
         }
         for (const campo of pCampos) {
-          if (!campo.origen || campo.coordenadas || campo.origen === '__ninguno__') continue
+          if (!campo.origen || campo.origen === '__ninguno__') continue
           if (manuales.includes(campo.coord)) continue
-          const val = resolver(campo.origen)
-          if (val) valores[campo.coord] = val
+          valores[campo.coord] = resolver(campo.origen)
         }
         for (const [key, imgCampo] of Object.entries(IMAGEN_COORD)) {
           const val = extraerImagen(p, imgCampo)
@@ -1626,6 +1694,7 @@ export function ModuloMateriales() {
       }
       if (activeValores) setValores(activeValores)
       if (activeImagenes) setImagenes(activeImagenes)
+      registrarFinOperacion()
       toast.success(`Rellenados ${count} puntos`)
     } catch (e) {
       toast.error('No se pudo rellenar todos los puntos: ' + String(e))
@@ -1637,24 +1706,45 @@ export function ModuloMateriales() {
   const aplicarPlantillaGlobal = async () => {
     if (!punto) return
     setAplicandoGlobal(true)
+    registrarInicioOperacion('aplicar-plantilla')
     try {
       guardarRef.current()
       await new Promise(r => setTimeout(r, 0))
+      // Valores del punto origen: los NO vinculados viajan a todos (defaults F/B/D);
+      // los vinculados se re-extraen por punto en rellenarGlobal.
       const sourceValores = { ...valores }
       // Logos del punto origen: viajan a todos los destinos (conservando evidencias/croquis propios).
       const sourceLogos: Record<string, string> = {}
       if (imagenes['logo-izq']) sourceLogos['logo-izq'] = imagenes['logo-izq']
       if (imagenes['logo-der']) sourceLogos['logo-der'] = imagenes['logo-der']
+      // Coords vinculadas a módulos: sus valores NO se propagan (se re-extraen por punto).
+      const vinculados = new Set<string>()
+      for (const [coord, origen] of Object.entries(origenCoords)) {
+        if (origen && origen !== '__ninguno__') vinculados.add(coord)
+      }
+      for (const c of camposCustom) {
+        if (c.origen && c.origen !== '__ninguno__') vinculados.add(c.coord)
+      }
+      const esVinculado = (coord: string): boolean => {
+        if (vinculados.has(coord)) return true
+        const base = coord.split('-')[0]
+        return base !== coord && vinculados.has(base)
+      }
       let count = 0
       for (const p of store.getState().puntos) {
         const mat = p.moduloData?.materiales as FichaFormatoData | undefined
         const targetValores = mat?.valores ?? {}
         const targetManuales = mat?.coordsManuales ?? []
-        const merged: Record<string, string> = { ...sourceValores }
-        for (const coord of targetManuales) {
-          if (targetValores[coord] !== undefined) merged[coord] = targetValores[coord]
+        // merged: NO vinculados = de la plantilla (defaults F/B/D);
+        // vinculados = del destino (preserva lo extraído de su carpeta, rellenar lo refresca).
+        const merged: Record<string, string> = {}
+        for (const [coord, val] of Object.entries(sourceValores)) {
+          if (esVinculado(coord)) continue
+          merged[coord] = val
         }
-        // Sobrescribe los logos del origen sobre las imágenes del destino.
+        for (const [coord, val] of Object.entries(targetValores)) {
+          if (esVinculado(coord)) merged[coord] = val
+        }
         const targetImagenes = { ...(mat?.imagenes ?? {}) }
         for (const [k, v] of Object.entries(sourceLogos)) targetImagenes[k] = v
         actualizarPunto(p.id, {
@@ -1684,6 +1774,7 @@ export function ModuloMateriales() {
         }
         count++
       }
+      registrarFinOperacion()
       toast.success(`Plantilla aplicada a ${count} puntos`)
     } catch (e) {
       toast.error('No se pudo aplicar la plantilla: ' + String(e))
@@ -1691,6 +1782,18 @@ export function ModuloMateriales() {
       setAplicandoGlobal(false)
     }
   }
+
+  // Encadena aplicar+rellenar global después de cargar una plantilla guardada,
+  // cuando el estado del componente ya reflejó los setters de cargarPlantillaPorId.
+  useEffect(() => {
+    if (!cadenaPlantillaPendiente) return
+    setCadenaPlantillaPendiente(false)
+    void (async () => {
+      await aplicarPlantillaGlobal()
+      await rellenarGlobal()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cadenaPlantillaPendiente])
 
   const limpiarFicha = () => {
     setValores({})
@@ -1732,6 +1835,7 @@ export function ModuloMateriales() {
   const cargarPlantillaPorId = (id: string) => {
     const plantilla = plantillasLogos.find(p => p.id === id)
     if (!plantilla) return
+    if (!window.confirm(`Cargar la plantilla "${plantilla.nombre}", aplicarla a TODOS los puntos y rellenar cada uno desde los módulos. ¿Continuar?`)) return
     setImagenes(prev => ({
       ...prev,
       ...(plantilla.logoIzq && { 'logo-izq': plantilla.logoIzq }),
@@ -1743,6 +1847,8 @@ export function ModuloMateriales() {
     setPlantillaActivaId(id)
     toast.success(`Plantilla "${plantilla.nombre}" cargada`)
     setDialogoPlantillasOpen(false)
+    // Dispara aplicar+rellenar global tras el re-render (useEffect sobre el flag).
+    setCadenaPlantillaPendiente(true)
   }
 
   const eliminarPlantillaLogos = (id: string) => {
@@ -1884,10 +1990,6 @@ export function ModuloMateriales() {
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true); close() }}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Nueva plantilla
-                      </Button>
                       <Button size="sm" className="w-full justify-start" onClick={() => { handleExportarTodo(); close() }} disabled={exportando}>
                         <FileText className="mr-2 h-4 w-4" />
                         {exportando ? 'Exportando...' : 'PDF + Excel'}
@@ -1921,6 +2023,10 @@ export function ModuloMateriales() {
                 <MenuAcciones label="Plantillas" icon={<LayoutTemplate className="mr-2 h-4 w-4" />}>
                   {close => (
                     <>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setNombreNuevaPlantilla(''); setDialogoPlantillasOpen(true); close() }}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nueva plantilla
+                      </Button>
                       <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setDialogoPlantillasOpen(true); close() }}>
                         <LayoutTemplate className="mr-2 h-4 w-4" />
                         Plantillas guardadas
@@ -1937,6 +2043,21 @@ export function ModuloMateriales() {
                       >
                         <LayoutTemplate className="mr-2 h-4 w-4" />
                         {aplicandoGlobal ? 'Aplicando...' : 'Plantilla a todos'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          const diario = leerDiario()
+                          if (!diario) { toast.info('No hay operación reciente para re-aplicar'); return }
+                          if (diario.tipo === 'aplicar-plantilla') aplicarPlantillaGlobal()
+                          else if (diario.tipo === 'rellenar-todos') rellenarGlobal()
+                          close()
+                        }}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Re-aplicar última
                       </Button>
                     </>
                   )}

@@ -35,7 +35,12 @@ cp .env.example .env
 Edita `.env` con:
 - `VITE_SUPABASE_URL`: URL de tu Supabase local (por defecto: http://localhost:54321)
 - `VITE_SUPABASE_ANON_KEY`: La anon key que te da `supabase status`
-- `VITE_OPENROUTER_API_KEY`: Tu API key de OpenRouter
+
+La API key de OpenRouter **no** va en `.env` (no debe quedar en el bundle del cliente). Se configura como secret de la Edge Function:
+
+```bash
+supabase secrets set OPENROUTER_API_KEY=<tu-key>
+```
 
 ## 4. Iniciar el Proyecto
 

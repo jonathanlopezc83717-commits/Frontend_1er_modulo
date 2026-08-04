@@ -194,124 +194,90 @@ function puntoFromDB(db: PuntoDB & { coordenadas_gps?: CoordenadasDB[], document
 // CRUD: PUNTOS FERROVIARIOS
 // =====================================================
 
+export interface PuntoPayload {
+  punto: Partial<PuntoDB>
+  coordenadas: { coordenada_x: number; coordenada_y: number; coordenada_z: number; notas: string } | null
+  documentos: { nombre_archivo: string; contenido: string } | null
+  analisis: { image_urls: string[]; description: string; objects: string[]; mood: string; quality: string; model_used: string } | null
+  fotos: Array<{ indice: number; nombre_archivo: string; nombre_formateado: string; subcarpeta: string; preview_url: string }> | null
+}
+
 /**
- * Guarda o actualiza un punto completo con todas sus relaciones
+ * Construye el payload `{ punto, coordenadas, documentos, analisis, fotos }`
+ * esperado por el RPC `guardar_punto_completo`. Comparte lógica entre
+ * `guardarPuntoCompleto` y `sincronizarPuntos` (E2). Las previews de fotos
+ * `data:image/...` se resuelven a URLs de Storage aquí (client-side) porque
+ * no pueden subirse desde el Edge Function.
+ */
+export async function construirPayloadPunto(punto: PuntoFerroviario): Promise<PuntoPayload> {
+  const puntoDb = puntoToDB(punto)
+
+  const geoData = punto.moduloData?.georeferencia || punto.moduloData?.georeferenciacion
+  let coordenadas: PuntoPayload['coordenadas'] = null
+  if (geoData?.coordenadas) {
+    coordenadas = {
+      coordenada_x: geoData.coordenadas.x,
+      coordenada_y: geoData.coordenadas.y,
+      coordenada_z: geoData.coordenadas.z,
+      notas: geoData.notas || '',
+    }
+  }
+
+  const documentacion = punto.moduloData?.documentacion
+  let documentos: PuntoPayload['documentos'] = null
+  if (documentacion?.notas) {
+    documentos = {
+      nombre_archivo: documentacion.nombreArchivo || 'documento.txt',
+      contenido: documentacion.notas,
+    }
+  }
+
+  const analisisModulo = punto.moduloData?.analisis
+  let analisis: PuntoPayload['analisis'] = null
+  if (analisisModulo?.results && analisisModulo.results.length > 0) {
+    const result = analisisModulo.results[0]
+    analisis = {
+      image_urls: analisisModulo.imageUrls || [],
+      description: result.description,
+      objects: result.objects,
+      mood: result.mood,
+      quality: result.quality,
+      model_used: result.modelUsed,
+    }
+  }
+
+  let fotos: PuntoPayload['fotos'] = null
+  if (analisisModulo?.fotosIndexadas && analisisModulo.fotosIndexadas.length > 0) {
+    fotos = await Promise.all(
+      analisisModulo.fotosIndexadas.map(async f => ({
+        indice: f.index,
+        nombre_archivo: f.nombre,
+        nombre_formateado: f.nombreFormateado,
+        subcarpeta: f.subcarpeta,
+        preview_url: f.preview.startsWith('data:image')
+          ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
+          : f.preview,
+      }))
+    )
+  }
+
+  return { punto: puntoDb, coordenadas, documentos, analisis, fotos }
+}
+
+/**
+ * Guarda o actualiza un punto completo con todas sus relaciones.
+ * Un único RPC transaccional (`guardar_punto_completo`).
  */
 export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Verificar existencia + preparar payload del punto principal en paralelo
-    const puntoData = puntoToDB(punto)
-    const { data: puntoExistente, error: existeError } = await supabase
-      .from('puntos_ferroviarios')
-      .select('id')
-      .eq('id', punto.id)
-      .maybeSingle()
+    const payload = await construirPayloadPunto(punto)
+    const { data, error } = await supabase.rpc('guardar_punto_completo', { p_payload: payload })
+    if (error) throw error
 
-    if (existeError) throw existeError
-
-    // 2. Guardar punto principal PRIMERO (las relaciones dependen de su existencia vía FK)
-    const { error: puntoError } = await supabase
-      .from('puntos_ferroviarios')
-      .upsert({
-        ...puntoData,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
-
-    if (puntoError) throw puntoError
-
-    // 3. Lanzar todas las relaciones independientes EN PARALELO
-    const tareasParalelas: Promise<unknown>[] = []
-
-    // 3a. Coordenadas
-    const geoData = punto.moduloData?.georeferencia || punto.moduloData?.georeferenciacion
-    if (geoData?.coordenadas) {
-      const coords = geoData.coordenadas
-      tareasParalelas.push(
-        (async () => {
-          const { error } = await supabase.from('coordenadas_gps').upsert({
-            punto_id: punto.id,
-            coordenada_x: coords.x,
-            coordenada_y: coords.y,
-            coordenada_z: coords.z,
-            notas: geoData.notas || '',
-          }, { onConflict: 'punto_id' })
-          if (error) throw error
-        })()
-      )
+    const resultado = data as { success?: boolean; error?: string } | null
+    if (resultado && resultado.success === false) {
+      return { success: false, error: resultado.error || 'Error desconocido guardando el punto' }
     }
-
-    // 3b. Documentación
-    if (punto.moduloData?.documentacion?.notas) {
-      tareasParalelas.push(
-        (async () => {
-          const { error } = await supabase.from('documentos_punto').upsert({
-            punto_id: punto.id,
-            nombre_archivo: punto.moduloData!.documentacion!.nombreArchivo || 'documento.txt',
-            contenido: punto.moduloData!.documentacion!.notas,
-          }, { onConflict: 'punto_id' })
-          if (error) throw error
-        })()
-      )
-    }
-
-    // 3c. Análisis
-    if (punto.moduloData?.analisis?.results && punto.moduloData.analisis.results.length > 0) {
-      const result = punto.moduloData.analisis.results[0]
-      tareasParalelas.push(
-        (async () => {
-          const { error } = await supabase.from('analisis_imagenes').upsert({
-            punto_id: punto.id,
-            image_urls: punto.moduloData!.analisis!.imageUrls || [],
-            description: result.description,
-            objects: result.objects,
-            mood: result.mood,
-            quality: result.quality,
-            model_used: result.modelUsed,
-          }, { onConflict: 'punto_id' })
-          if (error) throw error
-        })()
-      )
-    }
-
-    // 3d. Fotos (delete + prepare + insert, encadenado dentro de su propia tarea)
-    if (punto.moduloData?.analisis?.fotosIndexadas) {
-      tareasParalelas.push(
-        (async () => {
-          // Limpiar fotos anteriores y preparar nuevas simultáneamente
-          const [, fotosDB] = await Promise.all([
-            supabase.from('fotos_punto').delete().eq('punto_id', punto.id),
-            Promise.all(
-              punto.moduloData!.analisis!.fotosIndexadas!.map(async f => ({
-                punto_id: punto.id,
-                indice: f.index,
-                nombre_archivo: f.nombre,
-                nombre_formateado: f.nombreFormateado,
-                subcarpeta: f.subcarpeta,
-                preview_url: f.preview?.startsWith('data:image')
-                  ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
-                  : f.preview,
-              }))
-            ),
-          ])
-          if (fotosDB.length > 0) {
-            const { error: insertError } = await supabase.from('fotos_punto').insert(fotosDB)
-            if (insertError) throw insertError
-          }
-        })()
-      )
-    }
-
-    await Promise.all(tareasParalelas)
-
-    // 4. Registrar en historial (al final, no bloquea las relaciones)
-    const tipoEvento = puntoExistente ? 'actualizacion' : 'creacion'
-    const descripcion = puntoExistente
-      ? `Punto ${punto.nombre} actualizado`
-      : `Punto ${punto.nombre} creado`
-    // Fire-and-forget: el historial no debe bloquear la respuesta al usuario
-    registrarHistorial(punto.id, tipoEvento, 'general', descripcion).catch(err => {
-      console.error('Error registrando historial (no bloqueante):', err)
-    })
 
     return { success: true }
   } catch (error) {
@@ -789,37 +755,17 @@ export async function guardarAnalisis(
 // =====================================================
 
 /**
- * Ejecuta una lista de tareas asíncronas con concurrencia limitada.
- * Evita saturar Supabase/OpenRouter mientras aprovecha el paralelismo.
- */
-async function runWithConcurrency<T>(
-  tasks: Array<() => Promise<T>>,
-  concurrency: number,
-  onProgress?: (completadas: number, total: number) => void
-): Promise<T[]> {
-  const resultados: T[] = new Array(tasks.length)
-  let cursor = 0
-  let completadas = 0
-  const total = tasks.length
-
-  const trabajadores = Array.from({ length: Math.min(concurrency, total) }, async () => {
-    while (true) {
-      const index = cursor++
-      if (index >= total) break
-      resultados[index] = await tasks[index]()
-      completadas++
-      onProgress?.(completadas, total)
-    }
-  })
-
-  await Promise.all(trabajadores)
-  return resultados
-}
-
-/**
  * Sincroniza todos los puntos del estado con Supabase.
- * Usa concurrencia controlada (lotes) en vez de secuencia pura para reducir
- * drásticamente el tiempo total con N puntos.
+ *
+ * Modelo batch (E2): un único `supabase.functions.invoke('sincronizar-puntos')`
+ * en vez de N RPCs cliente→DB. El Edge Function invoca el RPC
+ * `guardar_punto_completo` para cada punto server-side con concurrencia 5.
+ *
+ * LIMITACIÓN de progreso: como todo el lote viaja en una sola invocación,
+ * `onLote` ahora solo dispara al inicio (0, total) y al fin (total, total).
+ * El progreso fino por-lote anterior (cada pocos puntos) se pierde — inherente
+ * al modelo batch. `opciones.concurrency` se ignora client-side (la
+ * concurrencia es server-side fija en 5).
  */
 export async function sincronizarPuntos(
   puntos: PuntoFerroviario[],
@@ -830,34 +776,43 @@ export async function sincronizarPuntos(
   errores: number;
   error?: string
 }> {
-  const concurrency = Math.max(1, Math.min(opciones?.concurrency ?? 5, 10))
-  let guardados = 0
-  let errores = 0
+  if (puntos.length === 0) {
+    return { success: true, guardados: 0, errores: 0 }
+  }
 
-  const tareas = puntos.map((punto) => async () => {
-    try {
-      const result = await guardarPuntoCompleto(punto)
-      if (result.success) {
-        guardados++
-      } else {
-        errores++
-        console.error(`Error guardando punto ${punto.numeroSerie}:`, result.error)
-      }
-    } catch (err) {
-      errores++
-      console.error(`Error excepción punto ${punto.numeroSerie}:`, err)
+  opciones?.onLote?.(0, puntos.length)
+
+  try {
+    const payloads = await Promise.all(puntos.map(construirPayloadPunto))
+
+    const { data, error } = await supabase.functions.invoke<{
+      guardados: number
+      errores: number
+      detalles: Array<{ success: boolean; error?: string }>
+    }>('sincronizar-puntos', {
+      body: { puntos: payloads },
+    })
+
+    if (error) throw error
+
+    const guardados = data?.guardados ?? 0
+    const errores = data?.errores ?? 0
+    opciones?.onLote?.(puntos.length, puntos.length)
+
+    return {
+      success: errores === 0,
+      guardados,
+      errores,
+      error: errores > 0 ? `${errores} puntos no pudieron guardarse` : undefined,
     }
-  })
-
-  await runWithConcurrency(tareas, concurrency, (completadas) => {
-    opciones?.onLote?.(completadas, puntos.length)
-  })
-
-  return {
-    success: errores === 0,
-    guardados,
-    errores,
-    error: errores > 0 ? `${errores} puntos no pudieron guardarse` : undefined,
+  } catch (error) {
+    opciones?.onLote?.(puntos.length, puntos.length)
+    console.error('Error en sincronizarPuntos (batch):', error)
+    const errorMsg = error && typeof error === 'object'
+      ? (error as { message?: string; context?: Response }).message ||
+        ((error as { context?: Response }).context ? `Edge Function HTTP ${((error as { context: Response }).context).status}` : JSON.stringify(error))
+      : String(error)
+    return { success: false, guardados: 0, errores: puntos.length, error: errorMsg }
   }
 }
 

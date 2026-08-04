@@ -343,12 +343,20 @@ Deno.serve(async (req: Request) => {
   const referer = req.headers.get("origin") || REFERER_FALLBACK
 
   try {
-    const dataUrls = await pool(image_urls, PER_IMAGE_CONCURRENCY, (url) =>
-      fetchImageAsDataUrl(url)
-    )
+    const dataUrls = await pool(image_urls, PER_IMAGE_CONCURRENCY, async (url) => {
+      try {
+        return await fetchImageAsDataUrl(url)
+      } catch {
+        return null
+      }
+    })
+    const validDataUrls = dataUrls.filter((d): d is string => d !== null)
+    if (validDataUrls.length === 0) {
+      return json({ error: "Todas las imágenes fallaron al descargar" }, 502)
+    }
 
     const perImage = await pool(
-      dataUrls,
+      validDataUrls,
       PER_IMAGE_CONCURRENCY,
       (dataUrl) => analyzeSingleImage(dataUrl, perImageModel, contexto, apiKey, referer)
     )

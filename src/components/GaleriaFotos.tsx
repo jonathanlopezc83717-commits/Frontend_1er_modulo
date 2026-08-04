@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,42 @@ interface GaleriaFotosProps {
   fotosSeleccionadas: string[]
   onSeleccionChange: (ids: string[]) => void
   onCargarParaAnalisis: (fotos: FotoIndexada[]) => void
+}
+
+// Lazy load nativo: solo monta el <img> cuando la celda está a 200px del viewport.
+// Evita decodificar de golpe todas las data URLs al cambiar de punto activo.
+function useInView<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true)
+          obs.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return { ref, inView }
+}
+
+function LazyImg({ src, alt }: { src: string; alt: string }) {
+  const { ref, inView } = useInView<HTMLDivElement>()
+  return (
+    <div ref={ref} className="w-full h-full">
+      {inView ? (
+        <img src={src} alt={alt} className="w-full h-full object-cover" decoding="async" />
+      ) : (
+        <div className="w-full h-full bg-muted animate-pulse" />
+      )}
+    </div>
+  )
 }
 
 export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onCargarParaAnalisis }: GaleriaFotosProps) {
@@ -271,11 +307,7 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
                             {/* Imagen */}
                             <div className="aspect-square">
                               {foto.preview ? (
-                                <img
-                                  src={foto.preview}
-                                  alt={foto.nombreFormateado}
-                                  className="w-full h-full object-cover"
-                                />
+                                <LazyImg src={foto.preview} alt={foto.nombreFormateado} />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-muted p-2 text-center text-xs text-muted-foreground">
                                   {foto.nombreFormateado}

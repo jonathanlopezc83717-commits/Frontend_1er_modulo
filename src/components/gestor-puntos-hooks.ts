@@ -5,6 +5,7 @@ import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCo
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
 import { generarUUID } from '@/lib/utils'
+import { iniciarCola, marcarCarpeta, limpiarCola, leerCola, carpetasPendientes, normalizarRaiz } from '@/lib/cola-carga'
 import { toast } from 'sonner'
 import {
   consolidarNomenclaturas,
@@ -481,8 +482,26 @@ export function usePuntoCarpeta({
       grupos.get(raiz)!.push(f)
     }
 
+    // Si hay cola de carga pendiente (reanudación tras recarga), filtrar solo
+    // las carpetas que siguen pendientes. Las completadas se ignoran (su punto ya existe).
+    const colaExistente = leerCola()
+    if (colaExistente) {
+      const pendientes = new Set(carpetasPendientes(colaExistente).map(c => normalizarRaiz(c.raiz)))
+      for (const raiz of [...grupos.keys()]) {
+        if (!pendientes.has(normalizarRaiz(raiz))) grupos.delete(raiz)
+      }
+      if (grupos.size === 0) {
+        toast.info('Las carpetas seleccionadas ya estaban completadas o no coinciden con las pendientes.')
+        setProcesandoCarpeta(false)
+        return
+      }
+    }
+
     try {
       if (grupos.size <= 1) {
+        const raizUnica = [...grupos.keys()][0] || 'punto'
+        iniciarCola([raizUnica])
+        marcarCarpeta(raizUnica, 'en-proceso')
         const datos = await runConProgreso(() => procesarCarpetaPunto(files, onProgressCarga))
         const excelEnRaiz = buscarExcelEnRaiz(files)
         if (excelEnRaiz) datos.excel = excelEnRaiz
@@ -496,9 +515,12 @@ export function usePuntoCarpeta({
         })
 
         await agregarDesdeDatos(datos)
+        marcarCarpeta(raizUnica, 'completada')
+        limpiarCola()
         toast.success(`Carga completada: ${datos.fotos.length} fotos`)
         setMostrarRouting(true)
       } else {
+        iniciarCola([...grupos.keys()])
         const resumen: ResumenCarpeta[] = []
         const inicio = Date.now()
         const granTotal = contarFotosImagen(files)
@@ -506,6 +528,7 @@ export function usePuntoCarpeta({
         let i = 0
         setProgreso({ actual: 0, total: granTotal, inicio })
         for (const [nombreRaiz] of grupos) {
+          marcarCarpeta(nombreRaiz, 'en-proceso')
           const fileListFiltrada = filtrarPorCarpetaRaiz(files, nombreRaiz)
           const onProg = (p: ProgresoCarga) => setProgreso({ actual: offset + p.actual, total: granTotal, inicio })
           const datos = await procesarCarpetaPunto(fileListFiltrada, onProg)
@@ -513,6 +536,7 @@ export function usePuntoCarpeta({
           if (excelEnRaiz) datos.excel = excelEnRaiz
           const nuevoId = generarUUID()
           await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId, false)
+          marcarCarpeta(nombreRaiz, 'completada')
           resumen.push({
             nombre: datos.nombreCarpeta,
             puntoId: nuevoId,
@@ -527,6 +551,7 @@ export function usePuntoCarpeta({
         setProgreso(null)
         setRoutingActual(null)
         setResumenMultiple(resumen)
+        limpiarCola()
         toast.success(`Carga completada: ${resumen.length} puntos · ${granTotal} fotos`)
         setMostrarRouting(true)
       }
@@ -813,9 +838,14 @@ export function usePuntoCarpeta({
       try {
         const buffer = await datos.excel.arrayBuffer()
         const { filas } = await procesarArchivoSincronizacion(buffer, datos.excel.name)
-        const filaCoincidente = filas.find((f) => f.numeroPunto === datos.nombreCarpeta)
-        const fila = filaCoincidente || filas[0]
-        if (fila?.cadenamiento) cadenamientoPunto = fila.cadenamiento
+        // Intentar match por numeroPunto (exacto o normalizado); si no hay,
+        // usar el primer sub-punto DEL CSV LOCAL de esta carpeta (filas[0]).
+        // Cada carpeta tiene su propio CSV, así que filas[0] es propio de cada una.
+        const normalizar = (s?: string) => (s || '').replace(/^\s*\d+[\s._:,)-]+/, '').trim().toLowerCase()
+        const nombreNorm = normalizar(datos.nombreCarpeta)
+        const filaCoincidente = filas.find((f) => f.numeroPunto === datos.nombreCarpeta || normalizar(f.numeroPunto) === nombreNorm)
+          ?? filas[0]
+        if (filaCoincidente?.cadenamiento) cadenamientoPunto = filaCoincidente.cadenamiento
       } catch {
         // si falla el parseo, el punto se crea sin cadenamiento
       }
@@ -828,7 +858,7 @@ export function usePuntoCarpeta({
     }
 
     agregarPunto(posicion, {
-      nombre: datos.nombreCarpeta,
+      nombre: datos.nombreCarpeta.replace(/^\s*\d+[\s._:,)-]+/, '').trim() || datos.nombreCarpeta,
       descripcion: undefined,
       carpetaPath: datos.nombreCarpeta,
       cadenamiento: cadenamientoPunto,

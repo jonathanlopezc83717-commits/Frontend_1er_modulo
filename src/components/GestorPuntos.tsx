@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
 import { guardarEstadoAppEnNube } from '@/lib/supabase-service'
+import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
 
 import {
   Dialog,
@@ -86,6 +87,11 @@ export function GestorPuntos() {
   const [barraBloqueada, setBarraBloqueada] = useState(false)
   const [dialogoReasignar, setDialogoReasignar] = useState(false)
   const [generando, setGenerando] = useState(false)
+  const [colaPendiente, setColaPendiente] = useState<ColaCarga | null>(null)
+  useEffect(() => {
+    const cola = leerCola()
+    if (cola && carpetasPendientes(cola).length > 0) setColaPendiente(cola)
+  }, [])
   const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const raizMultipuntoRef = useRef<HTMLInputElement>(null)
@@ -215,6 +221,14 @@ export function GestorPuntos() {
   const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: puntos, puntoActivo: puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
   const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: puntoActivo, nomenclaturasGlobales: nomenclaturasGlobales, puntosLength: puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
+  // Tras terminar una carga, refrescar la cola pendiente (se limpia si todo OK).
+  useEffect(() => {
+    if (!procesandoCarpeta) {
+      const cola = leerCola()
+      setColaPendiente(cola && carpetasPendientes(cola).length > 0 ? cola : null)
+    }
+  }, [procesandoCarpeta])
+
   const abrirCargaResumen = (puntoId: string, tipo: 'kmz' | 'txt' | 'excel' | 'fotos') => {
     setCargaPendienteId(puntoId)
     const ref = { kmz: kmzResumenRef, txt: txtResumenRef, excel: excelResumenRef, fotos: fotosResumenRef }[tipo]
@@ -307,6 +321,29 @@ export function GestorPuntos() {
         {/* Contenido expandible */}
         <div className={`flex-1 overflow-hidden flex flex-col ${expandido ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
           <div className="p-3 space-y-3 overflow-hidden flex flex-col h-full">
+            {/* Banner de carga interrumpida (cola pendiente tras recarga) */}
+            {colaPendiente && (() => {
+              const pendientes = colaPendiente.carpetas.filter(c => c.estado !== 'completada')
+              return (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                    Carga interrumpida: faltan {pendientes.length} de {colaPendiente.total} carpetas.
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 truncate">
+                    Pendientes: {pendientes.map(c => c.raiz).join(', ')}
+                  </p>
+                  <div className="flex gap-2 mt-1.5">
+                    <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                      Reanudar (re-seleccionar)
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { limpiarCola(); setColaPendiente(null) }}>
+                      Descartar
+                    </Button>
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Inputs ocultos */}
             <input
               ref={fileInputRef}

@@ -391,8 +391,6 @@ export async function eliminarPuntoDB(id: string): Promise<{ success: boolean; e
 
     if (error) throw error
 
-    await registrarHistorial(id, 'eliminacion', 'general', 'Punto eliminado')
-
     return { success: true }
   } catch (error) {
     console.error('Error eliminando punto:', error)

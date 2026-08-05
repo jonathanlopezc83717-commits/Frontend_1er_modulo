@@ -12,3 +12,6 @@ __pycache__/
 # PyInstaller (CroquisBatch.exe)
 /build
 /*.spec
+
+# TypeScript incremental build cache
+*.tsbuildinfo

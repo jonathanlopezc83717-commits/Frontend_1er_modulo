@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
+import type { FichaFormatoData } from './modulos/ModuloMateriales'
+import { FichaPreview } from './FichaPreview'
 import { guardarEstadoAppEnNube } from '@/lib/supabase-service'
 import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
 
@@ -49,6 +51,7 @@ import {
   Upload,
   Loader2,
   FileDown,
+  Eye,
 } from 'lucide-react'
 
 interface DatosFicha {
@@ -56,6 +59,19 @@ interface DatosFicha {
   imagenes?: Record<string, string>
   numEvidencias?: number
   quitarFondoLogos?: boolean
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>
+  etiquetas?: Record<string, string>
+  origenCoords?: Record<string, string>
+  plantillaActivaId?: string | null
+}
+
+function imagenesReconocimientoDe(punto: { moduloData?: Record<string, unknown> }): string[] {
+  const analisis = punto.moduloData?.analisis as
+    | { imageUrls?: string[]; fotosIndexadas?: Array<{ preview?: string }> }
+    | undefined
+  const urls = analisis?.imageUrls || []
+  const fotos = analisis?.fotosIndexadas || []
+  return [...urls, ...fotos.map(f => f.preview || '')].filter(Boolean)
 }
 
 export function GestorPuntos() {
@@ -88,6 +104,7 @@ export function GestorPuntos() {
   const [dialogoReasignar, setDialogoReasignar] = useState(false)
   const [generando, setGenerando] = useState(false)
   const [colaPendiente, setColaPendiente] = useState<ColaCarga | null>(null)
+  const [puntoPreviewId, setPuntoPreviewId] = useState<string | null>(null)
   useEffect(() => {
     const cola = leerCola()
     if (cola && carpetasPendientes(cola).length > 0) setColaPendiente(cola)
@@ -123,6 +140,9 @@ export function GestorPuntos() {
 
   const { swipeState, dragState, itemRefs, handlePointerDown, getSwipeOffset, shouldIgnoreDragStart } = useReordenarPuntos({ puntosOrdenados, moverPunto, setSortKey })
 
+  const puntoPreview = puntos.find(p => p.id === puntoPreviewId) ?? null
+  const fichaPreview = (puntoPreview?.moduloData as Record<string, unknown> | undefined)?.materiales as FichaFormatoData | undefined
+
   const todosSeleccionados = puntosOrdenados.length > 0 && puntosOrdenados.every(p => puntosSeleccionados.has(p.id))
   const seleccionadosCount = puntosSeleccionados.size
 
@@ -145,15 +165,19 @@ export function GestorPuntos() {
         const m = (p.moduloData as Record<string, unknown>).materiales as DatosFicha
         const nombreCarpeta = (p.nombre || 'punto').replace(/^\s*\d+[\s._:,)-]+/, '').replace(/[\\/:*?"<>|]/g, '').trim()
         const base = `${p.numeroSerie}. ${nombreCarpeta}`
+        const etiquetas = m.etiquetas || {}
+        const camposCustom = m.camposCustom ?? []
+        const imagenesReconocimiento = imagenesReconocimientoDe(p)
         try {
           await exportarPdfFicha(m.valores, m.imagenes || {}, base, {
             numEvidencias: m.numEvidencias,
             quitarFondoLogos: m.quitarFondoLogos,
-          })
+          }, etiquetas, camposCustom)
           await exportarExcelFicha(m.valores, m.imagenes || {}, base, {
             numEvidencias: m.numEvidencias,
             quitarFondoLogos: m.quitarFondoLogos,
-          })
+            imagenesReconocimiento,
+          }, etiquetas, camposCustom)
           ok++
         } catch (err) {
           errores.push(`${p.nombre || p.id}: ${err instanceof Error ? err.message : String(err)}`)
@@ -188,7 +212,7 @@ export function GestorPuntos() {
       const nuevaSeq = idx + 1
       // ponytail: quita el número+separador inicial del nombre ("1. ", "01_ ", "3 - ")
       // y antepone la secuencia nueva. Idempotente: reasignar no duplica prefijo.
-      const limpio = (punto.nombre || '').replace(/^\s*\d+[\s._:,)\-]+/, '').trim()
+      const limpio = (punto.nombre || '').replace(/^\s*\d+[\s._:,)-]+/, '').trim()
       const nuevoNombre = `${nuevaSeq}. ${limpio}`
       if (punto.numeroSerie !== nuevaSeq || punto.nombre !== nuevoNombre) {
         actualizarPunto(id, { numeroSerie: nuevaSeq, nombre: nuevoNombre })
@@ -574,6 +598,8 @@ export function GestorPuntos() {
                     const isActivo = puntoActivo?.id === punto.id
                     const dragOffset = isDraggingThis && dragState.hasMoved ? dragState.currentY - dragState.startY : 0
                     const isDropTarget = dragState.id !== punto.id && dragState.isDragging && dragState.currentIndex === visualIndex
+                    const fichaPunto = (punto.moduloData as Record<string, unknown> | undefined)?.materiales as FichaFormatoData | undefined
+                    const tieneFicha = !!fichaPunto && !!fichaPunto.valores
 
                     return (
                       <div
@@ -722,6 +748,18 @@ export function GestorPuntos() {
                             title={isBloqueado ? 'Punto bloqueado - haz clic para desbloquear y editar' : 'Editar punto'}
                           >
                             <FileText className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPuntoPreviewId(punto.id)
+                            }}
+                            disabled={!tieneFicha}
+                            className="flex-shrink-0 p-1.5 rounded hover:bg-primary/20 hover:text-primary text-muted-foreground transition-colors disabled:pointer-events-none disabled:opacity-40"
+                            title={tieneFicha ? 'Vista previa de ficha' : 'Sin datos de ficha'}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
 
                           <button
@@ -1254,6 +1292,22 @@ export function GestorPuntos() {
               </Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!puntoPreviewId} onOpenChange={(open) => { if (!open) setPuntoPreviewId(null) }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vista previa de ficha</DialogTitle>
+            {puntoPreview && (
+              <DialogDescription>
+                Punto {puntoPreview.numeroSerie}. {puntoPreview.nombre}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          {fichaPreview
+            ? <FichaPreview data={fichaPreview} />
+            : <p className="text-sm text-muted-foreground py-8 text-center">Este punto no tiene datos de ficha.</p>}
         </DialogContent>
       </Dialog>
     </>

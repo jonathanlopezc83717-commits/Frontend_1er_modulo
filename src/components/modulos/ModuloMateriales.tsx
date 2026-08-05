@@ -25,6 +25,7 @@ import {
   ImagePlus,
   LayoutTemplate,
   Link2,
+  Loader2,
   MapPin,
   Pencil,
   Plus,
@@ -194,7 +195,7 @@ function materialesStorageKey(puntoId: string): string {
 // =====================================================
 
 /** Plantilla que conserva logos + etiquetas editadas del formato. */
-interface PlantillaLogos {
+export interface PlantillaLogos {
   id: string
   nombre: string
   logoIzq?: string
@@ -207,7 +208,7 @@ interface PlantillaLogos {
 
 const PLANTILLAS_LOGOS_KEY = 'ferroviario_formato_logo_templates'
 
-function cargarPlantillasLogos(): PlantillaLogos[] {
+export function cargarPlantillasLogos(): PlantillaLogos[] {
   try {
     const raw = localStorage.getItem(PLANTILLAS_LOGOS_KEY)
     if (!raw) return []
@@ -225,6 +226,24 @@ function guardarPlantillasLogos(plantillas: PlantillaLogos[]): void {
     localStorage.setItem(PLANTILLAS_LOGOS_KEY, JSON.stringify(plantillas))
   } catch {
     // Ignorar errores de cuota
+  }
+}
+
+export function buildMaterialesFromPlantilla(plantilla: PlantillaLogos): FichaFormatoData {
+  const imagenes: Record<string, string> = {}
+  if (plantilla.logoIzq) imagenes['logo-izq'] = plantilla.logoIzq
+  if (plantilla.logoDer) imagenes['logo-der'] = plantilla.logoDer
+  return {
+    valores: {},
+    imagenes,
+    etiquetas: plantilla.etiquetas ?? {},
+    camposCustom: plantilla.camposCustom ?? [],
+    origenCoords: plantilla.origenCoords ?? {},
+    plantillaActivaId: plantilla.id,
+    numEvidencias: 3,
+    quitarFondoLogos: false,
+    coordsManuales: [],
+    updatedAt: new Date().toISOString(),
   }
 }
 
@@ -532,6 +551,7 @@ export async function exportarPdfFicha(
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
   camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
+  escribirEn?: (nombre: string, blob: Blob) => Promise<void>,
 ) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
@@ -864,7 +884,12 @@ export async function exportarPdfFicha(
     }
   }
 
-  doc.save(`${nombreArchivo}.pdf`)
+  const nombrePdf = `${nombreArchivo}.pdf`
+  if (escribirEn) {
+    await escribirEn(nombrePdf, doc.output('blob'))
+  } else {
+    doc.save(nombrePdf)
+  }
 }
 
 // =====================================================
@@ -878,6 +903,7 @@ export async function exportarExcelFicha(
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
   camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
+  escribirEn?: (nombre: string, blob: Blob) => Promise<void>,
 ) {
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -1239,10 +1265,13 @@ export async function exportarExcelFicha(
   }
 
   const buffer = await workbook.xlsx.writeBuffer()
-  descargarArchivo(
-    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `${nombreArchivo}.xlsx`,
-  )
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const nombreXlsx = `${nombreArchivo}.xlsx`
+  if (escribirEn) {
+    await escribirEn(nombreXlsx, blob)
+  } else {
+    descargarArchivo(blob, nombreXlsx)
+  }
 }
 
 // =====================================================
@@ -1320,13 +1349,13 @@ export function ModuloMateriales() {
   const [coordsManuales, setCoordsManuales] = useState<string[]>([])
   const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const puntoIdAnteriorRef = useRef<string | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
   // (selector estrecho sin moduloData); depende solo del id del punto.
   useEffect(() => {
     const livePunto = store.getState().puntoActivo
     const data = livePunto?.moduloData?.materiales as FichaFormatoData | undefined
-    console.log('[FORMATO] carga — punto:', livePunto ? { id: livePunto.id, nombre: livePunto.nombre, carpetaPath: livePunto.carpetaPath } : null, '| store.materiales:', !!data, '| data.valores:', data ? Object.keys(data.valores ?? {}) : [], '| data.origenCoords:', data ? Object.keys(data.origenCoords ?? {}) : [])
 
     // Cache local sincrónico: respaldo confiable de valores+config ante recargas.
     let cache: Partial<FichaFormatoData> = {}
@@ -1370,7 +1399,6 @@ export function ModuloMateriales() {
     const etiquetasSrc = data?.etiquetas ?? cache.etiquetas
     const origenSrc = data?.origenCoords ?? cache.origenCoords
     const coordsManualesSrc = data?.coordsManuales ?? cache.coordsManuales ?? []
-    console.log('[FORMATO] fuentes resueltas — valores:', { deStore: !!data?.valores, deCache: !data?.valores && !!cache.valores, keysCount: Object.keys(valoresSrc).length }, '| origenCoords count:', origenSrc ? Object.keys(origenSrc).length : 0, '| camposCustom count:', camposSrc?.length ?? 0)
 
     setValores(valoresSrc)
     setImagenes(imagenesIniciales)
@@ -1381,7 +1409,10 @@ export function ModuloMateriales() {
     setOrigenCoords(origenSrc ? { ...origenSrc } : {})
     setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
     setCoordsManuales(coordsManualesSrc)
-    setCargado(true)
+    // Delay mínimo para que la ventana de carga sea perceptible durante el
+    // remount al cambiar de punto (transición de recarga, no workaround).
+    const t = setTimeout(() => setCargado(true), 350)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [punto?.id, store])
 
@@ -1464,9 +1495,17 @@ export function ModuloMateriales() {
     }
   }, [actualizarPunto, store, punto, valores, imagenes, numEvidencias, quitarFondoLogos, camposCustom, etiquetas, origenCoords, plantillaActivaId, coordsManuales])
 
-  // Autoguardado: persistir cambios en el punto (con debounce corto)
+  // Autoguardado: persistir cambios en el punto (con debounce corto).
+  // Al cambiar de punto NO programamos guardado: el state local aún retiene los
+  // valores del punto anterior y flush-earía al punto nuevo, pisando sus datos
+  // propios (bug: todas las carpetas mostraban los datos de la última editada).
+  // El useEffect de carga se encarga de setear los valores del punto nuevo.
   useEffect(() => {
+    const puntoIdActual = punto?.id ?? null
+    const cambioDePunto = puntoIdAnteriorRef.current !== null && puntoIdAnteriorRef.current !== puntoIdActual
+    puntoIdAnteriorRef.current = puntoIdActual
     if (!cargado || !punto) return
+    if (cambioDePunto) return
     if (guardarTimeoutRef.current) clearTimeout(guardarTimeoutRef.current)
     guardarTimeoutRef.current = setTimeout(() => {
       guardarEnPunto()
@@ -1596,6 +1635,15 @@ export function ModuloMateriales() {
     const livePunto = store.getState().puntoActivo
     if (!livePunto) return
     const forzar = opciones?.forzar ?? false
+    const liveMat = livePunto?.moduloData?.materiales as FichaFormatoData | undefined
+    // forzar=false (silencioso, dispara al cambiar de punto): base desde el STORE
+    // del punto activo, no desde el state local (que aún retiene valores del
+    // punto anterior y pisaría la carga). forzar=true (botón "Rellenar este
+    // punto"): base desde el state local (incluye ediciones en curso).
+    const baseValores = forzar ? valores : (liveMat?.valores ?? {})
+    const baseOrigen = forzar ? origenCoords : (liveMat?.origenCoords ?? {})
+    const baseCampos = forzar ? camposCustom : (liveMat?.camposCustom ?? [])
+    const baseImagenes = forzar ? imagenes : (liveMat?.imagenes ?? {})
     try {
       const rango = calcularRangoCadenamiento(store.getState().puntos)
       const resolver = (campo: string): string => {
@@ -1603,11 +1651,11 @@ export function ModuloMateriales() {
         if (campo === 'cadenamiento_fin') return rango.fin
         return extraerValor(livePunto, campo)
       }
-      const nuevosValores = { ...valores }
+      const nuevosValores = { ...baseValores }
       // forzar=true (botón "Rellenar") sobrescribe los campos con origen asignado;
       // forzar=false (autocompletar silencioso) solo llena huecos vacíos.
       for (const coord of Object.keys(COORD_A_CAMPO)) {
-        const campo = origenCoords[coord] ?? COORD_A_CAMPO[coord]
+        const campo = baseOrigen[coord] ?? COORD_A_CAMPO[coord]
         if (campo === '__ninguno__') continue
         if (!forzar && nuevosValores[coord]) continue
         const val = resolver(campo)
@@ -1618,14 +1666,14 @@ export function ModuloMateriales() {
       }
       // Campos personalizados con origen asignado: misma regla (usa resolver
       // para que cadenamiento_inicio/fin tomen el rango calculado de los puntos).
-      for (const campo of camposCustom) {
+      for (const campo of baseCampos) {
         if (!campo.origen || campo.origen === '__ninguno__') continue
         if (!forzar && nuevosValores[campo.coord]) continue
         const val = resolver(campo.origen)
         if (forzar) nuevosValores[campo.coord] = val
         else if (val) nuevosValores[campo.coord] = val
       }
-      const nuevasImagenes = { ...imagenes }
+      const nuevasImagenes = { ...baseImagenes }
       for (const [key, campo] of Object.entries(IMAGEN_COORD)) {
         if (!forzar && nuevasImagenes[key]) continue
         const val = extraerImagen(livePunto, campo)
@@ -1938,6 +1986,14 @@ export function ModuloMateriales() {
 
   return (
     <ScrollArea className="h-[calc(100vh-220px)]">
+      {!cargado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Cargando formato del punto…</p>
+          </div>
+        </div>
+      )}
       <div className="space-y-4 pr-2">
         {/* Encabezado */}
         <Card className="bg-primary/5 border-primary/20">

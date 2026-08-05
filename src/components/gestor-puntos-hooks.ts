@@ -13,6 +13,7 @@ import {
   parsearNomenclaturasDesdeTexto,
   type NomenclaturaEntry,
 } from '@/lib/nomenclaturas'
+import { cargarPlantillasLogos, buildMaterialesFromPlantilla, type PlantillaLogos } from '@/components/modulos/ModuloMateriales'
 
 export function useSeleccionPuntos(puntos: PuntoFerroviario[]) {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -608,7 +609,7 @@ export function usePuntoCarpeta({
     }
   }
 
-  const confirmarAgregarSeleccion = async (ids: Set<string>, numerosManuales?: Record<string, number>) => {
+  const confirmarAgregarSeleccion = async (ids: Set<string>, numerosManuales?: Record<string, number>, plantillaConjunto?: string) => {
     if (!previewsSubcarpetas) return
     const seleccionadas = previewsSubcarpetas.filter((p) => ids.has(p.id))
     if (seleccionadas.length === 0) {
@@ -619,6 +620,9 @@ export function usePuntoCarpeta({
 
     setProcesandoCarpeta(true)
     try {
+      const plantilla = plantillaConjunto
+        ? cargarPlantillasLogos().find((p) => p.id === plantillaConjunto)
+        : undefined
       const items = seleccionadas.map((preview, idx) => ({
         preview,
         numero: numerosManuales && numerosManuales[preview.id] != null ? numerosManuales[preview.id] : puntosLength + 1 + idx,
@@ -663,7 +667,7 @@ export function usePuntoCarpeta({
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
         if (excelEnRaiz) datos.excel = excelEnRaiz
         const nuevoId = generarUUID()
-        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false)
+        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false, plantilla)
         resumen.push({
           nombre: datos.nombreCarpeta,
           puntoId: nuevoId,
@@ -790,7 +794,7 @@ export function usePuntoCarpeta({
     }
   }
 
-  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string, dispararEdicion: boolean = true) => {
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string, dispararEdicion: boolean = true, plantillaInicial?: PlantillaLogos) => {
     const moduloData: Record<string, unknown> = {}
 
     if (datos.coordenadas) {
@@ -855,6 +859,10 @@ export function usePuntoCarpeta({
         ruta: datos.excel.webkitRelativePath || datos.excel.name,
         cargadoEn: new Date().toISOString(),
       }
+    }
+
+    if (plantillaInicial) {
+      moduloData.materiales = buildMaterialesFromPlantilla(plantillaInicial)
     }
 
     agregarPunto(posicion, {

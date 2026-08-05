@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { useAppSelector, useAppActions } from '@/context/AppContext'
+import type { PuntoFerroviario } from '@/types'
 import { ordenarPuntos, checklistCompleto, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
-import type { FichaFormatoData } from './modulos/ModuloMateriales'
+import { cargarPlantillasLogos, type FichaFormatoData, type PlantillaLogos } from './modulos/ModuloMateriales'
 import { FichaPreview } from './FichaPreview'
 import { guardarEstadoAppEnNube } from '@/lib/supabase-service'
 import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
@@ -74,6 +75,20 @@ function imagenesReconocimientoDe(punto: { moduloData?: Record<string, unknown> 
   return [...urls, ...fotos.map(f => f.preview || '')].filter(Boolean)
 }
 
+type EscribirEnCarpeta = (nombre: string, blob: Blob) => Promise<void>
+
+async function elegirCarpetaDestino(): Promise<EscribirEnCarpeta | null> {
+  const w = window as unknown as { showDirectoryPicker?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle> }
+  if (!w.showDirectoryPicker) return null
+  const dirHandle = await w.showDirectoryPicker({ mode: 'readwrite' })
+  return async (nombre, blob) => {
+    const fileHandle = await dirHandle.getFileHandle(nombre, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(blob)
+    await writable.close()
+  }
+}
+
 export function GestorPuntos() {
   const puntos = useAppSelector((s) => s.puntos)
   const puntoActivo = useAppSelector((s) => s.puntoActivo)
@@ -95,6 +110,8 @@ export function GestorPuntos() {
   const [seleccionadasSubcarpetas, setSeleccionadasSubcarpetas] = useState<Set<string>>(new Set())
   const [modoSerado, setModoSerado] = useState<'auto' | 'manual'>('auto')
   const [numerosManuales, setNumerosManuales] = useState<Record<string, number>>({})
+  const [plantillasLogos, setPlantillasLogos] = useState<PlantillaLogos[]>([])
+  const [plantillaConjunto, setPlantillaConjunto] = useState<string>('')
   const [cargaPendienteId, setCargaPendienteId] = useState<string | null>(null)
 
   const [dialogoBloquear, setDialogoBloquear] = useState<string | null>(null)
@@ -151,20 +168,19 @@ export function GestorPuntos() {
 
   // ponytail: lote de fichas reutilizando puntosExportables (checklist completo +
   // datos de ficha, orden del filtro activo) y las funciones puras de export.
-  const generarTodasLasFichas = async () => {
-    const conFicha = puntosExportables
-    if (conFicha.length === 0) {
-      toast.info('No hay puntos con checklist completo y datos de ficha para exportar')
+  const exportarFichasDe = async (lista: PuntoFerroviario[], msgVacio: string, escribirEn?: EscribirEnCarpeta) => {
+    if (lista.length === 0) {
+      toast.info(msgVacio)
       return
     }
     setGenerando(true)
     let ok = 0
     const errores: string[] = []
     try {
-      for (const p of conFicha) {
+      for (const [idx, p] of lista.entries()) {
         const m = (p.moduloData as Record<string, unknown>).materiales as DatosFicha
         const nombreCarpeta = (p.nombre || 'punto').replace(/^\s*\d+[\s._:,)-]+/, '').replace(/[\\/:*?"<>|]/g, '').trim()
-        const base = `${p.numeroSerie}. ${nombreCarpeta}`
+        const base = `${idx + 1}. ${nombreCarpeta}`
         const etiquetas = m.etiquetas || {}
         const camposCustom = m.camposCustom ?? []
         const imagenesReconocimiento = imagenesReconocimientoDe(p)
@@ -172,12 +188,12 @@ export function GestorPuntos() {
           await exportarPdfFicha(m.valores, m.imagenes || {}, base, {
             numEvidencias: m.numEvidencias,
             quitarFondoLogos: m.quitarFondoLogos,
-          }, etiquetas, camposCustom)
+          }, etiquetas, camposCustom, escribirEn)
           await exportarExcelFicha(m.valores, m.imagenes || {}, base, {
             numEvidencias: m.numEvidencias,
             quitarFondoLogos: m.quitarFondoLogos,
             imagenesReconocimiento,
-          }, etiquetas, camposCustom)
+          }, etiquetas, camposCustom, escribirEn)
           ok++
         } catch (err) {
           errores.push(`${p.nombre || p.id}: ${err instanceof Error ? err.message : String(err)}`)
@@ -191,6 +207,34 @@ export function GestorPuntos() {
     } finally {
       setGenerando(false)
     }
+  }
+
+  // Lote restringido: checklist completo + datos de ficha (backup nube incluido).
+  const generarTodasLasFichas = () =>
+    exportarFichasDe(puntosExportables, 'No hay puntos con checklist completo y datos de ficha para exportar')
+
+  // Todas las carpetas con datos de ficha, sin requerir checklist completo.
+  // Pide al usuario elegir una carpeta destino (File System Access API); si el
+  // navegador no la soporta, cae a descarga individual.
+  const exportarTodasLasDisponibles = async () => {
+    let escribirEn: EscribirEnCarpeta | null | undefined = undefined
+    try {
+      escribirEn = await elegirCarpetaDestino()
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      throw e
+    }
+    if (escribirEn === null) {
+      toast.info('Tu navegador no soporta elegir carpeta; los archivos se descargarán individualmente')
+    }
+    await exportarFichasDe(
+      puntosOrdenados.filter((p) => {
+        const mat = (p.moduloData as Record<string, unknown> | undefined)?.materiales as DatosFicha | undefined
+        return !!mat && !!mat.valores && Object.keys(mat.valores).length > 0
+      }),
+      'No hay carpetas con datos de ficha para exportar',
+      escribirEn ?? undefined,
+    )
   }
 
   // Guarda un respaldo manual (cuenta para el tope de 3) + nube, luego exporta
@@ -286,6 +330,8 @@ export function GestorPuntos() {
       const iniciales: Record<string, number> = {}
       previewsSubcarpetas.forEach((p, i) => { iniciales[p.id] = i + 1 })
       setNumerosManuales(iniciales)
+      setPlantillaConjunto('')
+      setPlantillasLogos(cargarPlantillasLogos())
     }
   }, [previewsSubcarpetas])
 
@@ -441,6 +487,15 @@ export function GestorPuntos() {
               >
                 {generando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
                 {generando ? 'Generando...' : 'Guardar y exportar lote'}
+              </Button>
+              <Button
+                onClick={exportarTodasLasDisponibles}
+                disabled={generando || puntos.length === 0}
+                title="Exporta PDF + Excel de todas las carpetas que tengan datos de ficha"
+                size="sm"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Exportar todas las fichas
               </Button>
             </div>
 
@@ -1052,6 +1107,17 @@ export function GestorPuntos() {
                     >
                       {seleccionadasSubcarpetas.size === previewsSubcarpetas.length ? 'Quitar todas' : 'Seleccionar todas'}
                     </Button>
+                    <span className="text-xs text-muted-foreground ml-2">Plantilla:</span>
+                    <select
+                      className="h-7 text-xs rounded border bg-background outline-none focus:border-primary max-w-[180px]"
+                      value={plantillaConjunto}
+                      onChange={(e) => setPlantillaConjunto(e.target.value)}
+                    >
+                      <option value="">Sin plantilla</option>
+                      {plantillasLogos.map(pl => (
+                        <option key={pl.id} value={pl.id}>{pl.nombre}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-muted-foreground mr-1">Seriado:</span>
@@ -1281,7 +1347,7 @@ export function GestorPuntos() {
                 </Button>
                 <Button
                   disabled={seleccionadasSubcarpetas.size === 0 || procesandoCarpeta}
-                  onClick={() => confirmarAgregarSeleccion(seleccionadasSubcarpetas, modoSerado === 'manual' ? numerosManuales : undefined)}
+                  onClick={() => confirmarAgregarSeleccion(seleccionadasSubcarpetas, modoSerado === 'manual' ? numerosManuales : undefined, plantillaConjunto)}
                 >
                   {procesandoCarpeta ? 'Procesando...' : `Agregar ${seleccionadasSubcarpetas.size} seleccionada(s)`}
                 </Button>

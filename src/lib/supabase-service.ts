@@ -290,89 +290,16 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
 }
 
 /**
- * Carga todos los puntos con sus relaciones
- * Usa consultas separadas para evitar el error PGRST200 cuando
- * no hay foreign keys definidas en Supabase
+ * Carga todos los puntos con sus relaciones en una sola llamada RPC
+ * (cargar_puntos_completos). El join server-side reemplaza las 5 consultas
+ * separadas previas y evita el error PGRST200 sin workarounds del cliente.
  */
 export async function cargarPuntosCompletos(): Promise<PuntoFerroviario[]> {
   try {
-    // 1. Cargar puntos principales
-    const { data: puntosData, error: puntosError } = await supabase
-      .from('puntos_ferroviarios')
-      .select('*')
-      .eq('estado', 'activo')
-      .order('numero_serie', { ascending: true })
-
-    if (puntosError) throw puntosError
-    if (!puntosData || puntosData.length === 0) return []
-
-    // Filtrar por los puntos activos para reducir el payload de tablas relacionadas
-    const puntoIds = puntosData.map(p => p.id)
-
-    // 2. Lanzar todas las consultas de relaciones EN PARALELO
-    const [coordsResult, docsResult, analisisResult, fotosResult] = await Promise.all([
-      supabase.from('coordenadas_gps').select('*').in('punto_id', puntoIds),
-      supabase.from('documentos_punto').select('*').in('punto_id', puntoIds),
-      supabase.from('analisis_imagenes').select('*').in('punto_id', puntoIds),
-      supabase.from('fotos_punto').select('*').in('punto_id', puntoIds).order('indice', { ascending: true }),
-    ])
-
-    const coordsMap = new Map<string, CoordenadasDB>()
-    if (coordsResult.data) {
-      for (const c of coordsResult.data) {
-        coordsMap.set(c.punto_id, c)
-      }
-    }
-
-    const docsMap = new Map<string, DocumentoDB>()
-    if (docsResult.data) {
-      for (const d of docsResult.data) {
-        docsMap.set(d.punto_id, d)
-      }
-    }
-
-    const analisisMap = new Map<string, AnalisisDB>()
-    if (analisisResult.data) {
-      for (const a of analisisResult.data) {
-        analisisMap.set(a.punto_id, a)
-      }
-    }
-
-    const fotosMap = new Map<string, FotoDB[]>()
-    if (fotosResult.data) {
-      for (const f of fotosResult.data) {
-        if (!fotosMap.has(f.punto_id)) {
-          fotosMap.set(f.punto_id, [])
-        }
-        fotosMap.get(f.punto_id)!.push(f)
-      }
-    }
-
-    // 6. Combinar todo
-    type PuntoConRelaciones = PuntoDB & {
-      coordenadas_gps?: CoordenadasDB[]
-      documentos_punto?: DocumentoDB[]
-      analisis_imagenes?: AnalisisDB[]
-      fotos_punto?: FotoDB[]
-    }
-    const puntosCompletos = puntosData.map(p => {
-      const punto: PuntoConRelaciones = { ...p }
-      if (coordsMap.has(p.id)) {
-        punto.coordenadas_gps = [coordsMap.get(p.id)!]
-      }
-      if (docsMap.has(p.id)) {
-        punto.documentos_punto = [docsMap.get(p.id)!]
-      }
-      if (analisisMap.has(p.id)) {
-        punto.analisis_imagenes = [analisisMap.get(p.id)!]
-      }
-      if (fotosMap.has(p.id)) {
-        punto.fotos_punto = fotosMap.get(p.id)!
-      }
-      return punto
-    })
-
-    return puntosCompletos.map(puntoFromDB)
+    const { data, error } = await supabase.rpc('cargar_puntos_completos')
+    if (error) throw error
+    if (!data || !Array.isArray(data) || data.length === 0) return []
+    return (data as PuntoDB[]).map(puntoFromDB)
   } catch (error) {
     console.error('Error cargando puntos:', error)
     return []

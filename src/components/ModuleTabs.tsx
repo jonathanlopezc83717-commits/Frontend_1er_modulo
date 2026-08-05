@@ -146,11 +146,6 @@ function SortableTab({ modulo, isActive, tieneDatos }: SortableTabProps) {
 export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
   const moduloActivo = useAppSelector((s) => s.moduloActivo)
   const modulosOrden = useAppSelector((s) => s.modulosOrden)
-  // Forzar remount del módulo Formato (ModuloMateriales) al cambiar de punto.
-  // Su state local competía entre varios useEffects al cambiar punto y dejaba
-  // datos stale del punto anterior. Remontar resetea el state y carga limpio
-  // del store del nuevo punto (garantiza previsualización correcta por carpeta).
-  const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
   // Solo re-renderiza la barra de pestañas cuando cambia el CONJUNTO de
   // módulos con datos, no en cada edición (p.ej. al teclear en Materiales).
   const modulosConDatos = useAppSelector((s) => Object.keys(s.puntoActivo?.moduloData || {}), shallow)
@@ -272,7 +267,7 @@ export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
                   className="mt-0 h-full data-[state=inactive]:hidden"
                 >
                   <div className="p-4 h-full">
-                    <ModuloComponent key={modulo.componente === 'ModuloMateriales' ? `materiales-${puntoActivoId ?? 'sin-punto'}` : undefined} />
+                    <ModuloComponent />
                   </div>
                 </TabsContent>
               )

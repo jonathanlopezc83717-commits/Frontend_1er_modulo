@@ -25,7 +25,6 @@ import {
   ImagePlus,
   LayoutTemplate,
   Link2,
-  Loader2,
   MapPin,
   Pencil,
   Plus,
@@ -1350,6 +1349,7 @@ export function ModuloMateriales() {
   const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const puntoIdAnteriorRef = useRef<string | null>(null)
+  const autocompletarPrevRef = useRef<string | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
   // (selector estrecho sin moduloData); depende solo del id del punto.
@@ -1409,10 +1409,7 @@ export function ModuloMateriales() {
     setOrigenCoords(origenSrc ? { ...origenSrc } : {})
     setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
     setCoordsManuales(coordsManualesSrc)
-    // Delay mínimo para que la ventana de carga sea perceptible durante el
-    // remount al cambiar de punto (transición de recarga, no workaround).
-    const t = setTimeout(() => setCargado(true), 350)
-    return () => clearTimeout(t)
+    setCargado(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [punto?.id, store])
 
@@ -1434,6 +1431,14 @@ export function ModuloMateriales() {
 
   useEffect(() => {
     if (!cargado || !punto) return
+    // Al cambiar de punto la carga ya trae los valores del store del nuevo
+    // punto; el autocompletar silencioso NO debe correr en el ciclo de cambio
+    // (competiría con la carga y pisaría con state stale del punto anterior).
+    if (autocompletarPrevRef.current !== null && autocompletarPrevRef.current !== punto.id) {
+      autocompletarPrevRef.current = punto.id
+      return
+    }
+    autocompletarPrevRef.current = punto.id
     autocompletarDesdeModulos({ silencioso: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargado, punto?.id])
@@ -1986,14 +1991,6 @@ export function ModuloMateriales() {
 
   return (
     <ScrollArea className="h-[calc(100vh-220px)]">
-      {!cargado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Cargando formato del punto…</p>
-          </div>
-        </div>
-      )}
       <div className="space-y-4 pr-2">
         {/* Encabezado */}
         <Card className="bg-primary/5 border-primary/20">

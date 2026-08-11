@@ -50,13 +50,74 @@ export interface FichaFormatoData {
   /** Indica si se debe quitar el fondo blanco de los logos. */
   quitarFondoLogos?: boolean
   /** Configuración de la plantilla del Formato (persistida para sobrevivir recargas). */
-  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>
   etiquetas?: Record<string, string>
   origenCoords?: Record<string, string>
   plantillaActivaId?: string | null
   /** Coordenadas rellenadas a mano; un apply global nunca las sobrescribe. */
   coordsManuales?: string[]
   updatedAt?: string
+}
+
+/**
+ * Agrupa campos custom en filas según `columnas` (default 3). Campos consecutivos
+ * con el mismo valor de columnas se acomulan en la misma fila hasta llenarla.
+ * Un cambio de valor inicia una nueva fila. Usado por PDF, Excel, preview y FichaPreview.
+ */
+export function agruparCamposPorColumnas<T extends { columnas?: number }>(campos: ReadonlyArray<T>): T[][] {
+  const filas: T[][] = []
+  let i = 0
+  while (i < campos.length) {
+    const n = campos[i].columnas ?? 3
+    const grupo: T[] = []
+    while (i < campos.length && (campos[i].columnas ?? 3) === n && grupo.length < n) {
+      grupo.push(campos[i])
+      i++
+    }
+    filas.push(grupo)
+  }
+  return filas
+}
+
+export interface CeldaCampo {
+  coord: string
+  etiqueta: string
+  valor: string
+  columnas?: 1 | 2 | 3
+}
+
+/**
+ * Aplana campos custom en celdas etiqueta+valor listas para render. Los campos
+ * de coordenadas duales se expanden a una celda por lado (etiqueta = "titulo lado",
+ * valor = "x, y"). Las celdas resultantes conservan el `columnas` del campo padre
+ * y fluyen luego por agruparCamposPorColumnas.
+ */
+export function aplanarCamposParaRender(
+  campos: ReadonlyArray<{ coord: string; etiqueta: string; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>,
+  valores: Record<string, string>,
+): CeldaCampo[] {
+  const celdas: CeldaCampo[] = []
+  for (const campo of campos) {
+    if (campo.coordenadas) {
+      const v = parseCoordenadas(valores[campo.coord] || '')
+      const ladoSrc = v?.lado ?? ((campo.lados ?? [])[0] ?? '')
+      const tokens = ladoSrc ? ladoSrc.split('-').map(t => t.trim()).filter(t => t !== '') : []
+      const lista = tokens.length > 0 ? tokens : ['']
+      for (const tok of lista) {
+        const p = v?.pares[tok] ?? {}
+        const coords = [p.x ?? '', p.y ?? ''].filter(s => s !== '').join(', ')
+        celdas.push({
+          coord: tok ? `${campo.coord}~${tok}` : campo.coord,
+          etiqueta: tok ? `${campo.etiqueta} ${tok}`.trim() : campo.etiqueta,
+          valor: coords,
+          columnas: campo.columnas,
+        })
+      }
+    } else {
+      celdas.push({ coord: campo.coord, etiqueta: campo.etiqueta, valor: valores[campo.coord] || '', columnas: campo.columnas })
+    }
+  }
+  return celdas
 }
 
 // =====================================================
@@ -141,16 +202,6 @@ function parseCoordenadas(raw: string): CoordenadasValor | null {
   }
 }
 
-function formatearCoordenadas(raw: string): string {
-  const v = parseCoordenadas(raw)
-  if (!v || !v.lado) return ''
-  const tokens = v.lado.split('-')
-  return tokens.map(t => {
-    const p = v.pares[t] ?? {}
-    return `${t}: ${p.x ?? ''}, ${p.y ?? ''}`
-  }).join(' | ')
-}
-
 /** Filas editables derivadas de LABELS_DEFAULT: coords → grupo 'fila', sec:* → 'seccion'. */
 const FILAS_EDITABLES = Object.entries(LABELS_DEFAULT).map(([key, defaultLabel]) => ({
   key,
@@ -197,7 +248,7 @@ export interface PlantillaLogos {
   logoIzq?: string
   logoDer?: string
   etiquetas?: Record<string, string>
-  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>
+  camposCustom?: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>
   origenCoords?: Record<string, string>
   createdAt: string
 }
@@ -546,7 +597,7 @@ export async function exportarPdfFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }> = [],
   escribirEn?: (nombre: string, blob: Blob) => Promise<void>,
 ) {
   const { jsPDF } = await import('jspdf')
@@ -585,7 +636,8 @@ export async function exportarPdfFicha(
   ]
   const Ydata: number[] = []
   for (let i = 0; i < dataRows.length; i++) { Ydata.push(y); y += Hdata }
-  const filasCustom = Math.ceil(camposCustom.length / 3)
+  const gruposCustom = agruparCamposPorColumnas(aplanarCamposParaRender(camposCustom, d))
+  const filasCustom = gruposCustom.length
   const Ycustom: number[] = []
   for (let i = 0; i < filasCustom; i++) { Ycustom.push(y); y += Hdata }
   const YestLbl = y; y += HestLbl
@@ -730,7 +782,7 @@ export async function exportarPdfFicha(
   // proporcionalmente en vez de dejar celdas vacías a la derecha.
   for (let fi = 0; fi < filasCustom; fi++) {
     const yy = Ycustom[fi]
-    const chunk = camposCustom.slice(fi * 3, fi * 3 + 3)
+    const chunk = gruposCustom[fi]
     const M = chunk.length
     if (M === 3) {
       for (let p = 0; p < 3; p++) {
@@ -738,11 +790,11 @@ export async function exportarPdfFicha(
         const vx = CX[p * 2 + 1]
         cell(lx, yy, C[p * 2], Hdata, [240, 241, 243])
         cell(vx, yy, C[p * 2 + 1], Hdata)
-        const campo = chunk[p]
-        const lbl = campo.etiqueta + ':'
+        const celda = chunk[p]
+        const lbl = celda.etiqueta + ':'
         const lblFS = lbl.length > 28 ? 6.5 : 7.5
         txt(lbl, lx, yy, C[p * 2], { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
-        txt(campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || ''), vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+        txt(celda.valor, vx, yy, C[p * 2 + 1], { fs: 7.5, vcenter: true, py: 0, h: Hdata })
       }
     } else {
       const cellW = PW / M
@@ -753,11 +805,11 @@ export async function exportarPdfFicha(
         const vx = lx + labelW
         cell(lx, yy, labelW, Hdata, [240, 241, 243])
         cell(vx, yy, valorW, Hdata)
-        const campo = chunk[p]
-        const lbl = campo.etiqueta + ':'
+        const celda = chunk[p]
+        const lbl = celda.etiqueta + ':'
         const lblFS = lbl.length > 28 ? 6.5 : 7.5
         txt(lbl, lx, yy, labelW, { fs: lblFS, bold: true, vcenter: true, py: 0, h: Hdata })
-        txt(campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || ''), vx, yy, valorW, { fs: 7.5, vcenter: true, py: 0, h: Hdata })
+        txt(celda.valor, vx, yy, valorW, { fs: 7.5, vcenter: true, py: 0, h: Hdata })
       }
     }
   }
@@ -899,7 +951,7 @@ export async function exportarExcelFicha(
   nombreArchivo = 'Ficha_LMT-T11-02',
   opciones: { quitarFondoLogos?: boolean; numEvidencias?: number; imagenesReconocimiento?: string[] } = {},
   etiquetas?: Record<string, string>,
-  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
+  camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }> = [],
   escribirEn?: (nombre: string, blob: Blob) => Promise<void>,
 ) {
   const d = valores
@@ -1012,23 +1064,24 @@ export async function exportarExcelFicha(
   // (Fecha/Segmento/Tramo): 3 casillas de 1/3 c/u (etiqueta + valor). Solo se
   // dibujan las casillas definidas; las que falten en la última fila quedan libres.
   let fila = 3 + dataRows.length
-  const filasCustom = Math.ceil(camposCustom.length / 3)
+  const gruposCustom = agruparCamposPorColumnas(aplanarCamposParaRender(camposCustom, d))
+  const filasCustom = gruposCustom.length
   for (let fi = 0; fi < filasCustom; fi++) {
     ws.getRow(fila).height = 23
-    const chunk = camposCustom.slice(fi * 3, fi * 3 + 3)
+    const chunk = gruposCustom[fi]
     for (let p = 0; p < 3; p++) {
-      const campo = chunk[p]
-      if (!campo) continue
+      const celda = chunk[p]
+      if (!celda) continue
       const lblCol = p * 2 + 1
       const valCol = p * 2 + 2
       const cellLbl = ws.getCell(fila, lblCol)
-      cellLbl.value = campo.etiqueta + ':'
+      cellLbl.value = celda.etiqueta + ':'
       cellLbl.fill = fillLabel
       cellLbl.font = fontLabelBold
       cellLbl.alignment = { vertical: 'middle', wrapText: true }
       cellLbl.border = thinBorder
       const cellVal = ws.getCell(fila, valCol)
-      cellVal.value = campo.coordenadas ? formatearCoordenadas(d[campo.coord] || '') : (d[campo.coord] || '')
+      cellVal.value = celda.valor
       cellVal.font = fontValor
       cellVal.alignment = { vertical: 'middle', wrapText: true }
       cellVal.border = thinBorder
@@ -1342,7 +1395,7 @@ export function ModuloMateriales() {
   const [etiquetas, setEtiquetas] = useState<Record<string, string>>({})
   const [origenCoords, setOrigenCoords] = useState<Record<string, string>>({})
   const [editarEtiquetasAbierto, setEditarEtiquetasAbierto] = useState(false)
-  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>>([])
+  const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>>([])
   const [coordsManuales, setCoordsManuales] = useState<string[]>([])
   const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1590,7 +1643,7 @@ export function ModuloMateriales() {
     setCoordsManuales(prev => prev.includes(coord) ? prev : [...prev, coord])
   }
 
-  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }>) => {
+  const handleGuardarCamposCustom = (nuevos: Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>) => {
     const coordsNuevos = new Set(nuevos.map(c => c.coord))
     const removidos = camposCustom.filter(c => !coordsNuevos.has(c.coord)).map(c => c.coord)
     setCamposCustom(nuevos)
@@ -2264,10 +2317,7 @@ export function ModuloMateriales() {
                 </div>
               ))}
               {camposCustom.length > 0 && (() => {
-                const grupos: Array<typeof camposCustom> = []
-                for (let i = 0; i < camposCustom.length; i += 3) {
-                  grupos.push(camposCustom.slice(i, i + 3))
-                }
+                const grupos = agruparCamposPorColumnas(camposCustom)
                 return grupos.map((grupo, gi) => (
                   <div
                     key={gi}

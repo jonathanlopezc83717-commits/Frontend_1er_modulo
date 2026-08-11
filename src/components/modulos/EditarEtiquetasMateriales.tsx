@@ -8,7 +8,7 @@ import { ELEMENTOS_DISPONIBLES, COORD_A_CAMPO } from './ModuloMateriales'
 
 interface FilaEditable { key: string; defaultLabel: string; grupo: 'fila' | 'seccion' }
 
-export interface CampoCustom { coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }
+export interface CampoCustom { coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }
 
 /** Minta una coord `custom-N` (N>=1) que no esté ya usada, rellenando huecos. */
 export function nuevaCoordCustom(existentes: ReadonlyArray<{ coord: string }>): string {
@@ -131,7 +131,11 @@ export function EditarEtiquetasMateriales({
   }
 
   const agregarCampo = () => {
-    setDraftCampos(prev => [...prev, { coord: nuevaCoordCustom(prev), etiqueta: '' }])
+    setDraftCampos(prev => [...prev, { coord: nuevaCoordCustom(prev), etiqueta: '', columnas: 3 }])
+  }
+
+  const cambiarColumnas = (coord: string, columnas: 1 | 2 | 3) => {
+    setDraftCampos(prev => prev.map(c => c.coord === coord ? { ...c, columnas } : c))
   }
 
   const eliminarCampo = (coord: string) => {
@@ -226,12 +230,7 @@ export function EditarEtiquetasMateriales({
             </div>
           </div>
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-sm font-semibold">Campos personalizados</h4>
-              <Button variant="outline" size="sm" onClick={agregarCampo}>
-                + Agregar campo
-              </Button>
-            </div>
+            <h4 className="mb-2 text-sm font-semibold">Campos personalizados</h4>
             <div className="grid gap-2">
               {draftCampos.length === 0 && (
                 <p className="text-xs text-muted-foreground">Sin campos personalizados. Arrastrá el ícono ≡ para reordenar.</p>
@@ -247,7 +246,7 @@ export function EditarEtiquetasMateriales({
                   onDragEnd={onDragEnd}
                   className={`space-y-2 rounded-md border p-2 ${dragIndex === idx ? 'opacity-40' : ''}`}
                 >
-                  <div className="grid grid-cols-[20px_70px_1fr_180px_36px] items-center gap-2">
+                  <div className="grid grid-cols-[20px_70px_1fr_150px_90px_36px] items-center gap-2">
                     <span className="cursor-move text-muted-foreground" aria-label="Arrastrar para reordenar">
                       <GripVertical className="h-4 w-4" />
                     </span>
@@ -269,6 +268,19 @@ export function EditarEtiquetasMateriales({
                         <SelectItem value="vinculado">Vinculado</SelectItem>
                         <SelectItem value="opciones-multiples">Opciones múltiples</SelectItem>
                         <SelectItem value="coordenadas">Coordenadas duales</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={String(c.columnas ?? 3)}
+                      onValueChange={(v) => cambiarColumnas(c.coord, Number(v) as 1 | 2 | 3)}
+                    >
+                      <SelectTrigger className="h-8" title="Elementos por fila">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 col</SelectItem>
+                        <SelectItem value="2">2 cols</SelectItem>
+                        <SelectItem value="3">3 cols</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => eliminarCampo(c.coord)}>
@@ -326,6 +338,11 @@ export function EditarEtiquetasMateriales({
                 </div>
                 )
               })}
+              <div className="flex justify-end pt-1">
+                <Button variant="outline" size="sm" onClick={agregarCampo}>
+                  + Agregar campo
+                </Button>
+              </div>
             </div>
           </div>
           <div>

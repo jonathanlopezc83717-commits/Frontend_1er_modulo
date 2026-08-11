@@ -439,6 +439,47 @@ export function ModuloAnalisis() {
             )}
           </CardContent>
         </Card>
+
+        {/* Botones de acción — arriba para acceso rápido, también Alt+P avanza al siguiente módulo */}
+        {selectedImages.length > 0 && (
+          <div className="flex gap-2">
+            {!isAnalyzing ? (
+              <Button
+                onClick={() => performAnalysis(selectedImages)}
+                disabled={tieneAnalisisGuardado && analysisResults.length > 0}
+                className="flex-1"
+                size="sm"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {tieneAnalisisGuardado && analysisResults.length > 0
+                  ? 'Análisis ya realizado'
+                  : 'Realizar reconocimiento'}
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={handleDetenerAnalisis}
+                className="flex-1"
+                size="sm"
+              >
+                <Square className="w-4 h-4 mr-2" />
+                Detener reconocimiento
+              </Button>
+            )}
+
+            {(analysisResults.length > 0 || selectedImages.length > 0) && (
+              <Button
+                variant="outline"
+                onClick={handleClear}
+                size="sm"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Limpiar
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Results */}
         <AnalysisResult
           results={analysisResults}
@@ -586,45 +627,7 @@ export function ModuloAnalisis() {
           </CardContent>
         </Card>
 
-        {/* Botones de acción */}
-        {selectedImages.length > 0 && (
-          <div className="flex gap-2">
-            {!isAnalyzing ? (
-              <Button
-                onClick={() => performAnalysis(selectedImages)}
-                disabled={tieneAnalisisGuardado && analysisResults.length > 0}
-                className="flex-1"
-                size="sm"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                {tieneAnalisisGuardado && analysisResults.length > 0
-                  ? 'Análisis ya realizado'
-                  : 'Realizar reconocimiento'}
-              </Button>
-            ) : (
-              <Button
-                variant="destructive"
-                onClick={handleDetenerAnalisis}
-                className="flex-1"
-                size="sm"
-              >
-                <Square className="w-4 h-4 mr-2" />
-                Detener reconocimiento
-              </Button>
-            )}
-            
-            {(analysisResults.length > 0 || selectedImages.length > 0) && (
-              <Button
-                variant="outline"
-                onClick={handleClear}
-                size="sm"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Limpiar
-              </Button>
-            )}
-          </div>
-        )}
+        {/* Botones de acción movidos arriba (después de info del punto) para acceso rápido */}
 
         {/* Progress */}
         {isAnalyzing && progress.status && (

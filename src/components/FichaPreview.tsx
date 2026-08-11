@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import type { FichaFormatoData } from './modulos/ModuloMateriales'
+import { agruparCamposPorColumnas, aplanarCamposParaRender, type FichaFormatoData } from './modulos/ModuloMateriales'
 
 const LABELS_DEFAULT: Record<string, string> = {
   '1-B': 'Fecha',
@@ -17,29 +17,6 @@ const LABELS_DEFAULT: Record<string, string> = {
 
 function resolverLabel(key: string, override: Record<string, string> | undefined): string {
   return override?.[key] ?? LABELS_DEFAULT[key] ?? key
-}
-
-interface ParesCoord { x?: string; y?: string }
-interface CoordenadasValor { lado: string; pares: Record<string, ParesCoord> }
-
-function formatearCoordenadas(raw: string): string {
-  if (!raw) return ''
-  let v: CoordenadasValor | null = null
-  try {
-    const p = JSON.parse(raw) as unknown
-    if (p && typeof p === 'object' &&
-      typeof (p as CoordenadasValor).lado === 'string' &&
-      typeof (p as CoordenadasValor).pares === 'object') {
-      v = { lado: (p as CoordenadasValor).lado, pares: (p as CoordenadasValor).pares as Record<string, ParesCoord> }
-    }
-  } catch {
-    v = null
-  }
-  if (!v || !v.lado) return ''
-  return v.lado.split('-').map(t => {
-    const p = v!.pares[t] ?? {}
-    return `${t}: ${p.x ?? ''}, ${p.y ?? ''}`
-  }).join(' | ')
 }
 
 const DATA_COORDS = ['1-B', '1-D', '1-F'] as const
@@ -81,19 +58,24 @@ export function FichaPreview({ data }: { data: FichaFormatoData }) {
         ))}
       </div>
 
-      {/* 4. Campos personalizados (filas de 3) */}
-      {camposCustom.length > 0 && (
-        <div className="grid grid-cols-6 border-b border-neutral-300">
-          {camposCustom.map(c => (
-            <Fragment key={c.coord}>
-              <div className="bg-neutral-100 px-2 py-1 font-bold border-r border-neutral-200 truncate">{c.etiqueta}:</div>
-              <div className="px-2 py-1 border-r border-neutral-200 break-words">
-                {c.coordenadas ? formatearCoordenadas(d[c.coord] || '') : (d[c.coord] || '')}
-              </div>
-            </Fragment>
-          ))}
-        </div>
-      )}
+      {/* 4. Campos personalizados (filas según columnas; coordenadas duales expandidas por lado) */}
+      {camposCustom.length > 0 && (() => {
+        const celdas = aplanarCamposParaRender(camposCustom, d)
+        return agruparCamposPorColumnas(celdas).map((grupo, gi) => (
+          <div
+            key={gi}
+            className="grid border-b border-neutral-300"
+            style={{ gridTemplateColumns: `repeat(${grupo.length * 2}, minmax(0, 1fr))` }}
+          >
+            {grupo.map(celda => (
+              <Fragment key={celda.coord}>
+                <div className="bg-neutral-100 px-2 py-1 font-bold border-r border-neutral-200 truncate">{celda.etiqueta}:</div>
+                <div className="px-2 py-1 border-r border-neutral-200 break-words">{celda.valor}</div>
+              </Fragment>
+            ))}
+          </div>
+        ))
+      })()}
 
       {/* 5. Estado actual — etiquetas */}
       <div className="grid grid-cols-2 border-b border-neutral-300">

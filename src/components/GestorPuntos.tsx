@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { useAppSelector, useAppActions } from '@/context/AppContext'
 import type { PuntoFerroviario } from '@/types'
-import { ordenarPuntos, checklistCompleto, type SortKey } from '@/components/gestor-puntos-logica'
+import { ordenarPuntos, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,6 @@ import { toast } from 'sonner'
 import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
 import { cargarPlantillasLogos, type FichaFormatoData, type PlantillaLogos } from './modulos/ModuloMateriales'
 import { FichaPreview } from './FichaPreview'
-import { guardarEstadoAppEnNube } from '@/lib/supabase-service'
 import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
 
 import {
@@ -50,7 +49,6 @@ import {
   ListOrdered,
   AlertTriangle,
   Upload,
-  Loader2,
   FileDown,
   Eye,
 } from 'lucide-react'
@@ -93,7 +91,6 @@ export function GestorPuntos() {
   const puntos = useAppSelector((s) => s.puntos)
   const puntoActivo = useAppSelector((s) => s.puntoActivo)
   const nomenclaturasGlobales = useAppSelector((s) => s.nomenclaturasGlobales)
-  const haExportadoPlantilla = useAppSelector((s) => s.haExportadoPlantilla)
   const {
     agregarPunto,
     eliminarPunto,
@@ -102,7 +99,6 @@ export function GestorPuntos() {
     setNomenclaturasGlobales,
     moverPunto,
     toggleBloquearPunto,
-    crearCopiaSeguridad,
   } = useAppActions()
   const [expandido, setExpandido] = useState(false)
   const [dialogoEliminar, setDialogoEliminar] = useState<string | null>(null)
@@ -143,18 +139,6 @@ export function GestorPuntos() {
   // Puntos ordenados según el filtro activo
   const puntosOrdenados = useMemo(() => ordenarPuntos(puntos, sortKey), [puntos, sortKey])
 
-  // Exportables: checklist completo + datos de ficha, en el orden del filtro activo.
-  const puntosExportables = useMemo(
-    () => ordenarPuntos(
-      puntos.filter((p) => {
-        const m = (p.moduloData as Record<string, unknown> | undefined)?.materiales as DatosFicha | undefined
-        return !!m && !!m.valores && checklistCompleto(p)
-      }),
-      sortKey
-    ),
-    [puntos, sortKey]
-  )
-
   const { swipeState, dragState, itemRefs, handlePointerDown, getSwipeOffset, shouldIgnoreDragStart } = useReordenarPuntos({ puntosOrdenados, moverPunto, setSortKey })
 
   const puntoPreview = puntos.find(p => p.id === puntoPreviewId) ?? null
@@ -166,8 +150,7 @@ export function GestorPuntos() {
   const handleToggleSeleccionPunto = togglePunto
   const handleToggleSeleccionTodos = (checked: boolean) => toggleTodos(puntosOrdenados.map(p => p.id), checked)
 
-  // ponytail: lote de fichas reutilizando puntosExportables (checklist completo +
-  // datos de ficha, orden del filtro activo) y las funciones puras de export.
+  // ponytail: lote de fichas reutilizando las funciones puras de export.
   const exportarFichasDe = async (lista: PuntoFerroviario[], msgVacio: string, escribirEn?: EscribirEnCarpeta) => {
     if (lista.length === 0) {
       toast.info(msgVacio)
@@ -209,10 +192,6 @@ export function GestorPuntos() {
     }
   }
 
-  // Lote restringido: checklist completo + datos de ficha (backup nube incluido).
-  const generarTodasLasFichas = () =>
-    exportarFichasDe(puntosExportables, 'No hay puntos con checklist completo y datos de ficha para exportar')
-
   // Todas las carpetas con datos de ficha, sin requerir checklist completo.
   // Pide al usuario elegir una carpeta destino (File System Access API); si el
   // navegador no la soporta, cae a descarga individual.
@@ -235,16 +214,6 @@ export function GestorPuntos() {
       'No hay carpetas con datos de ficha para exportar',
       escribirEn ?? undefined,
     )
-  }
-
-  // Guarda un respaldo manual (cuenta para el tope de 3) + nube, luego exporta
-  // el lote en el orden del filtro activo. Reemplaza fichas previas (mismo nombre).
-  const guardarYExportarLote = async () => {
-    const copia = crearCopiaSeguridad('manual', 'Respaldo pre-export lote')
-    guardarEstadoAppEnNube(copia).catch((error) => {
-      console.error('Error guardando respaldo manual en nube:', error)
-    })
-    await generarTodasLasFichas()
   }
 
   const handleReasignarNumeros = () => {
@@ -473,21 +442,6 @@ export function GestorPuntos() {
                 </Button>
               )}
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={guardarYExportarLote}
-                disabled={generando || puntosExportables.length === 0 || !haExportadoPlantilla}
-                title={!haExportadoPlantilla
-                  ? 'Exporta una ficha (Formato) al menos una vez para habilitar el lote'
-                  : puntosExportables.length === 0
-                    ? 'No hay puntos con checklist completo y datos de ficha'
-                    : undefined}
-                size="sm"
-              >
-                {generando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
-                {generando ? 'Generando...' : 'Guardar y exportar lote'}
-              </Button>
               <Button
                 onClick={exportarTodasLasDisponibles}
                 disabled={generando || puntos.length === 0}

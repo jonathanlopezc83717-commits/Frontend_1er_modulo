@@ -3,6 +3,7 @@ import { MODULOS, type ModuloConfig } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 import { useEffect, memo, useMemo, useState } from 'react'
 import {
   DndContext,
@@ -149,6 +150,11 @@ export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
   // Solo re-renderiza la barra de pestañas cuando cambia el CONJUNTO de
   // módulos con datos, no en cada edición (p.ej. al teclear en Materiales).
   const modulosConDatos = useAppSelector((s) => Object.keys(s.puntoActivo?.moduloData || {}), shallow)
+  // ¿Hay reconocimiento guardado? Mismo cálculo que ModuloAnalisis.tieneAnalisisGuardado.
+  const tieneAnalisis = useAppSelector((s) => {
+    const a = s.puntoActivo?.moduloData?.analisis
+    return !!(a?.results && a.results.length > 0)
+  })
   const { setModuloActivo, reordenarModulos } = useAppActions()
   const [draggedId, setDraggedId] = useState<string | null>(null)
 
@@ -171,6 +177,27 @@ export function ModuleTabs({ mostrarNomenclaturas = false }: ModuleTabsProps) {
       setModuloActivo(modulosVisibles[0]?.id || 'analisis')
     }
   }, [moduloActivo, modulosVisibles, setModuloActivo])
+
+  // Alt+P: avanza al módulo siguiente (respeta el orden actual, wrap-around).
+  // Gate: desde 'analisis' exige reconocimiento realizado; la navegación manual
+  // por pestañas sigue libre (siempre se puede volver a ver el módulo).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        if (moduloActivo === 'analisis' && !tieneAnalisis) {
+          toast.error('Realizá el reconocimiento antes de avanzar al siguiente módulo')
+          return
+        }
+        const idx = modulosOrdenados.findIndex(m => m.id === moduloActivo)
+        if (idx === -1 || modulosOrdenados.length === 0) return
+        const nextIdx = (idx + 1) % modulosOrdenados.length
+        setModuloActivo(modulosOrdenados[nextIdx].id)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [moduloActivo, modulosOrdenados, setModuloActivo, tieneAnalisis])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

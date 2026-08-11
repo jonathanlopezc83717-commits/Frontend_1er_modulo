@@ -64,7 +64,7 @@ export async function generarCroquisDesdeDwg(
   let response: Response
   try {
     response = await fetch(DWG_API_URL, { method: 'POST', body: form })
-  } catch (cause) {
+  } catch {
     throw new DwgError('No se pudo conectar con el endpoint DWG', undefined)
   }
 

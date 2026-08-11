@@ -14,9 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import * as XLSX from 'xlsx'
-import ExcelJS from 'exceljs'
-import { jsPDF } from 'jspdf'
 import {
   ChevronDown,
   Eraser,
@@ -552,6 +549,7 @@ export async function exportarPdfFicha(
   camposCustom: ReadonlyArray<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[] }> = [],
   escribirEn?: (nombre: string, blob: Blob) => Promise<void>,
 ) {
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const d = valores
   const quitarFondo = opciones.quitarFondoLogos ?? false
@@ -598,7 +596,7 @@ export async function exportarPdfFicha(
   const YevVal = y; y += HevVal
 
   if (y > MT + PH + 2) {
-    // eslint-disable-next-line no-console
+     
     console.warn('El contenido del formato excede una página A4')
   }
 
@@ -908,7 +906,7 @@ export async function exportarExcelFicha(
   const quitarFondo = opciones.quitarFondoLogos ?? false
   const numEvidencias = Math.max(0, Math.min(opciones.numEvidencias ?? 3, 12))
   const imagenesReconocimiento = opciones.imagenesReconocimiento || []
-  void XLSX // se conserva para compatibilidad, pero la escritura usa ExcelJS
+  const ExcelJS = (await import('exceljs')).default
 
   const workbook = new ExcelJS.Workbook()
   const ws = workbook.addWorksheet('LMT-T11-02')
@@ -1369,7 +1367,7 @@ export function ModuloMateriales() {
     }
 
     const imagenesGuardadas = data?.imagenes || {}
-    let imagenesIniciales = { ...imagenesGuardadas }
+    const imagenesIniciales = { ...imagenesGuardadas }
 
     // Fallback: el logo derecho (logo 2) se conserva en localStorage porque
     // la copia ligera de localStorage puede descartar data URLs grandes.
@@ -1410,7 +1408,7 @@ export function ModuloMateriales() {
     setPlantillaActivaId(cache.plantillaActivaId ?? data?.plantillaActivaId ?? null)
     setCoordsManuales(coordsManualesSrc)
     setCargado(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [punto?.id, store])
 
   // Al montar: resetear flags transitorios que pueden quedar trabados tras recarga
@@ -1426,7 +1424,7 @@ export function ModuloMateriales() {
     } else if (diario) {
       escribirDiario(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   useEffect(() => {
@@ -1956,7 +1954,7 @@ export function ModuloMateriales() {
       dispatch({ type: 'SET_HA_EXPORTADO_PLANTILLA', payload: true })
       toast.success('PDF y Excel exportados')
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('Error exportando:', err)
       toast.error('Error al exportar: ' + String(err))
     } finally {

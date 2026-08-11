@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, Database, RefreshCw } from 'lucide-react';
+import type { AnalysisHistory, ColumnaMetadata } from '@/types';
 
 interface DiagnosticoResult {
   tablaExiste: boolean;
-  columnas: any[];
+  columnas: ColumnaMetadata[];
   totalRegistros: number;
-  ultimosRegistros: any[];
+  ultimosRegistros: AnalysisHistory[];
   error: string | null;
 }
 
@@ -115,7 +116,7 @@ export function DiagnosticoHistorial() {
             <div className="bg-background rounded-lg p-4">
               <h3 className="text-sm font-medium text-text mb-2">Columnas de la tabla:</h3>
               <div className="grid grid-cols-3 gap-2">
-                {resultado.columnas.map((col: any) => (
+                {resultado.columnas.map((col) => (
                   <div key={col.column_name} className="text-xs bg-surface p-2 rounded">
                     <span className="font-medium">{col.column_name}</span>
                     <span className="text-text-muted ml-1">({col.data_type})</span>
@@ -130,7 +131,7 @@ export function DiagnosticoHistorial() {
             <div className="bg-background rounded-lg p-4">
               <h3 className="text-sm font-medium text-text mb-2">Últimos registros:</h3>
               <div className="space-y-2">
-                {resultado.ultimosRegistros.map((reg: any, idx: number) => (
+                {resultado.ultimosRegistros.map((reg, idx) => (
                   <div key={idx} className="text-xs bg-surface p-2 rounded">
                     <p><span className="font-medium">ID:</span> {reg.id}</p>
                     <p><span className="font-medium">Descripción:</span> {reg.description?.substring(0, 50)}...</p>

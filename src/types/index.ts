@@ -67,6 +67,12 @@ export interface AnalysisHistory {
   created_at: string
 }
 
+export interface ColumnaMetadata {
+  column_name: string
+  data_type: string
+  is_nullable: string
+}
+
 // Tipos para progreso de análisis
 export interface AnalysisProgress {
   progress: number

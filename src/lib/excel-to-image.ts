@@ -1,6 +1,4 @@
-import html2canvas from 'html2canvas'
-import ExcelJS from 'exceljs'
-import * as XLSX from 'xlsx'
+import type ExcelJS from 'exceljs'
 
 export interface ExcelRenderOptions {
   /** Escala de renderizado. Valores mayores = imagen más nítida pero más pesada. */
@@ -28,7 +26,7 @@ export interface ExcelRenderResult {
 
 function log(debug: boolean, ...args: unknown[]) {
   if (debug) {
-    // eslint-disable-next-line no-console
+     
     console.log('[excel-to-image]', ...args)
   }
 }
@@ -356,7 +354,8 @@ async function cargarHojaExcelJS(
   buffer: ArrayBuffer,
   options: { sheetName?: string; fallbackAHojaConContenido?: boolean } = {},
 ): Promise<{ workbook: ExcelJS.Workbook; worksheet: ExcelJS.Worksheet }> {
-  const workbook = new ExcelJS.Workbook()
+  const mod = await import('exceljs')
+  const workbook = new mod.default.Workbook()
   await workbook.xlsx.load(buffer)
 
   if (workbook.worksheets.length === 0) {
@@ -416,6 +415,7 @@ async function renderizarExcelConExceljs(
     debug: boolean
   },
 ): Promise<ExcelRenderResult | null> {
+  const html2canvas = (await import('html2canvas')).default
   try {
     const { worksheet } = await cargarHojaExcelJS(buffer, {
       sheetName: options.sheetName,
@@ -600,6 +600,7 @@ async function renderizarTabla(
   backgroundColor: string,
   debug: boolean,
 ): Promise<HTMLCanvasElement> {
+  const html2canvas = (await import('html2canvas')).default
   const rows = table.querySelectorAll('tr')
   if (rows.length === 0) {
     throw new Error('La tabla generada no tiene filas')
@@ -739,6 +740,7 @@ export async function excelFileToImage(
     debug = false,
   } = options
 
+  const XLSX = await import('xlsx')
   const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' })
 
   if (!workbook.SheetNames.length) {
@@ -998,6 +1000,7 @@ export async function htmlTableToImage(
 ): Promise<ExcelRenderResult> {
   const { scale = 2, pageWidthPx = 1200, backgroundColor = '#ffffff' } = options
 
+  const html2canvas = (await import('html2canvas')).default
   const wrapper = crearContenedorTemporal(pageWidthPx)
   wrapper.innerHTML = html
 

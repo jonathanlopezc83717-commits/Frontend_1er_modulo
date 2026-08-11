@@ -1,5 +1,3 @@
-import DxfParser from 'dxf-parser'
-
 export interface OpcionesCroquis {
   x: number
   y: number
@@ -268,11 +266,12 @@ export function dibujarEntidades(
   }
 }
 
-export function dxfACroquis(textoDxf: string, opts: OpcionesCroquis): string {
+export async function dxfACroquis(textoDxf: string, opts: OpcionesCroquis): Promise<string> {
   const size = opts.size ?? 200
   const L = opts.resolucion ?? 1000
   const v = ventanaDe(opts.x, opts.y, size)
 
+  const DxfParser = (await import('dxf-parser')).default
   const doc = new DxfParser().parseSync(textoDxf)
   if (!doc) throw new Error('DXF inválido o vacío')
   const plano = aplanarInserts(

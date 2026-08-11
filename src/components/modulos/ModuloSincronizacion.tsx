@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   aplicarSincronizacion,
   buscarExcelEnCarpeta,
@@ -32,6 +31,10 @@ import {
   Trash2,
   Download,
   FileCode,
+  ChevronDown,
+  MapPin,
+  Tags,
+  Heading,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -60,6 +63,7 @@ export function ModuloSincronizacion() {
   const [actualizarCoordenadas, setActualizarCoordenadas] = useState(true)
   const [agregarNomenclaturas, setAgregarNomenclaturas] = useState(false)
   const [saltarEncabezado, setSaltarEncabezado] = useState(false)
+  const [mostrarOpciones, setMostrarOpciones] = useState(false)
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
 
@@ -373,6 +377,54 @@ export function ModuloSincronizacion() {
                     Sincronizado
                   </Badge>
                 )}
+                <Select value={criterio} onValueChange={(v) => setCriterio(v as CriterioCoincidencia)}>
+                  <SelectTrigger className="h-8 w-[150px]">
+                    <SelectValue placeholder="Criterio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="numeroSerie">N° de punto</SelectItem>
+                    <SelectItem value="nombre">Nombre</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant={actualizarCoordenadas ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Actualizar coordenadas X, Y, Z"
+                  onClick={() => setActualizarCoordenadas(!actualizarCoordenadas)}
+                >
+                  <MapPin className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={agregarNomenclaturas ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Agregar nomenclaturas faltantes"
+                  onClick={() => setAgregarNomenclaturas(!agregarNomenclaturas)}
+                >
+                  <Tags className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={saltarEncabezado ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Primera fila es encabezado"
+                  onClick={() => setSaltarEncabezado(!saltarEncabezado)}
+                >
+                  <Heading className="h-4 w-4" />
+                </Button>
+                <Button size="sm" onClick={handleSincronizar} disabled={resultados.length === 0}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Aplicar
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setMostrarOpciones(!mostrarOpciones)}>
+                  <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${mostrarOpciones ? 'rotate-180' : ''}`} />
+                  Opciones
+                </Button>
+              </div>
+            </div>
+            {mostrarOpciones && (
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t">
                 <input
                   ref={carpetaInputRef}
                   type="file"
@@ -413,63 +465,9 @@ export function ModuloSincronizacion() {
                   </Button>
                 )}
               </div>
-            </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Criterio de coincidencia</label>
-                <Select value={criterio} onValueChange={(v) => setCriterio(v as CriterioCoincidencia)}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Criterio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="numeroSerie">Número de punto</SelectItem>
-                    <SelectItem value="nombre">Nombre de punto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="actualizar-coordenadas"
-                  checked={actualizarCoordenadas}
-                  onCheckedChange={(checked) => setActualizarCoordenadas(checked === true)}
-                />
-                <label htmlFor="actualizar-coordenadas" className="text-sm cursor-pointer">
-                  Actualizar coordenadas X, Y, Z
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="agregar-nomenclaturas"
-                  checked={agregarNomenclaturas}
-                  onCheckedChange={(checked) => setAgregarNomenclaturas(checked === true)}
-                />
-                <label htmlFor="agregar-nomenclaturas" className="text-sm cursor-pointer">
-                  Agregar nomenclaturas faltantes
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="saltar-encabezado"
-                  checked={saltarEncabezado}
-                  onCheckedChange={(checked) => setSaltarEncabezado(checked === true)}
-                />
-                <label htmlFor="saltar-encabezado" className="text-sm cursor-pointer">
-                  Primera fila es encabezado
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end">
-                <Button size="sm" onClick={handleSincronizar} disabled={resultados.length === 0}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Aplicar sincronización
-                </Button>
-              </div>
-            </div>
 
             {procesando && (
               <ThinkingLoader

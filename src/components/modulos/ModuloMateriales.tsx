@@ -374,10 +374,14 @@ export function extraerValor(punto: unknown, campo: string): string {
 // Cadenamiento inicio/fin se definen desde los puntos: el del punto 1 (primero
 // por numeroSerie) es "inicio", y el del último punto registrado es "fin".
 function calcularRangoCadenamiento(puntos: ReadonlyArray<{ cadenamiento?: string }>): { inicio: string; fin: string } {
-  if (puntos.length === 0) return { inicio: '', fin: '' }
+  // Preserva el orden del array (los puntos siguen la secuencia de la vía),
+  // pero saltea los que no tienen cadenamiento para que inicio/fin no queden
+  // vacíos por un punto nuevo o sin dato al principio/final de la lista.
+  const conCad = puntos.filter(p => p.cadenamiento && p.cadenamiento.trim() !== '')
+  if (conCad.length === 0) return { inicio: '', fin: '' }
   return {
-    inicio: puntos[0]?.cadenamiento || '',
-    fin: puntos[puntos.length - 1]?.cadenamiento || '',
+    inicio: conCad[0].cadenamiento!,
+    fin: conCad[conCad.length - 1].cadenamiento!,
   }
 }
 
@@ -2042,7 +2046,7 @@ export function ModuloMateriales() {
 
   return (
     <ScrollArea className="h-[calc(100vh-220px)]">
-      <div className="space-y-4 pr-2">
+      <div className="space-y-4 pr-2" lang="es" spellCheck>
         {/* Encabezado */}
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="flex items-center justify-between gap-3 py-4">

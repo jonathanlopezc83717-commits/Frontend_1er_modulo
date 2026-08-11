@@ -330,7 +330,7 @@ export function extraerValor(punto: unknown, campo: string): string {
 
   switch (campo) {
     case 'clave':
-      return String(p.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
+      return (String(p.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || '').replace(/^\s*\d+[\s._:,)-]+/, '').trim()
     case 'fecha': {
       const nombre = String(p.carpetaPath || '')
       const match = nombre.match(/(\d{2})_(\d{2})_(\d{4})/)
@@ -1226,20 +1226,43 @@ export async function exportarExcelFicha(
       const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg'
       const dim = await obtenerDimensionesImagen(dataUrl)
 
+      // Ancho disponible del span de columnas (combinadas o no)
       const segWpx = anchoSegmentoPx(col, colSpan)
-      const rowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
-      const segHpx = rowHeightPx * rowSpan
-      const fit = calcularAjusteContain(dim.w, dim.h, segWpx, segHpx)
-      // Escalado AJUSTABLE: la imagen se agranda y se re-centra, sin deformarla
-      // (w y h escalan igual → se conserva la relación de aspecto).
-      const ESCALA_IMAGEN = 1.2
-      const imgW = fit.w * ESCALA_IMAGEN
-      const imgH = fit.h * ESCALA_IMAGEN
 
-      // Re-centrado dentro del recuadro para el nuevo tamaño
+      // Ajustar por ANCHO: la imagen ocupa el ancho de las columnas sin deformarse.
+      // El alto se deriva del aspect ratio. NUNCA sobresale horizontalmente.
+      const scale = segWpx / dim.w
+      let imgW = segWpx
+      let imgH = dim.h * scale
+
+      const currentRowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
+
+      if (rowSpan < 1) {
+        // Logos/fracciones: contener en la fracción de fila, SIN crecer la fila
+        const maxHpx = currentRowHeightPx * rowSpan
+        if (imgH > maxHpx) {
+          const s = maxHpx / imgH
+          imgW *= s
+          imgH *= s
+        }
+      } else {
+        // Croquis/evidencias: CRECE la fila para que entre la imagen completa
+        const segHpx = currentRowHeightPx * rowSpan
+        if (imgH > segHpx) {
+          ws.getRow(row + 1).height = imgH / PX_POR_PUNTO_FILA
+        }
+      }
+
+      // Altura final de la fila (posiblemente crecida)
+      const finalRowHeightPx = (ws.getRow(row + 1).height || 15) * PX_POR_PUNTO_FILA
+      const finalSegHpx = finalRowHeightPx * (rowSpan < 1 ? rowSpan : 1)
+
+      // Centrar dentro del recuadro: horizontal en el span de columnas,
+      // vertical en la fila. Math.max evita offsets negativos si la imagen
+      // fuera (por redondeo) apenas mayor que el recuadro.
       const colWidthPx = (ws.getColumn(col + 1).width || 30) * PX_POR_CARACTER
-      const offsetCol = (segWpx - imgW) / 2 / colWidthPx
-      const offsetRow = (segHpx - imgH) / 2 / rowHeightPx
+      const offsetCol = Math.max(0, (segWpx - imgW) / 2 / colWidthPx)
+      const offsetRow = Math.max(0, (finalSegHpx - imgH) / 2 / finalRowHeightPx)
 
       const id = workbook.addImage({ base64, extension: ext })
       ws.addImage(id, {
@@ -1310,8 +1333,8 @@ export async function exportarExcelFicha(
 
         if (imgSrc) {
           // Sin coverRatio: la imagen se muestra COMPLETA sin recortar.
-          // calcularAjusteContain dentro de addImageContain garantiza que
-          // se vea entera sin deformarse, ajustándose al recuadro disponible.
+          // addImageContain ajusta por ancho y crece la fila si hace falta,
+          // centrando dentro del span de columnas.
           await addImageContain(imgSrc, startCol, rowNumber - 1, colsPorImagen, 1)
         }
       }
@@ -1997,7 +2020,10 @@ export function ModuloMateriales() {
   const handleExportarTodo = async () => {
     setExportando(true)
     const nombreCarpeta = (punto?.nombre || 'punto').replace(/^\s*\d+[\s._:,)-]+/, '').trim()
-    const nombre = `${punto?.numeroSerie ?? ''}. ${nombreCarpeta}`.replace(/[\\/:*?"<>|]/g, '').trim()
+    // Numeración por posición en el orden actual de puntos (igual que el batch de fichas).
+    const posicion = store.getState().puntos.findIndex(p => p.id === punto?.id)
+    const numero = posicion >= 0 ? posicion + 1 : (punto?.numeroSerie ?? '')
+    const nombre = `${numero}. ${nombreCarpeta}`.replace(/[\\/:*?"<>|]/g, '').trim()
     try {
       await exportarPdfFicha(valores, imagenes, nombre, {
         quitarFondoLogos,

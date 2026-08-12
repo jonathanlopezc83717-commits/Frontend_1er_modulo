@@ -61,12 +61,14 @@ export function HistorialObras() {
   }
 
   const handleRestaurar = async (id: string) => {
-    const confirmar = window.confirm('Se reemplazara el estado actual por esta copia guardada. ¿Deseas continuar?')
+    const nombre = estadosGuardados.find((e) => e.id === id)?.descripcion?.trim()
+    const etiqueta = nombre ? `“${nombre}”` : 'esta copia'
+    const confirmar = window.confirm(`Se reemplazará el estado actual por ${etiqueta}. ¿Deseas continuar?`)
     if (!confirmar) return
 
     const restaurado = await restaurarEstadoGuardado(id)
     if (restaurado) {
-      alert('Estado restaurado correctamente')
+      alert(`Estado ${etiqueta} restaurado correctamente`)
     } else {
       alert('No se pudo restaurar el estado seleccionado')
     }

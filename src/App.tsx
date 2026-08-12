@@ -69,12 +69,13 @@ function App() {
   const confirmarRecarga = async () => {
     if (!estadoNubeSeleccionado) return
     const id = estadoNubeSeleccionado
+    const nombre = estadosNubeLista.find((e) => e.id === id)?.descripcion?.trim()
     setMostrarDialogoRecarga(false)
     setEstadosNubeLista([])
     setEstadoNubeSeleccionado(null)
     const ok = await cargarEstadoPorIdDesdeSupabase(id)
     if (ok) {
-      toast.success('Estado cargado desde la nube')
+      toast.success(nombre ? `Estado “${nombre}” cargado` : 'Estado cargado desde la nube')
     } else {
       toast.error('No se pudo cargar el estado seleccionado')
     }

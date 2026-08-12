@@ -350,33 +350,31 @@ function estadoGuardadoFromDB(db: EstadoAppSnapshotDB): EstadoGuardado {
 async function dataUrlAArchivoStorage(dataUrl: string, prefix = 'snapshots'): Promise<string> {
   if (!dataUrl.startsWith('data:image')) return dataUrl
 
-  const [header, base64] = dataUrl.split(',')
-  if (!base64) return ''
-
-  const mime = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg'
+  const mime = dataUrl.match(/^data:([^;]+)/)?.[1] || 'image/jpeg'
   const extension = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg'
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-
   const fileName = `${prefix}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`
-  const { error } = await supabase.storage
-    .from('images')
-    .upload(fileName, new Blob([bytes], { type: mime }), {
-      contentType: mime,
-      upsert: false,
-    })
 
-  if (error) {
-    console.warn('No se pudo subir imagen a Storage:', error)
+  try {
+    const blob = await (await fetch(dataUrl)).blob()
+
+    const { error } = await supabase.storage
+      .from('images')
+      .upload(fileName, blob, {
+        contentType: mime,
+        upsert: false,
+      })
+
+    if (error) {
+      console.warn('No se pudo subir imagen a Storage:', error)
+      return ''
+    }
+
+    const { data } = supabase.storage.from('images').getPublicUrl(fileName)
+    return data.publicUrl
+  } catch (error) {
+    console.warn('Error procesando data URL para Storage:', error)
     return ''
   }
-
-  const { data } = supabase.storage.from('images').getPublicUrl(fileName)
-  return data.publicUrl
 }
 
 async function prepararValorParaNube(valor: unknown): Promise<unknown> {

@@ -1396,7 +1396,7 @@ function registrarFinOperacion(): void {
 export function ModuloMateriales() {
   const punto = useAppSelector((s) => {
     const p = s.puntoActivo
-    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre } : null
+    return p ? { id: p.id, numeroSerie: p.numeroSerie, nombre: p.nombre, carpetaPath: p.carpetaPath } : null
   }, shallow)
   // Las evidencias/croquis se alimentan del análisis (otro slice). Suscripción
   // estrecha: solo re-renderiza cuando cambia el análisis, no en cada edición.
@@ -1428,6 +1428,8 @@ export function ModuloMateriales() {
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const puntoIdAnteriorRef = useRef<string | null>(null)
   const autocompletarPrevRef = useRef<string | null>(null)
+  const croquisFolderRef = useRef<File[]>([])
+  const croquisInputRef = useRef<HTMLInputElement>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
   // (selector estrecho sin moduloData); depende solo del id del punto.
@@ -2059,6 +2061,58 @@ export function ModuloMateriales() {
     })
   }
 
+  /** Busca en una lista de archivos el croquis cuyo nombre (sin extensión) coincide
+   *  con el de la carpeta. Acepta match exacto o sufijos como _p1, _p2 (múltiples páginas). */
+  const buscarCroquisEnLista = (files: File[], nombre: string): File | undefined => {
+    const EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
+    const target = nombre.trim().toLowerCase()
+    return files.find(f => {
+      const lower = f.name.toLowerCase()
+      const ext = EXTS.find(e => lower.endsWith(e))
+      if (!ext) return false
+      const base = lower.slice(0, lower.length - ext.length).trim()
+      return base === target || base.startsWith(target + '_')
+    })
+  }
+
+  /** Busca y adjunta el croquis del punto actual desde la carpeta cacheada.
+   *  Empareja por el nombre ORIGINAL de la carpeta (carpetaPath), no por el nombre
+   *  limpio/renumerado del punto — los archivos de croquis se nombran como la carpeta original. */
+  const handleBuscarCroquis = async () => {
+    const carpetaOriginal = (punto?.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
+    if (!carpetaOriginal) {
+      toast.info('El punto no tiene carpeta original para buscar el croquis')
+      return
+    }
+    if (croquisFolderRef.current.length > 0) {
+      const encontrado = buscarCroquisEnLista(croquisFolderRef.current, carpetaOriginal)
+      if (encontrado) {
+        await cargarImagen('croquis', encontrado)
+        toast.success(`Croquis cargado: ${encontrado.name}`)
+      } else {
+        toast.info(`No se encontró croquis para "${carpetaOriginal}" en la carpeta seleccionada`)
+      }
+      return
+    }
+    croquisInputRef.current?.click()
+  }
+
+  const handleSeleccionarCarpetaCroquis = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const lista = Array.from(files)
+    croquisFolderRef.current = lista
+    const carpetaOriginal = (punto?.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
+    const encontrado = buscarCroquisEnLista(lista, carpetaOriginal)
+    if (encontrado) {
+      await cargarImagen('croquis', encontrado)
+      toast.success(`Croquis cargado: ${encontrado.name}`)
+    } else {
+      toast.info(`No se encontró croquis para "${carpetaOriginal}" entre ${lista.length} archivos`)
+    }
+    e.target.value = ''
+  }
+
   if (!punto) {
     return (
       <Card>
@@ -2103,6 +2157,13 @@ export function ModuloMateriales() {
                 <CardTitle>Formato LMT-T11-02</CardTitle>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={croquisInputRef}
+                  type="file"
+                  {...({ webkitdirectory: 'true', directory: 'true' } as Record<string, string>)}
+                  className="hidden"
+                  onChange={handleSeleccionarCarpetaCroquis}
+                />
                 <MenuAcciones label="Más acciones">
                   {close => (
                     <>
@@ -2123,6 +2184,10 @@ export function ModuloMateriales() {
                       <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setEditarEtiquetasAbierto(true); close() }}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { handleBuscarCroquis(); close() }} title="Busca el croquis por nombre del punto en una carpeta de croquis">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Buscar croquis
                       </Button>
                       <Button size="sm" className="w-full justify-start" onClick={() => { handleExportarTodo(); close() }} disabled={exportando}>
                         <FileText className="mr-2 h-4 w-4" />

@@ -722,13 +722,20 @@ export async function sincronizarPuntos(
 
     const guardados = data?.guardados ?? 0
     const errores = data?.errores ?? 0
+    const fallidos = data?.detalles?.filter((d) => !d.success) ?? []
+    if (fallidos.length > 0) {
+      console.error('sincronizarPuntos: puntos que fallaron:', fallidos)
+    }
     opciones?.onLote?.(puntos.length, puntos.length)
 
+    const primerError = fallidos[0]?.error
     return {
       success: errores === 0,
       guardados,
       errores,
-      error: errores > 0 ? `${errores} puntos no pudieron guardarse` : undefined,
+      error: errores > 0
+        ? `${errores} punto(s) no pudieron guardarse${primerError ? `: ${primerError}` : ''}`
+        : undefined,
     }
   } catch (error) {
     opciones?.onLote?.(puntos.length, puntos.length)

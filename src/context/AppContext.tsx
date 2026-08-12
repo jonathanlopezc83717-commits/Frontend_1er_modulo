@@ -310,13 +310,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // NUEVAS FUNCIONES PARA SUPABASE
 
-  const sincronizarConSupabase = useCallback(async () => {
+  const sincronizarConSupabase = useCallback(async (descripcion?: string) => {
+    const toastId = toast.loading('Sincronizando con la nube...')
     try {
       const puntos = appStore.getState().puntos
-      const copiaManual = crearCopiaSeguridad('manual', 'Estado guardado manualmente')
+      const titulo = descripcion?.trim() || 'Estado guardado manualmente'
+      const copiaManual = crearCopiaSeguridad('manual', titulo)
       const total = puntos.length
-      const toastId = toast.loading('Sincronizando con la nube...', {
-        description: `0 / ${total} puntos`,
+
+      toast.loading('Sincronizando con la nube...', {
+        id: toastId,
+        description: total > 0 ? `0 / ${total} puntos` : 'Guardando estado',
       })
 
       // Sincronizar puntos y snapshot en paralelo: son independientes entre sí
@@ -345,9 +349,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (result.success) {
-        toast.success('Sincronización completada', {
+        toast.success(`Estado “${titulo}” sincronizado`, {
           id: toastId,
-          description: `${result.guardados} puntos guardados`,
+          description: total > 0 ? `${result.guardados} puntos guardados` : 'Estado guardado',
         })
         return { success: true, message: `${result.guardados} puntos sincronizados correctamente` }
       } else {
@@ -358,6 +362,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, message: result.error || 'Error en sincronización' }
       }
     } catch (error) {
+      toast.error('Error al sincronizar con la nube', {
+        id: toastId,
+        description: String(error),
+      })
       return { success: false, message: String(error) }
     }
   }, [crearCopiaSeguridad, appStore])

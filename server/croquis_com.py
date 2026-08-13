@@ -21,14 +21,18 @@ Config (env):  CROQUIS_SIZE (lado de la ventana en unidades del DWG, def 200),
 """
 
 import csv
+import json
 import os
+import re
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 import openpyxl
 import pythoncom
 import pywintypes
+import utm
 import win32com.client
 import win32con
 import win32gui
@@ -404,9 +408,13 @@ def capturar_croquis(
 
 
 def resolver_coords(supabase_url: str, supabase_key: str, codigo: int):
-    """(x, y) del punto desde Supabase por numero_serie (join a coordenadas_gps).
+    """(x, y) del punto desde Supabase convertidas a UTM metros (unidades del DWG).
 
-    Devuelve (coordenada_x, coordenada_y) en unidades del dibujo o None.
+    coordenadas_gps guarda lat/lon WGS84 crudo (coordenada_x=longitud,
+    coordenada_y=latitud); el plano esta en UTM, asi que se convierte antes
+    de devolver (easting, northing) o None.
+    ponytail: zona UTM auto-detectada por punto (igual que src/lib/utm.ts);
+    si el proyecto cruza un huso, fijar zona explicita en utm.from_latlon.
     """
     url = (
         f"{supabase_url.rstrip('/')}/rest/v1/puntos_ferroviarios"
@@ -425,11 +433,13 @@ def resolver_coords(supabase_url: str, supabase_key: str, codigo: int):
         data = json.load(r)
     if not data:
         return None
-    coords = data[0].get("coordenadas_gps") or []
-    if not coords:
+    c = data[0].get("coordenadas_gps")
+    if not c:
         return None
-    c = coords[0]
-    return float(c["coordenada_x"]), float(c["coordenada_y"])
+    if isinstance(c, list):
+        c = c[0]
+    easting, northing, _, _ = utm.from_latlon(float(c["coordenada_y"]), float(c["coordenada_x"]))
+    return float(easting), float(northing)
 
 
 def extraer_codigo(ruta: str) -> int | None:
@@ -499,11 +509,11 @@ def _leer_centro(carpeta_punto):
 
 
 def _leer_puntos(carpeta_punto, max_n=0):
-    """Lista de (x, y, etiqueta) del primer .xlsx o .csv de la carpeta.
+    """Lista de (x=Este, y=Norte, etiqueta) del primer .xlsx o .csv de la carpeta.
 
-    Recorre TODAS las filas con coords B/C numericas (no solo la primera).
-    Etiqueta = "p{N}" (1-based). max_n=0 = sin tope. Mismo parseo que
-    _leer_centro pero multiple. Vacio si no hay archivo o no hay filas validas.
+    Formato: col B=Norte (Y), col C=Este (X). Devuelve (X=Este, Y=Norte) para
+    ZoomWindow en planos UTM. Recorre TODAS las filas con coords B/C numericas.
+    Etiqueta = "p{N}" (1-based). max_n=0 = sin tope. Vacio si no hay archivo valido.
     """
     archivos = sorted(f for f in os.listdir(carpeta_punto)
                       if f.lower().endswith((".xlsx", ".csv")))
@@ -521,7 +531,7 @@ def _leer_puntos(carpeta_punto, max_n=0):
         for i, fila in enumerate(filas, 1):
             if len(fila) >= 3:
                 try:
-                    out.append((float(fila[1]), float(fila[2]), f"p{i}"))
+                    out.append((float(fila[2]), float(fila[1]), f"p{i}"))
                 except (TypeError, ValueError):
                     continue
             if max_n and len(out) >= max_n:
@@ -533,8 +543,8 @@ def _leer_puntos(carpeta_punto, max_n=0):
         r, sin_data = 1, 0
         while sin_data < 5 and (not max_n or len(out) < max_n):
             try:
-                x = float(ws[f"B{r}"].value)
-                y = float(ws[f"C{r}"].value)
+                x = float(ws[f"C{r}"].value)
+                y = float(ws[f"B{r}"].value)
                 out.append((x, y, f"p{r}"))
                 sin_data = 0
             except (TypeError, ValueError):
@@ -545,6 +555,56 @@ def _leer_puntos(carpeta_punto, max_n=0):
         return out
     finally:
         wb.close()
+
+
+def _leer_coord_kml(carpeta_punto):
+    """(lon, lat) de la primera coordenada del primer .kmz/.kml de la carpeta, o None.
+
+    KMZ = zip con un .kml dentro; ambos exponen <coordinates>lon,lat,elev ...>."""
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    arcs = sorted(f for f in os.listdir(carpeta_punto)
+                  if f.lower().endswith((".kmz", ".kml")))
+    if not arcs:
+        return None
+    p = os.path.join(carpeta_punto, arcs[0])
+    try:
+        if p.lower().endswith(".kmz"):
+            with zipfile.ZipFile(p) as z:
+                nombre = next((n for n in z.namelist() if n.lower().endswith(".kml")), None)
+                if not nombre:
+                    return None
+                tree = ET.parse(z.open(nombre))
+        else:
+            tree = ET.parse(p)
+    except (OSError, ET.ParseError):
+        return None
+    el = tree.find(".//{*}coordinates")
+    if el is None or not (el.text or "").strip():
+        return None
+    try:
+        lon, lat, *_ = el.text.strip().split()[0].split(",")
+        return float(lon), float(lat)
+    except (ValueError, IndexError):
+        return None
+
+
+def resolver_punto_carpeta(carpeta_punto, max_n=1):
+    """Lista de (x=Este, y=Norte, etiqueta) para una carpeta de punto.
+
+    1) CSV/XLSX de la carpeta (cols B=Norte, C=Este) si existe.
+    2) Si no, primer coordenada del .kmz/.kml convertida a UTM metros.
+    Vacio si no hay fuente valida."""
+    pts = _leer_puntos(carpeta_punto, max_n)
+    if pts:
+        return pts
+    ll = _leer_coord_kml(carpeta_punto)
+    if not ll:
+        return []
+    lon, lat = ll
+    e, n, _, _ = utm.from_latlon(lat, lon)
+    return [(float(e), float(n), "p1")]
 
 
 def _elegir_puntos(raiz):

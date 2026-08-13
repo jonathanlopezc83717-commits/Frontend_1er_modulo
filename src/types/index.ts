@@ -52,6 +52,7 @@ export interface ContextoAnalisis {
   categoria?: string
   nomenclaturas?: string[]
   materiales?: string
+  correcciones?: string[]
 }
 
 // Tipos para el historial de Supabase
@@ -188,6 +189,8 @@ export interface PuntoFerroviario {
         objetos: string[]
       }>
       descripcionGeneral?: string
+      descripcionOriginal?: string
+      correcciones?: string[]
     }
     georeferencia?: {
       coordenadas?: { x: number; y: number; z: number }
@@ -374,7 +377,7 @@ export const MODULOS: ModuloConfig[] = [
   { id: 'nomenclaturas', nombre: 'Nomenclaturas', descripcion: 'Códigos y nomenclaturas registradas', icono: 'Tag', componente: 'ModuloNomenclaturas' },
 ]
 
-export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o'
+export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o-mini'
 export const MAX_IMAGES = 4
 export const DEBOUNCE_MS = 500
 export const MAX_VERSIONES_PUNTO = 3

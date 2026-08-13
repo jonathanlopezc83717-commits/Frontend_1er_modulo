@@ -4,8 +4,8 @@ Evita el cuelgue de arrancar AutoCAD en frio dentro del mainloop de Tkinter
 (que ademas oculta el progreso: el cmd se veia negro). Aqui los pickers se
 cierran antes de tocar COM, y el progreso se imprime al cmd (visible siempre).
 
-Reutiliza conectar_autocad / capturar_croquis / _leer_puntos / _elegir_puntos
-de croquis_com.py (sin duplicar logica).
+Reutiliza conectar_autocad / capturar_croquis / extraer_codigo /
+resolver_coords de croquis_com.py (sin duplicar logica).
 
 Uso:
   python croquis_batch_launcher.py            # pickers manuales
@@ -25,7 +25,7 @@ _spec.loader.exec_module(cc)
 conectar_autocad = cc.conectar_autocad
 capturar_croquis = cc.capturar_croquis
 _anadir_support_path = cc._anadir_support_path
-_leer_puntos = cc._leer_puntos
+resolver_punto_carpeta = cc.resolver_punto_carpeta
 _fmt_dur = cc._fmt_dur
 
 
@@ -41,7 +41,7 @@ def _seleccionar_puntos(parent, raiz):
     if not subdirs:
         return []
     top = tk.Toplevel(parent)
-    top.title("3/3 Selecciona carpeta(s) de punto")
+    top.title("3/4 Selecciona carpeta(s) de punto")
     top.attributes("-topmost", True)
     tk.Label(top, text=f"Subcarpetas de:\n{raiz}").pack(anchor="w", padx=8, pady=4)
     lb = tk.Listbox(top, selectmode="multiple", width=64, height=min(24, len(subdirs)))
@@ -70,38 +70,34 @@ def _seleccionar_puntos(parent, raiz):
 
 
 def _pickers():
-    """Pickers Tkinter. Devuelve (dwg, refs, puntos, n_por_sub, output_dir) o None.
+    """Pickers Tkinter. Devuelve (dwg, refs, puntos, size, output_dir) o None.
     Usa UN SOLO root + Toplevel (crear dos tk.Tk() cuelga el mainloop).
-    Destruye el root antes de retornar (COM va despues, sin GUI viva)."""
+    Destruye el root antes de retornar (COM va despues, sin GUI viva).
+    El DWG se elige aparte de la carpeta raiz (puede estar en cualquier ruta);
+    la raiz solo agrupa las subcarpetas de puntos."""
     import tkinter as tk
-    from tkinter import filedialog, messagebox, simpledialog
+    from tkinter import filedialog, simpledialog
 
     root = tk.Tk()
     root.withdraw()
     root.attributes("-topmost", True)
 
     raiz = filedialog.askdirectory(
-        title="1/3 Carpeta RAIZ (con el DWG + subcarpetas de puntos)", parent=root)
+        title="1/4 Carpeta con subcarpetas de puntos", parent=root)
     if not raiz:
         root.destroy()
         return None
 
-    dwgs = sorted(f for f in os.listdir(raiz) if f.lower().endswith(".dwg"))
-    if not dwgs:
-        messagebox.showerror("Error", f"No hay archivo .dwg en:\n{raiz}", parent=root)
+    dwg = filedialog.askopenfilename(
+        title="2/4 Archivo DWG (plano geo-referenciado)",
+        filetypes=[("DWG", "*.dwg")], parent=root)
+    if not dwg:
         root.destroy()
         return None
-    if len(dwgs) == 1:
-        dwg = os.path.join(raiz, dwgs[0])
-    else:
-        dwg = filedialog.askopenfilename(
-            title="2/3 Elige el DWG a procesar", initialdir=raiz,
-            filetypes=[("DWG", "*.dwg")], parent=root)
-        if not dwg:
-            root.destroy()
-            return None
 
-    refs = os.path.join(raiz, "Ortomosaico")
+    refs = os.path.join(os.path.dirname(dwg), "Ortomosaico")
+    if not os.path.isdir(refs):
+        refs = os.path.join(raiz, "Ortomosaico")
     if not os.path.isdir(refs):
         refs = None
 
@@ -110,12 +106,10 @@ def _pickers():
         root.destroy()
         return None
 
-    n_por_sub = 1  # estatico: 1 punto por subcarpeta
-
     size = simpledialog.askfloat(
         "Rango de la foto (ventana)",
-        "Lado de la ventana de captura en unidades del DWG (cm).\n"
-        "200 = +-100 cm por lado (defecto).\n"
+        "Lado de la ventana de captura en unidades del DWG (m, UTM).\n"
+        "200 = +-100 m por lado (defecto).\n"
         "Mas grande = mas contexto, mas chico = mas zoom.",
         initialvalue=200.0, minvalue=1.0, maxvalue=100000.0, parent=root)
     if size is None:
@@ -126,7 +120,7 @@ def _pickers():
         title="Carpeta de SALIDA (Cancelar = junto a cada subcarpeta)",
         initialdir=raiz, parent=root)
     root.destroy()  # CERRAR Tk antes de COM
-    return dwg, refs, puntos, n_por_sub, size, (salida or None)
+    return dwg, refs, puntos, size, (salida or None)
 
 
 def main():
@@ -134,11 +128,16 @@ def main():
     sel = _pickers()
     if not sel:
         return 0
-    dwg, refs, puntos, n_por_sub, size, output_dir = sel
+    dwg, refs, puntos, size, output_dir = sel
 
     plan = []
     for pp in puntos:
-        plan.append((os.path.basename(pp), _leer_puntos(pp, n_por_sub), pp))
+        nombre = os.path.basename(pp)
+        pts = resolver_punto_carpeta(pp, 1)
+        if not pts:
+            print(f"[skip] {nombre}: sin CSV/XLSX ni KML/KMZ con coordenadas", flush=True)
+            continue
+        plan.append((nombre, pts, pp))
     total = sum(len(pts) for _, pts, _ in plan)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)

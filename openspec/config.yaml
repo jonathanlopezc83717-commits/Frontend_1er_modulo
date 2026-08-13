@@ -1,0 +1,9 @@
+version: "1.0"
+project: Frontend
+description: Analizador de Imágenes Ferroviarias — SDD change registry
+convention:
+  artifact_store: hybrid
+  language: en
+  chained_prs:
+    enabled: true
+    review_budget_lines: 800

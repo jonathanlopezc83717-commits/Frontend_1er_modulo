@@ -1,4 +1,4 @@
-// Supabase Edge Function: per-image railway analysis (gpt-4o-mini) + consolidation (gpt-4o).
+// Supabase Edge Function: per-image railway analysis (gpt-4o-mini) + consolidation (gpt-4o-mini).
 // The OPENROUTER_API_KEY lives only here, in Deno.env — never shipped to the browser.
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -14,6 +14,7 @@ interface Contexto {
   categoria?: string
   nomenclaturas?: string[]
   materiales?: string
+  correcciones?: string[]
 }
 
 interface RequestBody {
@@ -184,6 +185,11 @@ function buildPerImagePrompt(contexto?: Contexto): string {
       lines.push(`- Nomenclaturas relevantes: ${contexto.nomenclaturas.join(", ")}`)
     }
     if (contexto.materiales) lines.push(`- Materiales esperados: ${contexto.materiales}`)
+    if (contexto.correcciones && contexto.correcciones.length > 0) {
+      lines.push(
+        `- Descripciones previas corregidas por el operador (alinea tu estilo y terminología con ellas, no las copies literalmente si no corresponden): ${contexto.correcciones.map((c) => `"${c}"`).join("; ")}`
+      )
+    }
     if (lines.length > 0) {
       prompt += `\n\nContexto de la obra (úsalos para precisar el análisis):\n${lines.join("\n")}`
     }
@@ -258,7 +264,7 @@ async function consolidate(
   referer: string
 ): Promise<{ descripcionGeneral: string; usage: Usage | null }> {
   const payload = {
-    model: "openai/gpt-4o",
+    model: "openai/gpt-4o-mini",
     messages: [
       {
         role: "user",

@@ -1430,6 +1430,7 @@ export function ModuloMateriales() {
   const autocompletarPrevRef = useRef<string | null>(null)
   const croquisFolderRef = useRef<File[]>([])
   const croquisInputRef = useRef<HTMLInputElement>(null)
+  const croquisPendienteRef = useRef<'todos' | null>(null)
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
   // (selector estrecho sin moduloData); depende solo del id del punto.
@@ -2097,9 +2098,57 @@ export function ModuloMateriales() {
     croquisInputRef.current?.click()
   }
 
+  /** Busca y adjunta el croquis de TODOS los puntos desde la carpeta cacheada.
+   *  Empareja cada punto por el nombre ORIGINAL de su carpeta (carpetaPath).
+   *  Solo carga donde encuentra coincidencia; deja intactos los demas. */
+  const handleBuscarCroquisTodos = async () => {
+    if (croquisFolderRef.current.length === 0) {
+      croquisPendienteRef.current = 'todos'
+      croquisInputRef.current?.click()
+      return
+    }
+    setAplicandoGlobal(true)
+    try {
+      const todos = store.getState().puntos
+      let count = 0
+      let activeCroquis = ''
+      for (const p of todos) {
+        const carpetaOriginal = (p.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
+        if (!carpetaOriginal) continue
+        const encontrado = buscarCroquisEnLista(croquisFolderRef.current, carpetaOriginal)
+        if (!encontrado) continue
+        const preview = await leerImagen(encontrado)
+        if (!preview) continue
+        const mat = p.moduloData?.materiales as FichaFormatoData | undefined
+        const imagenes = { ...(mat?.imagenes), croquis: preview }
+        actualizarPunto(p.id, {
+          moduloData: { ...p.moduloData, materiales: { ...mat, imagenes, updatedAt: new Date().toISOString() } },
+        })
+        count++
+        if (punto && p.id === punto.id) activeCroquis = preview
+      }
+      if (activeCroquis) setImagenes(prev => ({ ...prev, croquis: activeCroquis }))
+      toast.success(`Croquis cargado en ${count} de ${todos.length} puntos`)
+    } catch (e) {
+      toast.error('No se pudo buscar croquis en todos los puntos: ' + String(e))
+    } finally {
+      setAplicandoGlobal(false)
+    }
+  }
+
+  /** Vuelve a abrir el selector de carpeta de croquis (para cambiarla). Tras
+   *  elegir, re-aplica el croquis a TODOS los puntos desde la nueva carpeta. */
+  const handleRecargarCarpetaCroquis = () => {
+    croquisPendienteRef.current = 'todos'
+    croquisInputRef.current?.click()
+  }
+
   const handleSeleccionarCarpetaCroquis = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files || files.length === 0) return
+    if (!files || files.length === 0) {
+      croquisPendienteRef.current = null
+      return
+    }
     const lista = Array.from(files)
     croquisFolderRef.current = lista
     const carpetaOriginal = (punto?.carpetaPath || '').split(/[\\/]/).filter(Boolean).pop() || ''
@@ -2111,6 +2160,10 @@ export function ModuloMateriales() {
       toast.info(`No se encontró croquis para "${carpetaOriginal}" entre ${lista.length} archivos`)
     }
     e.target.value = ''
+    if (croquisPendienteRef.current === 'todos') {
+      croquisPendienteRef.current = null
+      await handleBuscarCroquisTodos()
+    }
   }
 
   if (!punto) {
@@ -2185,10 +2238,6 @@ export function ModuloMateriales() {
                         <Pencil className="mr-2 h-4 w-4" />
                         Editar
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { handleBuscarCroquis(); close() }} title="Busca el croquis por nombre del punto en una carpeta de croquis">
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Buscar croquis
-                      </Button>
                       <Button size="sm" className="w-full justify-start" onClick={() => { handleExportarTodo(); close() }} disabled={exportando}>
                         <FileText className="mr-2 h-4 w-4" />
                         {exportando ? 'Exportando...' : 'PDF + Excel'}
@@ -2215,6 +2264,32 @@ export function ModuloMateriales() {
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         {aplicandoGlobal ? 'Aplicando...' : 'Rellenar todos'}
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { handleBuscarCroquis(); close() }} title="Busca el croquis del punto actual por nombre en la carpeta de croquis">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Buscar croquis
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={aplicandoGlobal}
+                        onClick={() => { handleBuscarCroquisTodos(); close() }}
+                        title="Busca el croquis de TODOS los puntos por nombre en la carpeta de croquis"
+                      >
+                        <MapPin className="mr-2 h-4 w-4" />
+                        {aplicandoGlobal ? 'Cargando...' : 'Buscar croquis todos'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={aplicandoGlobal}
+                        onClick={() => { handleRecargarCarpetaCroquis(); close() }}
+                        title="Vuelve a seleccionar la carpeta de croquis y re-aplica el croquis a todos los puntos"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Recargar carpeta
                       </Button>
                     </>
                   )}

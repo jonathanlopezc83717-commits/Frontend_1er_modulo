@@ -91,6 +91,10 @@ function derivarContexto(moduloData: Record<string, unknown> | undefined): Conte
   const ficha = moduloData.ficha as Record<string, unknown> | undefined
   const cat = ficha?.categoria
   if (typeof cat === 'string' && cat.trim()) ctx.categoria = cat
+  const ana = moduloData.analisis as { correcciones?: string[] } | undefined
+  const corrs = ana?.correcciones
+    ?.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+  if (corrs && corrs.length > 0) ctx.correcciones = corrs
   return ctx
 }
 
@@ -135,6 +139,8 @@ export function ModuloAnalisis() {
   const [mostrarGaleria, setMostrarGaleria] = useState(false)
   const isAnalyzingRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const descripcionAIRef = useRef('')
+  const correccionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Verificar si ya existe análisis guardado
   const tieneAnalisisGuardado = punto?.analisis?.results && punto.analisis.results.length > 0
@@ -169,6 +175,8 @@ export function ModuloAnalisis() {
       if (data.descripcionGeneral) {
         setDescripcionGeneral(data.descripcionGeneral)
       }
+
+      descripcionAIRef.current = data.descripcionOriginal ?? ''
     } else {
       setSelectedImages([])
       setAnalysisResults([])
@@ -178,6 +186,7 @@ export function ModuloAnalisis() {
       setResultadosPorImagen([])
       setDescripcionGeneral('')
       setError(null)
+      descripcionAIRef.current = ''
     }
   }, [punto?.id, store])
 
@@ -287,11 +296,13 @@ export function ModuloAnalisis() {
               imageUrls,
               resultadosPorImagen: mappedResultados,
               descripcionGeneral: result.descripcionGeneral,
+              descripcionOriginal: consolidated.description,
               modelUsed: result.modeloUsado,
               analyzedAt: new Date().toISOString(),
             },
           },
         })
+        descripcionAIRef.current = consolidated.description
 
         try {
           await guardarAnalisisDB(punto.id, consolidated, imageUrls)
@@ -372,6 +383,20 @@ export function ModuloAnalisis() {
         },
       },
     })
+
+    // Captura con debounce de la corrección a la descripción para alimentar
+    // el contexto de futuros reconocimientos (solo si difiere del original de la IA).
+    if (correccionTimerRef.current) clearTimeout(correccionTimerRef.current)
+    correccionTimerRef.current = setTimeout(() => {
+      const original = descripcionAIRef.current.trim()
+      const txt = result.description.trim()
+      if (!original || !txt || txt === original) return
+      const m = store.getState().puntoActivo?.moduloData
+      const prev = Array.from(new Set([...(m?.analisis?.correcciones ?? []), txt])).slice(-20)
+      actualizarPunto(punto.id, {
+        moduloData: { ...m, analisis: { ...m?.analisis, correcciones: prev } },
+      })
+    }, 1500)
   }
 
   // Cargar fotos desde la carpeta importada

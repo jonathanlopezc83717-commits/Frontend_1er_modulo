@@ -5,6 +5,21 @@
 // Tipos de modelo de IA
 export type ModelId = 'openai/gpt-4o' | 'openai/gpt-4o-mini'
 
+// ============ AUTH / PERFILES (login-multiproyecto) ============
+
+export type RolUsuario = 'administrador' | 'general' | 'usuario'
+
+export interface Perfil {
+  id: string
+  email: string
+  nombre: string | null
+  rol: RolUsuario
+  debe_cambiar_password: boolean
+  created_at: string
+  updated_at: string
+}
+
+
 export interface AIModel {
   id: ModelId
   name: string

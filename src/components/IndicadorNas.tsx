@@ -15,7 +15,6 @@ import { FileStack, RefreshCw, WifiOff } from 'lucide-react'
 
 export function IndicadorNas() {
   const store = useAppStore()
-  const conectado = Boolean(import.meta.hot)
   const [watcherActivo, setWatcherActivo] = useState(true)
   const [pendientes, setPendientes] = useState(0)
   const [recargando, setRecargando] = useState<string | null>(null)
@@ -60,7 +59,7 @@ export function IndicadorNas() {
     }
   }, [store])
 
-  useNasLive((info) => {
+  const conectado = useNasLive((info) => {
     if (info.updatedAt !== null) setWatcherActivo(true)
     setPendientes(info.pendientes)
     void procesar()

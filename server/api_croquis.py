@@ -16,7 +16,11 @@ Endpoints:
       -> abre el DWG UNA vez en Civil 3D via COM (croquis_com.py) y captura
          ZoomWindow por punto. Unico camino que sabe renderizar ortomosaicos
          ECW (matplotlib no puede). 409 si ya hay un batch en curso.
-  GET  /api/health              -> {ok, hostname, civil3d}
+  GET  /api/health              -> {ok, hostname, civil3d, nas}
+  GET  /api/nas-pending         -> pending-approval.json del watcher NAS
+  POST /api/nas-pending/ack     JSON {eventIds} -> filtra pendientes (escritura atomica)
+  GET  /api/nas-file?path=      -> sirve un archivo del NAS (anti path-traversal)
+  GET  /api/nas-stream          -> SSE `nas:eventos` con {updatedAt, pendientes}
 
 Arranque:
   uvicorn server.api_croquis:app --reload --port 8000
@@ -27,7 +31,11 @@ Dependencias:  fastapi, uvicorn, pydantic, ezdxf, matplotlib
 CORS abierto para dev local (Vite en otro puerto).
 Indice persistente:  server/.croquis_index.json
 Cache PNG:           server/.croquis_cache/
+Produccion: sirve dist/ (npm run build) y los endpoints NAS si
+NAS_WATCH_PATH esta configurado. Sin NAS_WATCH_PATH los endpoints NAS
+devuelven 503 {"error": "NAS no configurado"}.
 """
+import asyncio
 import base64
 import csv
 import importlib.util
@@ -40,11 +48,14 @@ import socket
 import sys
 import tempfile
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 _RAIZ = Path(__file__).resolve().parent
@@ -278,7 +289,8 @@ def health():
             pythoncom.CoUninitialize()
     except Exception:
         civil3d = False
-    return {"ok": True, "hostname": socket.gethostname(), "civil3d": civil3d}
+    nas = bool(_NAS_ROOT) and _NAS_ROOT.is_dir()
+    return {"ok": True, "hostname": socket.gethostname(), "civil3d": civil3d, "nas": nas}
 
 
 @app.post("/api/croquis/batch")
@@ -366,6 +378,116 @@ def croquis_batch(
 def ver_indice():
     """Inspeccion del indice actual (util para depurar desde el navegador)."""
     return _cargar_indice()
+
+
+_NAS_ENV = os.environ.get("NAS_WATCH_PATH", "").strip()
+_NAS_ROOT = Path(_NAS_ENV).resolve() if _NAS_ENV else None
+_PENDIENTES_PATH = _NAS_ROOT / ".watcher" / "pending-approval.json" if _NAS_ROOT else None
+
+
+def _nas_no_configurado() -> JSONResponse:
+    return JSONResponse(status_code=503, content={"error": "NAS no configurado"})
+
+
+def _leer_pendientes() -> dict:
+    if _PENDIENTES_PATH and _PENDIENTES_PATH.exists():
+        try:
+            return json.loads(_PENDIENTES_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {"pending": []}
+    return {"pending": [], "updatedAt": None}
+
+
+def _nas_join(rel: str) -> Optional[Path]:
+    """Une NAS_WATCH_PATH + rel a prueba de path-traversal. None si escapa de la raiz."""
+    if not _NAS_ROOT or not rel:
+        return None
+    try:
+        destino = (_NAS_ROOT / rel).resolve()
+    except OSError:
+        return None
+    if not destino.is_relative_to(_NAS_ROOT):
+        return None
+    return destino
+
+
+@app.get("/api/nas-pending")
+def nas_pending():
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+    return _leer_pendientes()
+
+
+class AckBody(BaseModel):
+    eventIds: list[str] = []
+
+
+@app.post("/api/nas-pending/ack")
+def nas_pending_ack(body: AckBody):
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+    id_set = set(body.eventIds)
+    actual = _leer_pendientes()
+    filtrados = [e for e in (actual.get("pending") or []) if e.get("eventId") not in id_set]
+    nuevo = {**actual, "updatedAt": datetime.now(timezone.utc).isoformat(), "pending": filtrados}
+    tmp = Path(str(_PENDIENTES_PATH) + ".tmp")
+    tmp.write_text(json.dumps(nuevo, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, _PENDIENTES_PATH)
+    return {"acked": len(id_set), "remaining": len(filtrados)}
+
+
+@app.get("/api/nas-file")
+def nas_file(path: str = ""):
+    abs_path = _nas_join(path) if _NAS_ROOT else None
+    if not abs_path or not abs_path.is_file():
+        return Response(status_code=404, content="Not found")
+    return FileResponse(abs_path)
+
+
+@app.get("/api/nas-stream")
+async def nas_stream():
+    """SSE `nas:eventos` con {updatedAt, pendientes}. Polling del archivo cada 2s.
+
+    El watcher reescribe pending-approval.json atomicamente (tmp + rename),
+    por eso se compara mtime+size en vez de vigilar el archivo. Sin hilos:
+    el polling vive en el generador asincrono y muere con la conexion.
+    """
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+
+    async def eventos():
+        marca = object()
+        while True:
+            firma = None
+            try:
+                st = _PENDIENTES_PATH.stat()
+                firma = (st.st_mtime_ns, st.st_size)
+            except OSError:
+                pass
+            if firma != marca:
+                marca = firma
+                data = _leer_pendientes()
+                payload = {"updatedAt": data.get("updatedAt"), "pendientes": len(data.get("pending") or [])}
+                yield f"event: nas:eventos\ndata: {json.dumps(payload)}\n\n"
+            await asyncio.sleep(2)
+
+    return StreamingResponse(
+        eventos(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+_DIST = _RAIZ.parent / "dist"
+if _DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="frontend")
+else:
+    print(
+        "AVISO: no existe dist/ — el frontend estatico no se sirve. "
+        "Ejecuta `npm run build` antes de usar este servidor en produccion. "
+        "Los endpoints /api siguen disponibles.",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

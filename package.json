@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "vite --host --open",
+    "start:prod": "node start-prod.cjs",
     "watch:nas": "node scripts/nas-watcher.mjs"
   },
   "dependencies": {

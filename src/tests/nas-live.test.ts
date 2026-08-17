@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hayEventosNuevos } from '@/lib/nas-live'
+import { hayEventosNuevos, parseNasEvento } from '@/lib/nas-live'
 import { eventosDePuntos } from '@/lib/nas-approval'
 import type { NasPendingEvent } from '@/lib/nas-approval'
 import type { PuntoFerroviario } from '@/types'
@@ -49,6 +49,25 @@ describe('eventosDePuntos', () => {
       [punto('p1', 'obra/PK-001'), punto('p2')]
     )
     expect(res).toHaveLength(0)
+  })
+})
+
+describe('parseNasEvento (payload SSE de /api/nas-stream)', () => {
+  it('parsea el payload del servidor {updatedAt, pendientes}', () => {
+    expect(parseNasEvento('{"updatedAt":"2026-01-01T00:00:00Z","pendientes":3}')).toEqual({
+      updatedAt: '2026-01-01T00:00:00Z',
+      pendientes: 3,
+    })
+  })
+
+  it('normaliza updatedAt ausente a null y pendientes ausente a 0', () => {
+    expect(parseNasEvento('{"pendientes":5}')).toEqual({ updatedAt: null, pendientes: 5 })
+    expect(parseNasEvento('{"updatedAt":"x"}')).toEqual({ updatedAt: 'x', pendientes: 0 })
+  })
+
+  it('devuelve null ante JSON invalido o no-objeto', () => {
+    expect(parseNasEvento('no-json')).toBeNull()
+    expect(parseNasEvento('42')).toBeNull()
   })
 })
 

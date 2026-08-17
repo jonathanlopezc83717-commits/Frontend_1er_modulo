@@ -5,7 +5,7 @@ import { HistorialObras } from '@/components/HistorialObras'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut } from 'lucide-react'
+import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useState, useEffect } from 'react'
 import {
@@ -20,8 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube } from '@/lib/supabase-service'
-import { MODULOS, type EstadoGuardado } from '@/types'
+import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube, guardarPuntoCompleto } from '@/lib/supabase-service'
+import { MODULOS, type EstadoGuardado, type PuntoFerroviario } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { IndicadorNas } from '@/components/IndicadorNas'
@@ -29,13 +29,15 @@ import { IndicadorNas } from '@/components/IndicadorNas'
 function App() {
   const { logout, perfil } = useAuth()
   const puntosLength = useAppSelector((s) => s.puntos.length)
+  const puntos = useAppSelector((s) => s.puntos)
   const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
   const puntoActivoNombre = useAppSelector((s) => s.puntoActivo?.nombre)
-  const { sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo } = useAppActions()
+  const { sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo, actualizarPunto } = useAppActions()
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
+  const [compactando, setCompactando] = useState(false)
 
   // Estados para el diálogo de guardado en la nube (con título)
   const [mostrarDialogoGuardar, setMostrarDialogoGuardar] = useState(false)
@@ -107,6 +109,40 @@ function App() {
   const cancelarGuardado = () => {
     setMostrarDialogoGuardar(false)
     setTituloEstado('')
+  }
+
+  const handleCompactarEspacio = async () => {
+    if (puntos.length === 0) {
+      toast.info('No hay puntos para compactar')
+      return
+    }
+    setCompactando(true)
+    const toastId = 'compactar-espacio'
+    let exitosos = 0
+    let fallidos = 0
+    const aCompactar = [...puntos]
+    try {
+      for (let i = 0; i < aCompactar.length; i++) {
+        const punto = aCompactar[i]
+        toast.loading(`Compactando ${i + 1}/${aCompactar.length}...`, { id: toastId })
+        const resultado = await guardarPuntoCompleto(punto)
+        if (resultado.success) {
+          exitosos++
+          if (resultado.moduloData) {
+            actualizarPunto(punto.id, { moduloData: resultado.moduloData as PuntoFerroviario['moduloData'] })
+          }
+        } else {
+          fallidos++
+        }
+      }
+      if (fallidos === 0) {
+        toast.success(`Compactación completa: ${exitosos} punto(s) re-guardados con imágenes en Storage`, { id: toastId })
+      } else {
+        toast.warning(`Compactación terminada: ${exitosos} OK, ${fallidos} con error`, { id: toastId })
+      }
+    } finally {
+      setCompactando(false)
+    }
   }
 
   // Atajos de teclado desktop: Ctrl/Cmd+S guarda, Ctrl/Cmd+1..9 salta a cada módulo
@@ -262,6 +298,23 @@ function App() {
                     Recargar
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">
+                  Espacio: re-guarda cada punto moviendo las imágenes incrustadas a Storage (deduplicadas) y deja en el estado local su versión en URL.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCompactarEspacio}
+                  disabled={compactando || sincronizando}
+                  className="w-full mt-2"
+                >
+                  <Archive className="w-4 h-4 mr-2" />
+                  {compactando ? 'Compactando...' : 'Compactar espacio'}
+                </Button>
               </CardContent>
             </Card>
             <Card>

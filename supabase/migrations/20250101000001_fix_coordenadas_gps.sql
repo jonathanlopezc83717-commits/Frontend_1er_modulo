@@ -202,6 +202,17 @@ ALTER TABLE materiales_punto ENABLE ROW LEVEL SECURITY;
 ALTER TABLE riesgos_punto ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambiental_punto ENABLE ROW LEVEL SECURITY;
 
+-- (idempotente: archivos previos ya crean estas policies)
+DROP POLICY IF EXISTS "Allow all" ON puntos_ferroviarios;
+DROP POLICY IF EXISTS "Allow all" ON coordenadas_gps;
+DROP POLICY IF EXISTS "Allow all" ON documentos_punto;
+DROP POLICY IF EXISTS "Allow all" ON image_analyses;
+DROP POLICY IF EXISTS "Allow all" ON fotos_punto;
+DROP POLICY IF EXISTS "Allow all" ON historial_obras;
+DROP POLICY IF EXISTS "Allow all" ON inspeccion_punto;
+DROP POLICY IF EXISTS "Allow all" ON materiales_punto;
+DROP POLICY IF EXISTS "Allow all" ON riesgos_punto;
+DROP POLICY IF EXISTS "Allow all" ON ambiental_punto;
 CREATE POLICY "Allow all" ON puntos_ferroviarios FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON coordenadas_gps FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON documentos_punto FOR ALL USING (true) WITH CHECK (true);

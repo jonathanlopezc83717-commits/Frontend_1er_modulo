@@ -23,6 +23,7 @@ export interface PuntoDB {
   estado: string
   created_at: string
   updated_at: string
+  modulo_data?: Record<string, unknown> | null
 }
 
 export interface CoordenadasDB {
@@ -99,6 +100,24 @@ function puntoToDB(punto: Omit<PuntoFerroviario, 'id' | 'numeroSerie' | 'created
     coordenada_z: (punto.moduloData?.georeferencia?.coordenadas?.z || punto.moduloData?.georeferenciacion?.coordenadas?.z) || null,
     estado: 'activo',
   }
+}
+
+function combinarModuloData(
+  guardado: Record<string, unknown> | null | undefined,
+  construido: Record<string, unknown>
+): Record<string, unknown> {
+  if (!guardado) return construido
+  const combinado: Record<string, unknown> = { ...guardado }
+  for (const [key, valor] of Object.entries(construido)) {
+    const previo = guardado[key]
+    const ambosObjetos =
+      previo && typeof previo === 'object' && !Array.isArray(previo) &&
+      valor && typeof valor === 'object' && !Array.isArray(valor)
+    combinado[key] = ambosObjetos
+      ? { ...(previo as Record<string, unknown>), ...(valor as Record<string, unknown>) }
+      : valor
+  }
+  return combinado
 }
 
 function puntoFromDB(db: PuntoDB & { coordenadas_gps?: CoordenadasDB[], documentos_punto?: DocumentoDB[], analisis_imagenes?: AnalisisDB[], fotos_punto?: FotoDB[] }): PuntoFerroviario {
@@ -188,6 +207,10 @@ function puntoFromDB(db: PuntoDB & { coordenadas_gps?: CoordenadasDB[], document
     }
   }
 
+  if (db.modulo_data) {
+    punto.moduloData = combinarModuloData(db.modulo_data, punto.moduloData) as PuntoFerroviario['moduloData']
+  }
+
   return punto
 }
 
@@ -201,6 +224,30 @@ export interface PuntoPayload {
   documentos: { nombre_archivo: string; contenido: string } | null
   analisis: { image_urls: string[]; description: string; objects: string[]; mood: string; quality: string; model_used: string } | null
   fotos: Array<{ indice: number; nombre_archivo: string; nombre_formateado: string; subcarpeta: string; preview_url: string }> | null
+}
+
+const CLAVES_PESADAS = new Set(['file', 'archivoBase64'])
+
+export async function sustituirDataUrlsEnArbol(
+  valor: unknown,
+  subir: (dataUrl: string) => Promise<string>,
+  omitir: string[] = []
+): Promise<unknown> {
+  if (typeof valor === 'string') {
+    return valor.startsWith('data:image') ? subir(valor) : valor
+  }
+  if (Array.isArray(valor)) {
+    return Promise.all(valor.map(item => sustituirDataUrlsEnArbol(item, subir, omitir)))
+  }
+  if (!valor || typeof valor !== 'object') return valor
+
+  const omitidos = new Set([...CLAVES_PESADAS, ...omitir])
+  const resultado: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(valor as Record<string, unknown>)) {
+    if (omitidos.has(key)) continue
+    resultado[key] = await sustituirDataUrlsEnArbol(item, subir, omitir)
+  }
+  return resultado
 }
 
 /**
@@ -262,14 +309,22 @@ export async function construirPayloadPunto(punto: PuntoFerroviario): Promise<Pu
     )
   }
 
+  puntoDb.modulo_data = await sustituirDataUrlsEnArbol(
+    punto.moduloData || {},
+    dataUrl => subirImagenDedup(dataUrl, `puntos/${punto.id}/modulo`),
+    ['fotosIndexadas']
+  ) as Record<string, unknown>
+
   return { punto: puntoDb, coordenadas, documentos, analisis, fotos }
 }
 
 /**
  * Guarda o actualiza un punto completo con todas sus relaciones.
- * Un único RPC transaccional (`guardar_punto_completo`).
+ * Un único RPC transaccional (`guardar_punto_completo`). Devuelve el
+ * `moduloData` ya persistido (imágenes resueltas a URLs) para que el
+ * llamador pueda sincronizar su estado local.
  */
-export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ success: boolean; error?: string }> {
+export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ success: boolean; error?: string; moduloData?: Record<string, unknown> }> {
   try {
     const payload = await construirPayloadPunto(punto)
     const { data, error } = await supabase.rpc('guardar_punto_completo', { p_payload: payload })
@@ -280,7 +335,7 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
       return { success: false, error: resultado.error || 'Error desconocido guardando el punto' }
     }
 
-    return { success: true }
+    return { success: true, moduloData: payload.punto.modulo_data || undefined }
   } catch (error) {
     console.error('Error guardando punto:', error)
     const errorMsg = error && typeof error === 'object'

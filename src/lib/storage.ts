@@ -73,7 +73,7 @@ function quitarArchivosDeSnapshots(estadosGuardados: unknown[] = []): unknown[] 
 
 function reducirValorParaLocalStorage(valor: unknown): unknown {
   if (typeof valor === 'string') {
-    if (valor.startsWith('data:') || valor.length > 10000) return ''
+    if (valor.startsWith('data:')) return ''
     return valor
   }
 

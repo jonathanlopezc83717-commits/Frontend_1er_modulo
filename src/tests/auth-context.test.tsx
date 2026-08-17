@@ -96,10 +96,10 @@ describe('AuthContext: restauración de sesión y acciones', () => {
     const montaje = montarConCallback()
     mocks.maybeSingle.mockResolvedValue({ data: hacerPerfil('u1') })
 
-    let actual: { session: Session | null; perfil: Perfil | null } | null = null
+    const capturas: Array<{ session: Session | null; perfil: Perfil | null }> = []
     function Sonda() {
       const v = useAuth()
-      actual = { session: v.session, perfil: v.perfil }
+      capturas.push({ session: v.session, perfil: v.perfil })
       return createElement('div', null)
     }
     render(createElement(AuthProvider, null, createElement(Sonda)))
@@ -108,15 +108,17 @@ describe('AuthContext: restauración de sesión y acciones', () => {
       montaje.authCallback('INITIAL_SESSION', hacerSession('u1'))
       await Promise.resolve()
     })
-    expect(actual?.session).not.toBeNull()
-    expect(actual?.perfil).not.toBeNull()
+    const conSession = capturas[capturas.length - 1]
+    expect(conSession.session).not.toBeNull()
+    expect(conSession.perfil).not.toBeNull()
 
     await act(async () => {
       montaje.authCallback('SIGNED_OUT', null)
       await Promise.resolve()
     })
-    expect(actual?.session).toBeNull()
-    expect(actual?.perfil).toBeNull()
+    const sinSession = capturas[capturas.length - 1]
+    expect(sinSession.session).toBeNull()
+    expect(sinSession.perfil).toBeNull()
   })
 
   it('login mapea cualquier error de credenciales al mensaje genérico', async () => {
@@ -163,11 +165,11 @@ describe('AuthContext: restauración de sesión y acciones', () => {
       .mockResolvedValueOnce({ data: hacerPerfil('u1', false) })
 
     let refrescar: () => Promise<void> = async () => {}
-    let perfilVisto: Perfil | null = null
+    const perfilesVistos: Array<Perfil | null> = []
     function Sonda() {
       const v = useAuth()
       refrescar = v.refrescarPerfil
-      perfilVisto = v.perfil
+      perfilesVistos.push(v.perfil)
       return createElement('div', null)
     }
     render(createElement(AuthProvider, null, createElement(Sonda)))
@@ -176,11 +178,11 @@ describe('AuthContext: restauración de sesión y acciones', () => {
       montaje.authCallback('INITIAL_SESSION', hacerSession('u1'))
       await Promise.resolve()
     })
-    expect(perfilVisto?.debe_cambiar_password).toBe(true)
+    expect(perfilesVistos[perfilesVistos.length - 1]?.debe_cambiar_password).toBe(true)
 
     await act(async () => {
       await refrescar()
     })
-    expect(perfilVisto?.debe_cambiar_password).toBe(false)
+    expect(perfilesVistos[perfilesVistos.length - 1]?.debe_cambiar_password).toBe(false)
   })
 })

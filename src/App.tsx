@@ -205,15 +205,6 @@ function App() {
             >
               <Settings className="w-4 h-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => logout()}
-              title={`Cerrar sesión${perfil ? ` (${perfil.email})` : ''}`}
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </header>
@@ -252,8 +243,8 @@ function App() {
                   Los datos se guardan automáticamente en localStorage (3 días) y en Supabase (nube).
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={handleSincronizar}
                     disabled={sincronizando}
                     className="flex-1"
@@ -261,8 +252,8 @@ function App() {
                     <Save className="w-4 h-4 mr-2" />
                     {sincronizando ? 'Sincronizando...' : 'Sincronizar'}
                   </Button>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onClick={handleRecargarClick}
                     className="flex-1"
@@ -271,6 +262,22 @@ function App() {
                     Recargar
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground truncate">
+                  Sesión: {perfil?.email || '—'}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => logout()}
+                  className="w-full mt-2 text-destructive hover:text-destructive"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar sesión
+                </Button>
               </CardContent>
             </Card>
           </div>

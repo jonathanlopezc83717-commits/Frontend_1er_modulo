@@ -3,7 +3,8 @@
 // email_confirm: true), asigna rol + debe_cambiar_password en perfiles y
 // devuelve el password temporal UNA sola vez.
 // Guards: administrador (cualquier rol), general (solo rol usuario —
-// decisión vinculante), o bootstrap con auth.users vacío (primer usuario).
+// decisión vinculante), o bootstrap con perfiles vacío (primer admin;
+// cubre también usuarios pre-existentes reseteando su password).
 // La lógica pura vive en ./guard.ts (unit-testeada desde src/tests).
 
 import { decidirInvitacion, generarPasswordTemporal, type RolUsuario } from "./guard.ts"
@@ -101,9 +102,11 @@ Deno.serve(async (req: Request) => {
     return json({ error: decision.error }, decision.status)
   }
 
-  // 4. Crear usuario con password temporal.
+  // 4. Crear usuario con password temporal. Si ya existe (DB cloud con
+  //    usuarios previos) y estamos en bootstrap, se resetea su password.
   const email = (body.email as string).trim().toLowerCase()
   const passwordTemporal = generarPasswordTemporal(12)
+  let userId: string | null = null
   const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: "POST",
     headers: {
@@ -113,40 +116,63 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({ email, password: passwordTemporal, email_confirm: true }),
   })
-  const createRaw = (await createRes.json().catch(() => null)) as Record<string, unknown> | null
-  if (!createRes.ok) {
+  if (createRes.ok) {
+    const createRaw = (await createRes.json().catch(() => null)) as Record<string, unknown> | null
+    const usuario = (createRaw?.user ?? createRaw) as { id?: string } | null
+    userId = usuario?.id ?? null
+  } else {
+    const createRaw = (await createRes.json().catch(() => null)) as Record<string, unknown> | null
     const msg =
       (createRaw?.msg as string | undefined) ||
       (createRaw?.error as string | undefined) ||
       `GoTrue HTTP ${createRes.status}`
-    if (createRes.status === 422 || /already exists|already registered/i.test(msg)) {
-      return json({ error: "Ya existe un usuario con ese email" }, 409)
+    const yaExiste = createRes.status === 422 || /already exists|already registered/i.test(msg)
+    if (!yaExiste || !decision.bootstrap) {
+      return json({ error: yaExiste ? "Ya existe un usuario con ese email" : msg }, yaExiste ? 409 : 502)
     }
-    return json({ error: msg }, 502)
-  }
-  const usuario = (createRaw?.user ?? createRaw) as { id?: string } | null
-  const userId = usuario?.id
-  if (!userId) {
-    return json({ error: "GoTrue no devolvió el id del usuario creado" }, 502)
-  }
-
-  // 5. perfiles: flag de cambio + rol asignado.
-  //    Bootstrap: no se toca rol (el trigger ya dejó administrador).
-  const patch: Record<string, unknown> = { debe_cambiar_password: true }
-  if (!decision.bootstrap) patch.rol = decision.rol
-  const patchRes = await fetch(
-    `${supabaseUrl}/rest/v1/perfiles?id=eq.${encodeURIComponent(userId)}`,
-    {
-      method: "PATCH",
+    // Bootstrap con usuario pre-existente (sin perfil): localizar y resetear password.
+    const listRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1000`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+    })
+    if (!listRes.ok) return json({ error: "No se pudo listar usuarios existentes" }, 502)
+    const lista = (await listRes.json().catch(() => null)) as { users?: Array<{ id: string; email: string }> } | null
+    const existente = (lista?.users ?? []).find((u) => (u.email || "").toLowerCase() === email)
+    if (!existente) return json({ error: "Usuario existente no encontrado por email" }, 502)
+    const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${existente.id}`, {
+      method: "PUT",
       headers: {
         apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
         "Content-Type": "application/json",
-        Prefer: "return=minimal",
       },
-      body: JSON.stringify(patch),
-    }
-  )
+      body: JSON.stringify({ password: passwordTemporal, email_confirm: true }),
+    })
+    if (!updateRes.ok) return json({ error: `No se pudo resetear el password: GoTrue HTTP ${updateRes.status}` }, 502)
+    userId = existente.id
+  }
+  if (!userId) {
+    return json({ error: "GoTrue no devolvió el id del usuario" }, 502)
+  }
+
+  // 5. perfiles: upsert (usuarios pre-existentes no tienen fila — el trigger
+  //    solo dispara en INSERT nuevos). Bootstrap fuerza administrador.
+  const patch: Record<string, unknown> = {
+    id: userId,
+    email,
+    debe_cambiar_password: true,
+  }
+  if (!decision.bootstrap) patch.rol = decision.rol
+  else patch.rol = "administrador"
+  const patchRes = await fetch(`${supabaseUrl}/rest/v1/perfiles`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(patch),
+  })
   if (!patchRes.ok) {
     return json({ error: "Usuario creado pero falló la asignación de rol" }, 502)
   }

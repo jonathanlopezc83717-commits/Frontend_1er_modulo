@@ -18,6 +18,8 @@ import {
 } from '@/lib/excel-sync'
 import { cargarArchivoSincronizacion, eliminarArchivoSincronizacion, guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { generarUUID } from '@/lib/utils'
+import { TablaSincronizacion } from '@/components/tabla/TablaSincronizacion'
+import { crearColumnasComparacion, crearColumnasVistaPrevia } from '@/components/tabla/columnas'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 import {
   CheckCircle2,
@@ -36,7 +38,7 @@ import {
   Tags,
   Heading,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface SincronizacionData {
   archivoNombre?: string
@@ -276,18 +278,28 @@ export function ModuloSincronizacion() {
     descargarHTML(html, nombreSalida)
   }
 
-  const editarFila = (
-    filaIndex: number,
-    campo: 'numeroPunto' | 'x' | 'y' | 'z' | 'codigo',
-    valor: string
-  ) => {
-    setFilas(prev => prev.map((f, i) => {
-      if (i !== filaIndex) return f
-      if (campo === 'numeroPunto' || campo === 'codigo') return { ...f, [campo]: valor }
-      const num = valor.trim() === '' ? 0 : Number(valor)
-      return { ...f, [campo]: Number.isFinite(num) ? num : (f[campo] as number) }
-    }))
-  }
+  const editarFila = useCallback(
+    (
+      filaIndex: number,
+      campo: 'numeroPunto' | 'x' | 'y' | 'z' | 'codigo',
+      valor: string
+    ) => {
+      setFilas(prev => prev.map((f, i) => {
+        if (i !== filaIndex) return f
+        if (campo === 'numeroPunto' || campo === 'codigo') return { ...f, [campo]: valor }
+        const num = valor.trim() === '' ? 0 : Number(valor)
+        return { ...f, [campo]: Number.isFinite(num) ? num : (f[campo] as number) }
+      }))
+    },
+    []
+  )
+
+  const columnasComparacion = useMemo(() => crearColumnasComparacion(editarFila), [editarFila])
+
+  const columnasVistaPrevia = useMemo(
+    () => (datosCSV ? crearColumnasVistaPrevia(datosCSV.encabezados) : []),
+    [datosCSV]
+  )
 
   const handleSincronizar = async () => {
     if (resultados.length === 0 || !punto) return
@@ -497,28 +509,11 @@ export function ModuloSincronizacion() {
 
             {/* Vista previa de la tabla HTML con las mismas columnas del CSV */}
             {mostrarHTML && datosCSV && datosCSV.totalFilas > 0 && (
-              <div className="rounded-lg border overflow-auto max-h-[400px]">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/60 sticky top-0">
-                    <tr>
-                      {datosCSV.encabezados.map((h, i) => (
-                        <th key={i} className="px-3 py-2 text-left font-medium whitespace-nowrap">
-                          {h || `Columna ${i + 1}`}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {datosCSV.filas.map((fila, fi) => (
-                      <tr key={fi} className="border-t">
-                        {fila.map((c, ci) => (
-                          <td key={ci} className="px-3 py-2 whitespace-nowrap">{c}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <TablaSincronizacion
+                data={datosCSV.filas}
+                columns={columnasVistaPrevia}
+                conFiltros
+              />
             )}
 
             {resultados.length > 0 && (
@@ -541,78 +536,12 @@ export function ModuloSincronizacion() {
                   )}
                 </div>
 
-                <div className="rounded-lg border overflow-auto max-h-[400px]">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/60 sticky top-0">
-                      <tr>
-                        <th className="px-2 py-2 text-left font-medium w-24">No. Punto</th>
-                        <th className="px-2 py-2 text-left font-medium">X</th>
-                        <th className="px-2 py-2 text-left font-medium w-28">Cadenamiento</th>
-                        <th className="px-2 py-2 text-left font-medium">Y</th>
-                        <th className="px-2 py-2 text-left font-medium">Z</th>
-                        <th className="px-2 py-2 text-left font-medium">Código</th>
-                        <th className="px-2 py-2 text-left font-medium">Nomenclatura</th>
-                        <th className="px-2 py-2 text-left font-medium">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {resultados.map((item) => {
-                        return (
-                          <tr key={item.filaIndex} className="border-t">
-                            <td className="px-2 py-1">
-                              <input
-                                className="w-20 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5 font-medium"
-                                value={item.fila.numeroPunto}
-                                onChange={(e) => editarFila(item.filaIndex, 'numeroPunto', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <input
-                                type="number"
-                                step="any"
-                                className="w-28 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
-                                value={item.fila.x}
-                                onChange={(e) => editarFila(item.filaIndex, 'x', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-2 py-2 font-mono text-muted-foreground">{item.fila.cadenamiento || '—'}</td>
-                            <td className="px-2 py-1">
-                              <input
-                                type="number"
-                                step="any"
-                                className="w-28 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
-                                value={item.fila.y}
-                                onChange={(e) => editarFila(item.filaIndex, 'y', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <input
-                                type="number"
-                                step="any"
-                                className="w-24 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
-                                value={item.fila.z}
-                                onChange={(e) => editarFila(item.filaIndex, 'z', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <input
-                                className="w-24 bg-transparent outline-none focus:bg-background rounded px-1 py-0.5"
-                                value={item.fila.codigo}
-                                onChange={(e) => editarFila(item.filaIndex, 'codigo', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-3 py-2">{item.nomenclatura?.definicion || '—'}</td>
-                            <td className="px-3 py-2">
-                              <Badge variant={item.nomenclatura ? 'default' : 'destructive'}>
-                                {item.nomenclatura ? 'ok' : 'nok'}
-                              </Badge>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <TablaSincronizacion
+                  data={resultados}
+                  columns={columnasComparacion}
+                  getRowId={(resultado) => String(resultado.filaIndex)}
+                  conFiltros
+                />
               </>
             )}
 

@@ -410,7 +410,7 @@ async function dataUrlAArchivoStorage(dataUrl: string, prefix = 'snapshots'): Pr
 async function prepararValorParaNube(valor: unknown): Promise<unknown> {
   if (typeof valor === 'string') {
     if (valor.startsWith('data:image')) return dataUrlAArchivoStorage(valor)
-    if (valor.startsWith('data:') || valor.length > 10000) return ''
+    if (valor.startsWith('data:')) return ''
     return valor
   }
 
@@ -425,8 +425,37 @@ async function prepararValorParaNube(valor: unknown): Promise<unknown> {
   return limpio
 }
 
+export function idsParaEliminarPorRetencion(idsRecientesAAntiguos: string[], limite = 10): string[] {
+  return idsRecientesAAntiguos.slice(limite)
+}
+
+async function aplicarRetencionSnapshots(limite = 10): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('app_state_snapshots')
+      .select('id')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    const excedentes = idsParaEliminarPorRetencion((data || []).map(fila => fila.id), limite)
+    if (excedentes.length === 0) return
+
+    const { error: errorDelete } = await supabase
+      .from('app_state_snapshots')
+      .delete()
+      .in('id', excedentes)
+
+    if (errorDelete) throw errorDelete
+  } catch (error) {
+    console.warn('No se pudo aplicar retención de snapshots:', error)
+  }
+}
+
 /**
  * Guarda una copia restaurable completa del estado en Supabase.
+ * Tras el upsert aplica retención: conserva sólo los 10 snapshots
+ * más recientes por created_at.
  */
 export async function guardarEstadoAppEnNube(estado: EstadoGuardado): Promise<{ success: boolean; error?: string }> {
   try {
@@ -442,6 +471,8 @@ export async function guardarEstadoAppEnNube(estado: EstadoGuardado): Promise<{ 
       }, { onConflict: 'id' })
 
     if (error) throw error
+
+    await aplicarRetencionSnapshots()
 
     return { success: true }
   } catch (error) {

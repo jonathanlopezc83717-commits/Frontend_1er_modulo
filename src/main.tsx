@@ -4,6 +4,8 @@ import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
 import { AppProvider } from '@/context/AppContext'
+import { AuthProvider } from '@/context/AuthContext'
+import { AuthGate } from '@/components/auth/AuthGate'
 
 // Recarga automática cuando un deploy nuevo invalida los chunks cacheados.
 // Evita bucles con una marca en sessionStorage.
@@ -43,10 +45,14 @@ if (!rootElement) {
 try {
   createRoot(rootElement).render(
     <StrictMode>
-      <AppProvider>
+      <AuthProvider>
         <Toaster position="top-right" richColors />
-        <App />
-      </AppProvider>
+        <AuthGate>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </AuthGate>
+      </AuthProvider>
     </StrictMode>,
   )
   console.log('✅ Aplicación iniciada correctamente')

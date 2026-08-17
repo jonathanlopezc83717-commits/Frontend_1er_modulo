@@ -42,13 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, nuevaSession) => {
       if (ignore) return
       setSession(nuevaSession)
-      setCargando(false)
       if (!nuevaSession) {
         setPerfil(null)
+        setCargando(false)
         return
       }
+      // cargando se mantiene true hasta resolver el perfil: evita que el
+      // gate muestre login un frame con sesión viva (o App antes de conocer
+      // debe_cambiar_password).
       const perfilCargado = await obtenerPerfil(nuevaSession.user.id)
-      if (!ignore) setPerfil(perfilCargado)
+      if (!ignore) {
+        setPerfil(perfilCargado)
+        setCargando(false)
+      }
     })
 
     return () => {

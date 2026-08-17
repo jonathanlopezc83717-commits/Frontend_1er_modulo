@@ -4,6 +4,7 @@ import type { SortKey } from '@/components/gestor-puntos-logica'
 import { procesarCarpetaPunto, buscarExcelEnRaiz, formatearNombreFoto, extraerCoordenadasKMZ, leerArchivoTXT, type DatosPuntoCarpeta, type ProgresoCarga } from '@/lib/folder-parser'
 import { guardarArchivoSincronizacion } from '@/lib/sync-file-store'
 import { procesarArchivoSincronizacion } from '@/lib/excel-sync'
+import { generarCroquisBatch, agruparPorDwg, saludCroquis, type PuntoCroquis } from '@/lib/auto-croquis'
 import { generarUUID } from '@/lib/utils'
 import { iniciarCola, marcarCarpeta, limpiarCola, leerCola, carpetasPendientes, normalizarRaiz } from '@/lib/cola-carga'
 import { toast } from 'sonner'
@@ -374,6 +375,7 @@ interface FileRouting {
 interface ResumenCarpeta extends FileRouting {
   nombre: string
   puntoId: string
+  croquis?: 'ok' | 'error' | 'pendiente'
 }
 
 interface PreviewSubcarpeta {
@@ -468,6 +470,60 @@ export function usePuntoCarpeta({
     }
   }
 
+  type ItemCroquis = PuntoCroquis & { dwg: File; puntoId: string; moduloData: Record<string, unknown> }
+
+  const aplicarCroquis = (item: ItemCroquis, resultado: string | 'pendiente' | 'error') => {
+    const ok = resultado.startsWith('data:image/')
+    if (ok) {
+      actualizarPunto(item.puntoId, {
+        moduloData: {
+          ...item.moduloData,
+          georeferencia: {
+            ...(item.moduloData.georeferencia as Record<string, unknown> | undefined),
+            croquis: resultado,
+            updatedAt: new Date().toISOString(),
+          },
+        } as PuntoFerroviario['moduloData'],
+      })
+    }
+    setResumenMultiple(prev => prev?.map(r => {
+      if (r.puntoId !== item.puntoId) return r
+      const estado: ResumenCarpeta['croquis'] = ok ? 'ok' : resultado === 'pendiente' ? 'pendiente' : 'error'
+      return { ...r, croquis: estado }
+    }) ?? prev)
+  }
+
+  const generarCroquisDeCarga = (items: ItemCroquis[]) => {
+    if (items.length === 0) return
+    void (async () => {
+      try {
+        const salud = await saludCroquis()
+        if (!salud.civil3d) throw new Error('Civil 3D no responde')
+      } catch {
+        toast.info('Croquis pendientes (API de render no disponible)')
+        items.forEach(item => aplicarCroquis(item, 'pendiente'))
+        return
+      }
+      let ok = 0
+      for (const [dwg, grupo] of agruparPorDwg(items)) {
+        let croquis = new Map<string, string>()
+        try {
+          croquis = await generarCroquisBatch(dwg, grupo.map(g => ({ clave: g.clave, x: g.x, y: g.y, size: g.size })))
+        } catch {
+          toast.info('Croquis pendientes (API de render no disponible)')
+          grupo.forEach(g => aplicarCroquis(g, 'pendiente'))
+          continue
+        }
+        for (const g of grupo) {
+          const url = croquis.get(g.clave)
+          aplicarCroquis(g, url || 'error')
+          if (url) ok++
+        }
+      }
+      if (ok > 0) toast.success(`Croquis generados: ${ok}/${items.length}`)
+    })()
+  }
+
   const handleSeleccionarCarpeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -515,14 +571,19 @@ export function usePuntoCarpeta({
           fotos: datos.fotos.length,
         })
 
-        await agregarDesdeDatos(datos)
+        const nuevoId = generarUUID()
+        const { xy, moduloData: moduloDataCreado } = await agregarDesdeDatos(datos, 1, nuevoId)
         marcarCarpeta(raizUnica, 'completada')
         limpiarCola()
         toast.success(`Carga completada: ${datos.fotos.length} fotos`)
         setMostrarRouting(true)
+        if (datos.dwg && xy) {
+          generarCroquisDeCarga([{ clave: datos.nombreCarpeta, x: xy.x, y: xy.y, dwg: datos.dwg, puntoId: nuevoId, moduloData: moduloDataCreado }])
+        }
       } else {
         iniciarCola([...grupos.keys()])
         const resumen: ResumenCarpeta[] = []
+        const itemsCroquis: ItemCroquis[] = []
         const inicio = Date.now()
         const granTotal = contarFotosImagen(files)
         let offset = 0
@@ -536,7 +597,7 @@ export function usePuntoCarpeta({
           const excelEnRaiz = buscarExcelEnRaiz(fileListFiltrada)
           if (excelEnRaiz) datos.excel = excelEnRaiz
           const nuevoId = generarUUID()
-          await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId, false)
+          const { xy, moduloData: moduloDataCreado } = await agregarDesdeDatos(datos, puntosLength + 1 + i, nuevoId, false)
           marcarCarpeta(nombreRaiz, 'completada')
           resumen.push({
             nombre: datos.nombreCarpeta,
@@ -545,7 +606,11 @@ export function usePuntoCarpeta({
             txt: !!datos.textoDocumento,
             excel: !!datos.excel,
             fotos: datos.fotos.length,
+            croquis: datos.dwg && xy ? 'pendiente' : undefined,
           })
+          if (datos.dwg && xy) {
+            itemsCroquis.push({ clave: datos.nombreCarpeta, x: xy.x, y: xy.y, dwg: datos.dwg, puntoId: nuevoId, moduloData: moduloDataCreado })
+          }
           offset += datos.fotos.length
           i++
         }
@@ -555,6 +620,7 @@ export function usePuntoCarpeta({
         limpiarCola()
         toast.success(`Carga completada: ${resumen.length} puntos · ${granTotal} fotos`)
         setMostrarRouting(true)
+        generarCroquisDeCarga(itemsCroquis)
       }
     } catch (error) {
       console.error('Error procesando carpeta:', error)
@@ -632,6 +698,7 @@ export function usePuntoCarpeta({
       }
 
       const resumen: ResumenCarpeta[] = []
+      const itemsCroquis: ItemCroquis[] = []
       const inicio = Date.now()
       const granTotal = items.reduce((n, it) => n + contarFotosImagen(it.preview.files), 0)
       let offset = 0
@@ -667,7 +734,7 @@ export function usePuntoCarpeta({
         const excelEnRaiz = buscarExcelEnRaiz(fileList)
         if (excelEnRaiz) datos.excel = excelEnRaiz
         const nuevoId = generarUUID()
-        await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false, plantilla)
+        const { xy, moduloData: moduloDataCreado } = await agregarDesdeDatos(datos, Math.max(1, item.numero), nuevoId, false, plantilla)
         resumen.push({
           nombre: datos.nombreCarpeta,
           puntoId: nuevoId,
@@ -675,7 +742,11 @@ export function usePuntoCarpeta({
           txt: !!datos.textoDocumento,
           excel: !!datos.excel,
           fotos: datos.fotos.length,
+          croquis: datos.dwg && xy ? 'pendiente' : undefined,
         })
+        if (datos.dwg && xy) {
+          itemsCroquis.push({ clave: datos.nombreCarpeta, x: xy.x, y: xy.y, dwg: datos.dwg, puntoId: nuevoId, moduloData: moduloDataCreado })
+        }
         offset += datos.fotos.length
       }
 
@@ -684,6 +755,7 @@ export function usePuntoCarpeta({
       setResumenMultiple(resumen)
       toast.success(`Carga completada: ${resumen.length} puntos · ${granTotal} fotos`)
       setMostrarRouting(true)
+      generarCroquisDeCarga(itemsCroquis)
     } catch (error) {
       console.error('Error agregando selección:', error)
       alert('Error al agregar los puntos seleccionados')
@@ -794,8 +866,9 @@ export function usePuntoCarpeta({
     }
   }
 
-  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string, dispararEdicion: boolean = true, plantillaInicial?: PlantillaLogos) => {
+  const agregarDesdeDatos = async (datos: DatosPuntoCarpeta, posicion: number = 1, id?: string, dispararEdicion: boolean = true, plantillaInicial?: PlantillaLogos): Promise<{ puntoId: string; xy?: { x: number; y: number }; moduloData: Record<string, unknown> }> => {
     const moduloData: Record<string, unknown> = {}
+    let xyPunto: { x: number; y: number } | undefined
 
     if (datos.coordenadas) {
       moduloData.georeferencia = {
@@ -850,6 +923,9 @@ export function usePuntoCarpeta({
         const filaCoincidente = filas.find((f) => f.numeroPunto === datos.nombreCarpeta || normalizar(f.numeroPunto) === nombreNorm)
           ?? filas[0]
         if (filaCoincidente?.cadenamiento) cadenamientoPunto = filaCoincidente.cadenamiento
+        if (filaCoincidente && Number.isFinite(filaCoincidente.x) && Number.isFinite(filaCoincidente.y)) {
+          xyPunto = { x: filaCoincidente.x, y: filaCoincidente.y }
+        }
       } catch {
         // si falla el parseo, el punto se crea sin cadenamiento
       }
@@ -879,6 +955,7 @@ export function usePuntoCarpeta({
 
     setDatosCarpetaPreview(null)
     if (dispararEdicion) setEditarPuntoCreado(true)
+    return { puntoId: id || '', xy: xyPunto, moduloData }
   }
 
   type DestinoCarga = { id: string; moduloData: PuntoFerroviario['moduloData'] }

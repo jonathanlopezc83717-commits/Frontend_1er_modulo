@@ -23,6 +23,7 @@ import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube } from '@/l
 import { MODULOS, type EstadoGuardado } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
+import { IndicadorNas } from '@/components/IndicadorNas'
 
 function App() {
   const puntosLength = useAppSelector((s) => s.puntos.length)
@@ -151,6 +152,7 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <IndicadorNas />
             <Button
               variant="ghost"
               className="h-9 px-2 md:gap-1.5 shrink-0"

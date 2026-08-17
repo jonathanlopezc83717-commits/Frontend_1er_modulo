@@ -12,6 +12,11 @@ Endpoints:
          renderiza y devuelve {imagen: dataURL, ruta, kb}.
   POST /api/croquis             multipart  file, x, y, ancho, alto
       -> upload directo (contrato que ya espera src/lib/dwg-croquis.ts).
+  POST /api/croquis/batch       multipart  file (un DWG) + puntos (JSON)
+      -> abre el DWG UNA vez en Civil 3D via COM (croquis_com.py) y captura
+         ZoomWindow por punto. Unico camino que sabe renderizar ortomosaicos
+         ECW (matplotlib no puede). 409 si ya hay un batch en curso.
+  GET  /api/health              -> {ok, hostname, civil3d}
 
 Arranque:
   uvicorn server.api_croquis:app --reload --port 8000
@@ -27,10 +32,14 @@ import base64
 import csv
 import importlib.util
 import json
+import math
 import os
 import re
+import shutil
+import socket
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -53,6 +62,17 @@ _INDICE_PATH = _RAIZ / ".croquis_index.json"
 _CACHE_DIR = _RAIZ / ".croquis_cache"
 _CACHE_DIR.mkdir(exist_ok=True)
 
+_BATCH_LOCK = threading.Lock()
+
+
+def _mod_croquis_com():
+    """Importa server/croquis_com.py (primitivas COM ya probadas)."""
+    if str(_RAIZ) not in sys.path:
+        sys.path.insert(0, str(_RAIZ))
+    import croquis_com
+
+    return croquis_com
+
 app = FastAPI(title="Croquis puente", version="1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -71,6 +91,13 @@ class CroquisBody(BaseModel):
     x: Optional[float] = None
     y: Optional[float] = None
     size: float = 200.0
+
+
+class PuntoBatch(BaseModel):
+    clave: str
+    x: float
+    y: float
+    size: Optional[float] = None
 
 
 def _cargar_indice() -> dict:
@@ -230,6 +257,109 @@ async def croquis_upload(
             os.unlink(tmp.name)
         except OSError:
             pass
+
+
+@app.get("/api/health")
+def health():
+    """Estado del puente: hostname (que maquina renderiza) y si Civil 3D responde por COM."""
+    civil3d = False
+    try:
+        import pythoncom
+        import win32com.client
+
+        pythoncom.CoInitialize()
+        try:
+            progid = os.environ.get("CROQUIS_PROGID", "AutoCAD.Application")
+            win32com.client.GetActiveObject(progid)
+            civil3d = True
+        except Exception:
+            civil3d = False
+        finally:
+            pythoncom.CoUninitialize()
+    except Exception:
+        civil3d = False
+    return {"ok": True, "hostname": socket.gethostname(), "civil3d": civil3d}
+
+
+@app.post("/api/croquis/batch")
+def croquis_batch(
+    file: UploadFile = File(...),
+    puntos: str = Form(...),
+):
+    """Batch de croquis via Civil 3D COM (reusa las primitivas de croquis_com.py).
+
+    Restriccion de seleccion de maquina: las referencias ECW dentro del DWG son
+    rutas absolutas que deben resolver en la maquina que corre esta API (Civil
+    3D abierto y NAS montado con la misma letra de unidad que el DWG
+    referencia). El render matplotlib de los otros endpoints NO puede dibujar
+    ECW; este endpoint si, porque captura la pantalla de Civil 3D.
+
+    Multipart: `file` = un DWG, `puntos` = JSON "[{clave,x,y,size?}]". Abre el
+    DWG una sola vez y hace ZoomWindow por punto (captura -> recorte -> PNG ->
+    dataURL). Lock secuencial en memoria: 409 si ya hay un batch en curso. Las
+    fallas por punto no abortan el batch (van a `errores`).
+    """
+    try:
+        pts = [PuntoBatch(**p) for p in json.loads(puntos)]
+    except Exception:
+        raise HTTPException(400, "`puntos` debe ser JSON [{clave,x,y,size?}]")
+    pts = [p for p in pts if p.clave and math.isfinite(p.x) and math.isfinite(p.y)]
+    if not pts:
+        raise HTTPException(400, "Sin puntos validos (clave + x/y finitos)")
+
+    if not _BATCH_LOCK.acquire(blocking=False):
+        raise HTTPException(409, "Ya hay un batch de croquis en curso")
+
+    tmp_dwg = None
+    tmp_dir = None
+    try:
+        contenido = file.file.read()
+        tmp_dwg = tempfile.NamedTemporaryFile(suffix=".dwg", delete=False)
+        tmp_dwg.write(contenido)
+        tmp_dwg.close()
+        tmp_dir = tempfile.mkdtemp(prefix="croquis_batch_")
+
+        croquis = {}
+        errores = []
+        try:
+            cc = _mod_croquis_com()
+            import pythoncom
+
+            pythoncom.CoInitialize()
+            keep_open_prev = os.environ.get("CROQUIS_KEEP_OPEN")
+            os.environ["CROQUIS_KEEP_OPEN"] = "1"
+            try:
+                acad = cc.conectar_autocad()
+                for p in pts:
+                    png = os.path.join(tmp_dir, f"{_sanitizar(p.clave)}.png")
+                    try:
+                        cc.capturar_croquis(tmp_dwg.name, p.x, p.y, png, size_cm=p.size, acad=acad)
+                        with open(png, "rb") as fh:
+                            croquis[p.clave] = "data:image/png;base64," + base64.b64encode(fh.read()).decode()
+                    except Exception as e:
+                        errores.append({"clave": p.clave, "error": str(e)})
+            finally:
+                if keep_open_prev is None:
+                    os.environ.pop("CROQUIS_KEEP_OPEN", None)
+                else:
+                    os.environ["CROQUIS_KEEP_OPEN"] = keep_open_prev
+                try:
+                    cc._com(lambda: acad.ActiveDocument.Close(False), intentos=10)
+                except Exception:
+                    pass
+                pythoncom.CoUninitialize()
+        except Exception as e:
+            raise HTTPException(500, f"Civil 3D / COM: {e}")
+        return {"croquis": croquis, "errores": errores}
+    finally:
+        _BATCH_LOCK.release()
+        if tmp_dwg:
+            try:
+                os.unlink(tmp_dwg.name)
+            except OSError:
+                pass
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.get("/api/indice")

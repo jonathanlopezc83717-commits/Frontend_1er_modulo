@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, statSync, writeFileSync, renameSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, statSync, writeFileSync, renameSync, readdirSync, watch } from 'node:fs'
 import { join, resolve, normalize } from 'node:path'
 
 const ACK_BODY_LIMIT = 64 * 1024
@@ -136,6 +136,26 @@ export function nasBridgePlugin() {
 
         next()
       })
+
+      if (logDir && existsSync(logDir)) {
+        let debounceTimer = null
+        const emitirPendientes = () => {
+          const data = existsSync(pendingPath)
+            ? readJson(pendingPath, { pending: [], updatedAt: null })
+            : { pending: [], updatedAt: null }
+          server.ws.send('nas:eventos', {
+            updatedAt: data.updatedAt ?? null,
+            pendientes: (data.pending || []).length,
+          })
+        }
+        try {
+          watch(logDir, (_event, filename) => {
+            if (filename !== 'pending-approval.json') return
+            clearTimeout(debounceTimer)
+            debounceTimer = setTimeout(emitirPendientes, 300)
+          })
+        } catch {}
+      }
     },
   }
 }

@@ -1180,6 +1180,11 @@ export function GestorPuntos() {
                           </Button>
                         )}
                       </span>
+                      {r.croquis && (
+                        <span className={`inline-flex items-center gap-1 ${r.croquis === 'ok' ? 'text-green-700' : r.croquis === 'error' ? 'text-red-700' : 'text-muted-foreground'}`}>
+                          {r.croquis === 'ok' ? '✓ Croquis' : r.croquis === 'error' ? '✗ Croquis' : '… Croquis'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

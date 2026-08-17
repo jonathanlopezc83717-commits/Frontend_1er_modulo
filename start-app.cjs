@@ -42,6 +42,28 @@ function openBrowser() {
   exec(`start ${FRONTEND_URL}`, { cwd: PROJECT_DIR });
 }
 
+const CROQUIS_PORT = 8000;
+
+function startCroquisApi() {
+  if (process.env.CROQUIS_API_DISABLED === '1') return;
+  const fs = require('fs');
+  const py = path.join(PROJECT_DIR, '.venv', 'Scripts', 'python.exe');
+  if (!fs.existsSync(py)) return;
+  let ocupado = false;
+  const probe = http.get(
+    { host: '127.0.0.1', port: CROQUIS_PORT, path: '/api/health', timeout: 1500 },
+    (res) => { ocupado = true; res.resume(); }
+  );
+  probe.on('timeout', () => { ocupado = true; probe.destroy(); });
+  probe.on('error', () => {
+    if (ocupado) return;
+    console.log(`🗺️  Iniciando API de croquis (Civil 3D COM) en :${CROQUIS_PORT}...`);
+    const api = exec(`"${py}" server\\api_croquis.py`, { cwd: PROJECT_DIR });
+    api.stdout.on('data', (data) => process.stdout.write(`[croquis] ${data}`));
+    api.stderr.on('data', (data) => process.stderr.write(`[croquis] ${data}`));
+  });
+}
+
 function findCommand() {
   // Intentar bun primero (más rápido)
   const bunPath = path.join(process.env.USERPROFILE || 'C:\\Users\\YOGA-01', '.bun', 'bin', 'bun.exe');
@@ -54,6 +76,8 @@ function findCommand() {
 
 async function main() {
   console.log('🚀 Iniciando Obras Ferroviarias...\n');
+
+  startCroquisApi();
 
   const { cmd, args } = findCommand();
   console.log(`Usando: ${cmd} ${args.join(' ')}`);

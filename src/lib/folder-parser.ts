@@ -19,6 +19,7 @@ export interface ArchivosCarpeta {
   kmz?: File
   txt?: File
   excel?: File
+  dwg?: File
   fotos: FotoIndexada[]
   nombreCarpeta: string
   subcarpetas: string[]
@@ -37,6 +38,7 @@ export interface DatosPuntoCarpeta {
   coordenadas?: CoordenadasKMZ
   textoDocumento?: string
   excel?: File
+  dwg?: File
   fotos: FotoIndexada[]
   subcarpetas: string[]
 }
@@ -72,6 +74,9 @@ export async function leerCarpeta(
 
   // Mapa para almacenar fotos por subcarpeta
   const fotosPorSubcarpeta = new Map<string, File[]>()
+  let dwgSubcarpeta: File | undefined
+  let dwgRaiz: File | undefined
+  let dwgsEnRaiz = 0
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
@@ -91,6 +96,13 @@ export async function leerCarpeta(
       archivos.kmz = file
     } else if (ext === 'txt') {
       archivos.txt = file
+    } else if (ext === 'dwg') {
+      if (pathParts.length >= 3) {
+        dwgSubcarpeta = dwgSubcarpeta || file
+      } else {
+        dwgsEnRaiz++
+        dwgRaiz = dwgRaiz || file
+      }
     } else if (ext === 'xlsx' || ext === 'xls') {
       archivos.excel = file
     } else if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'].includes(ext || '')) {
@@ -109,6 +121,9 @@ export async function leerCarpeta(
       fotosPorSubcarpeta.get(subcarpeta)!.push(file)
     }
   }
+
+  // DWG: gana el de la subcarpeta del punto; si no, el unico en la raiz cargada.
+  archivos.dwg = dwgSubcarpeta || (dwgsEnRaiz === 1 ? dwgRaiz : undefined)
 
   // Total de fotos a procesar (para la barra de progreso).
   let totalFotos = 0
@@ -341,6 +356,7 @@ export async function procesarCarpetaPunto(
     fotos: archivos.fotos,
     subcarpetas: archivos.subcarpetas,
     excel: archivos.excel,
+    dwg: archivos.dwg,
   }
   
   // Extraer coordenadas del KMZ

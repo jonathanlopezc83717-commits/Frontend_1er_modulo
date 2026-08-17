@@ -163,6 +163,13 @@ export function detectarCambiosPuntosExistentes(
   return resultado
 }
 
+export function eventosDePuntos(
+  eventos: NasPendingEvent[],
+  puntos: PuntoFerroviario[]
+): NasPendingEvent[] {
+  return detectarCambiosPuntosExistentes(eventos, puntos).flatMap((c) => c.eventos)
+}
+
 export async function recargarPuntoDesdeNAS(
   punto: PuntoFerroviario,
   eventos: NasPendingEvent[],

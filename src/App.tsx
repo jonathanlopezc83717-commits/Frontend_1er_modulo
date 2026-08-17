@@ -5,7 +5,8 @@ import { HistorialObras } from '@/components/HistorialObras'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { useState, useEffect } from 'react'
 import {
   Dialog,
@@ -26,6 +27,7 @@ import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { IndicadorNas } from '@/components/IndicadorNas'
 
 function App() {
+  const { logout, perfil } = useAuth()
   const puntosLength = useAppSelector((s) => s.puntos.length)
   const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
   const puntoActivoNombre = useAppSelector((s) => s.puntoActivo?.nombre)
@@ -202,6 +204,15 @@ function App() {
               title="Configuración"
             >
               <Settings className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => logout()}
+              title={`Cerrar sesión${perfil ? ` (${perfil.email})` : ''}`}
+            >
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>

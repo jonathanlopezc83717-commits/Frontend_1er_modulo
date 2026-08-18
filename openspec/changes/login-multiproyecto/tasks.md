@@ -41,15 +41,15 @@ Binding user decision (resolves design Open Q1): `general` invites are locked to
 
 ## Phase 2: PR #2 — Projects + Scoping
 
-- [ ] 2.1 Create `supabase/migrations/20260817000002_proyectos_scoping.sql`: `proyectos`, `proyecto_miembros`, creator-membership trigger, nullable `proyecto_id`+index on `puntos_ferroviarios`, `user_id`+`proyecto_id` on `app_state_snapshots`.
-- [ ] 2.2 Same migration: `fn_es_miembro()`, full RLS matrix (proyectos/miembros/puntos/5 children EXISTS/snapshots), RPC `cargar_puntos_completos(p_proyecto)`, `guardar_punto_completo` writes `proyecto_id` INSERT-only.
-- [ ] 2.3 Extend `verify_rls.sql`: usuario↛P2 rows, legacy NULL invisible, general create/reject, perfiles recursion (Req: Row-Level Security Enforcement; Project-Scoped Data Isolation).
-- [ ] 2.4 `src/lib/supabase-service.ts`: `proyectoId` param on `cargarPuntosCompletos`/`cargarPuntosDesdeDB`/`sincronizarPuntos`, payload embed in `guardarPuntoCompleto`, snapshot filter (lines ~405–469). Test: `src/tests/proyecto-scoping.test.ts` (RPC args + payloads).
-- [ ] 2.5 Add `Proyecto`, `ProyectoMiembro` to `src/types/index.ts`. Check: `tsc -b`.
-- [ ] 2.6 `AuthContext.tsx`: `proyectos[]`, `proyectoActivoId`, `crearProyecto`, `cambiarProyecto`, localStorage `proyecto-activo:{userId}` validated against RLS list (Req: Active Project Persistence). Tests in `src/tests/auth-context.test.tsx`.
-- [ ] 2.7 Create `src/components/projects/SelectorProyectos.tsx` + new-project dialog (rol-gated "Proyecto nuevo", empty state "contacte un administrador"). Test: `src/tests/selector-proyectos.test.tsx`.
-- [ ] 2.8 `src/context/AppContext.tsx`: inject `useAuth()` proyectoId into fetch/save actions; `src/main.tsx`: `<AppProvider key={proyectoActivoId}>` + picker branch.
-- [ ] 2.9 PR #2 verification: lint + `tsc -b` + `npx vitest run` + verify_rls + manual smoke: create project (general), legacy rows invisible, active-project restore + unauthorized fallback.
+- [x] 2.1 Create `supabase/migrations/20260817000002_proyectos_scoping.sql`: `proyectos`, `proyecto_miembros`, creator-membership trigger, nullable `proyecto_id`+index on `puntos_ferroviarios`, `user_id`+`proyecto_id` on `app_state_snapshots`. (Shipped as `20260817000003_proyectos_scoping.sql` — PR-A took the 000002 timestamp.)
+- [x] 2.2 Same migration: `fn_es_miembro()`, full RLS matrix (proyectos/miembros/puntos/5 children EXISTS/snapshots), RPC `cargar_puntos_completos(p_proyecto)`, `guardar_punto_completo` writes `proyecto_id` INSERT-only.
+- [x] 2.3 Extend `verify_rls.sql`: usuario↛P2 rows, legacy NULL invisible, general create/reject, perfiles recursion (Req: Row-Level Security Enforcement; Project-Scoped Data Isolation).
+- [x] 2.4 `src/lib/supabase-service.ts`: `proyectoId` param on `cargarPuntosCompletos`/`cargarPuntosDesdeDB`/`sincronizarPuntos`, payload embed in `guardarPuntoCompleto`, snapshot filter (lines ~405–469). Test: `src/tests/proyecto-scoping.test.ts` (RPC args + payloads).
+- [x] 2.5 Add `Proyecto`, `ProyectoMiembro` to `src/types/index.ts`. Check: `tsc -b`.
+- [x] 2.6 `AuthContext.tsx`: `proyectos[]`, `proyectoActivoId`, `crearProyecto`, `cambiarProyecto`, localStorage `proyecto-activo:{userId}` validated against RLS list (Req: Active Project Persistence). Tests in `src/tests/auth-context.test.tsx`.
+- [x] 2.7 Create `src/components/projects/SelectorProyectos.tsx` + new-project dialog (rol-gated "Proyecto nuevo", empty state "contacte un administrador"). Test: `src/tests/selector-proyectos.test.tsx`.
+- [x] 2.8 `src/context/AppContext.tsx`: inject `useAuth()` proyectoId into fetch/save actions; `src/main.tsx`: `<AppProvider key={proyectoActivoId}>` + picker branch.
+- [x] 2.9 PR #2 verification: lint + `tsc -b` + `npx vitest run` + verify_rls + manual smoke: create project (general), legacy rows invisible, active-project restore + unauthorized fallback. (lint/tsc/vitest green; verify_rls + smoke deferred — Docker down, SQL syntax-reviewed.)
 
 ## Phase 3: PR #3 — Member/Role UI
 

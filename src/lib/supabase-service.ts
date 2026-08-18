@@ -869,27 +869,27 @@ export interface MiembroProyecto {
 }
 
 export async function listarMiembrosProyecto(proyectoId: string): Promise<MiembroProyecto[]> {
-  const { data, error } = await supabase
-    .from('proyecto_miembros')
-    .select('user_id, creado_por, creado_en, perfiles(email, nombre, rol)')
-    .eq('proyecto_id', proyectoId)
-  if (error || !data) return []
-  const filas = data as unknown as Array<{
+  const { data, error } = await supabase.rpc('listar_miembros', { p_proyecto: proyectoId })
+  if (error) {
+    console.error('listarMiembrosProyecto:', error.message)
+    return []
+  }
+  const filas = (data ?? []) as Array<{
     user_id: string
+    email: string | null
+    nombre: string | null
+    rol: RolUsuario | null
     creado_por: string
     creado_en: string
-    perfiles: { email: string; nombre: string | null; rol: RolUsuario } | null
   }>
-  const miembros: MiembroProyecto[] = filas.map((fila) => ({
+  return filas.map((fila) => ({
     user_id: fila.user_id,
     creado_por: fila.creado_por,
     creado_en: fila.creado_en,
-    email: fila.perfiles?.email ?? null,
-    nombre: fila.perfiles?.nombre ?? null,
-    rol: fila.perfiles?.rol ?? null,
+    email: fila.email ?? null,
+    nombre: fila.nombre ?? null,
+    rol: fila.rol ?? null,
   }))
-  miembros.sort((a, b) => (a.email ?? a.user_id).localeCompare(b.email ?? b.user_id))
-  return miembros
 }
 
 export async function agregarMiembroProyecto(

@@ -8,7 +8,6 @@ import { Separator } from '@/components/ui/separator'
 import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive, FolderInput, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { GestionMiembros } from '@/components/projects/GestionMiembros'
-import { PanelUsuarios } from '@/components/projects/PanelUsuarios'
 import { useState, useEffect } from 'react'
 import {
   Dialog,
@@ -293,7 +292,6 @@ function App() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {perfil?.rol === 'administrador' && <PanelUsuarios />}
             <Card>
               <CardContent className="py-3">
                 <p className="text-sm text-muted-foreground">

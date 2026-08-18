@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
-import { getMiembrosCollection, perfilesCollection } from '@/lib/collections'
+import { getMiembrosCollection, perfilesCollection, proyectosCollection } from '@/lib/collections'
 import { etiquetaRol } from '@/lib/roles'
 import type { MiembroProyecto } from '@/lib/supabase-service'
 import { DialogoInvitar } from '@/components/projects/DialogoInvitar'
@@ -99,12 +99,18 @@ export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiemb
 
   if (!abierto || !proyectoIdEfectivo) return null
 
+  const refrescarCondados = () => {
+    void proyectosCollection.utils.refetch()
+    if (esAdmin) void perfilesCollection.utils.refetch()
+  }
+
   const quitar = async (userId: string) => {
     if (!miembrosCollection) return
     const tx = miembrosCollection.delete(userId)
     try {
       await tx.isPersisted.promise
       toast.success('Miembro quitado del proyecto')
+      refrescarCondados()
     } catch (error) {
       toast.error(mensajeErrorAccion(error, 'No se pudo quitar al miembro'))
     }
@@ -125,6 +131,7 @@ export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiemb
       await tx.isPersisted.promise
       toast.success('Miembro agregado al proyecto')
       setSeleccionado('')
+      refrescarCondados()
     } catch (error) {
       toast.error(mensajeErrorAccion(error, 'No se pudo agregar al miembro'))
     }
@@ -217,7 +224,10 @@ export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiemb
         open={dialogoInvitar}
         onOpenChange={setDialogoInvitar}
         proyectoId={proyectoIdEfectivo}
-        onInvitado={() => { void miembrosCollection?.utils.refetch() }}
+        onInvitado={() => {
+          void miembrosCollection?.utils.refetch()
+          refrescarCondados()
+        }}
       />
     </>
   )

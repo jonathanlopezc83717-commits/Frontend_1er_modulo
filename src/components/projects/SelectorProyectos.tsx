@@ -17,8 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, Users } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, Users, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
+import { PanelUsuarios } from '@/components/projects/PanelUsuarios'
 import type { Proyecto } from '@/types'
 
 function formatearFecha(fecha: string): string {
@@ -62,6 +63,7 @@ export function SelectorProyectos() {
   const [eliminarId, setEliminarId] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
   const [miembrosId, setMiembrosId] = useState<string | null>(null)
+  const [panelUsuarios, setPanelUsuarios] = useState(false)
 
   const puedeCrear = perfil?.rol === 'administrador' || perfil?.rol === 'general'
   const esAdmin = perfil?.rol === 'administrador'
@@ -237,12 +239,30 @@ export function SelectorProyectos() {
               )}
             </>
           )}
+          {esAdmin && (
+            <Button variant="outline" className="w-full" onClick={() => setPanelUsuarios(true)}>
+              <UserCog className="size-4" />
+              Usuarios y roles
+            </Button>
+          )}
           <Button variant="ghost" className="w-full text-muted-foreground" onClick={logout}>
             <LogOut className="size-4" />
             Cerrar sesión
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={panelUsuarios} onOpenChange={setPanelUsuarios}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Usuarios y roles</DialogTitle>
+            <DialogDescription>
+              Asigná puestos globales: Administrador, Administrador de equipo o Usuario.
+            </DialogDescription>
+          </DialogHeader>
+          <PanelUsuarios />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <DialogContent>

@@ -30,6 +30,7 @@ interface GestionMiembrosProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   proyectoId?: string
+  nombreProyecto?: string
 }
 
 function mensajeErrorAccion(error: unknown, fallback: string): string {
@@ -39,7 +40,7 @@ function mensajeErrorAccion(error: unknown, fallback: string): string {
   return mensaje || fallback
 }
 
-export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiembrosProps) {
+export function GestionMiembros({ open, onOpenChange, proyectoId, nombreProyecto }: GestionMiembrosProps) {
   const { perfil, session, proyectoActivoId } = useAuth()
   const proyectoIdEfectivo = proyectoId ?? proyectoActivoId
   const [seleccionado, setSeleccionado] = useState('')
@@ -142,7 +143,9 @@ export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiemb
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Miembros del proyecto</DialogTitle>
+            <DialogTitle>
+              {nombreProyecto ? `Miembros · ${nombreProyecto}` : 'Miembros del proyecto'}
+            </DialogTitle>
             <DialogDescription>
               Gestioná quién accede a este proyecto. Los cambios aplican de inmediato.
             </DialogDescription>

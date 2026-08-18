@@ -376,6 +376,7 @@ export function SelectorProyectos() {
         open={miembrosId !== null}
         onOpenChange={(abierto) => !abierto && setMiembrosId(null)}
         proyectoId={miembrosId ?? undefined}
+        nombreProyecto={proyectos.find((p) => p.id === miembrosId)?.nombre}
       />
     </div>
   )

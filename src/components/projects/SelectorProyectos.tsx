@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, UserCog } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, UserCog, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Proyecto } from '@/types'
 
@@ -49,12 +49,13 @@ function mensajeErrorAccion(error: unknown, fallback: string): string {
 }
 
 export function SelectorProyectos() {
-  const { perfil, session, proyectoActivoId, crearProyecto, cambiarProyecto, logout } = useAuth()
+  const { perfil, session, proyectoActivoId, ultimoProyectoId, crearProyecto, cambiarProyecto, logout } = useAuth()
   const { data } = useLiveQuery((q) => q.from({ proyectos: proyectosCollection }))
   const proyectos = data ?? []
   const [busqueda, setBusqueda] = useState('')
   const [vista, setVista] = useState<Vista>('proyectos')
   const [enfocadoId, setEnfocadoId] = useState<string | null>(null)
+  const [bannerDescartado, setBannerDescartado] = useState(false)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -85,6 +86,9 @@ export function SelectorProyectos() {
   }, [proyectos, busqueda])
 
   const enfocado = enfocadoId ? (proyectos.find((p) => p.id === enfocadoId) ?? null) : null
+  const ultimoProyecto = ultimoProyectoId
+    ? (proyectos.find((p) => p.id === ultimoProyectoId) ?? null)
+    : null
 
   const enfocarProyecto = (id: string) => {
     setEnfocadoId(id)
@@ -230,6 +234,32 @@ export function SelectorProyectos() {
           {vista === 'usuarios' && esAdmin ? (
             <div className="p-4 sm:p-6">
               <PanelUsuarios />
+            </div>
+          ) : ultimoProyecto && !bannerDescartado ? (
+            <div className="p-4 sm:p-6">
+              <div
+                className="flex flex-col gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center"
+                data-testid="banner-reanudar"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Continuar donde quedaste
+                  </p>
+                  <p className="truncate text-lg font-semibold">{ultimoProyecto.nombre}</p>
+                  {ultimoProyecto.descripcion && (
+                    <p className="truncate text-sm text-muted-foreground">{ultimoProyecto.descripcion}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button onClick={() => cambiarProyecto(ultimoProyecto.id)} data-testid="reanudar-abrir">
+                    <Play className="size-4" />
+                    Abrir proyecto
+                  </Button>
+                  <Button variant="outline" onClick={() => setBannerDescartado(true)}>
+                    Ir a proyectos
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : proyectos.length === 0 ? (
             puedeCrear ? (

@@ -226,10 +226,10 @@ describe('AuthContext: proyectos y proyecto activo', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } }
     })
 
-    const valores: Array<{ proyectos: Proyecto[]; proyectoActivoId: string | null }> = []
+    const valores: Array<{ proyectos: Proyecto[]; proyectoActivoId: string | null; ultimoProyectoId: string | null }> = []
     function Sonda() {
       const v = useAuth()
-      valores.push({ proyectos: v.proyectos, proyectoActivoId: v.proyectoActivoId })
+      valores.push({ proyectos: v.proyectos, proyectoActivoId: v.proyectoActivoId, ultimoProyectoId: v.ultimoProyectoId })
       return createElement('div', null)
     }
     render(createElement(AuthProvider, null, createElement(Sonda)))
@@ -240,7 +240,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
     }
   }
 
-  it('restaura el proyecto activo persistido cuando sigue autorizado', async () => {
+  it('ofrece el último proyecto como reanudable sin auto-activarlo', async () => {
     localStorage.setItem('proyecto-activo:u1', 'p1')
     mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Alpha'), hacerProyecto('p2', 'Obra Beta')], error: null })
 
@@ -251,7 +251,8 @@ describe('AuthContext: proyectos y proyecto activo', () => {
     })
 
     const ultimo = montaje.valores[montaje.valores.length - 1]
-    expect(ultimo.proyectoActivoId).toBe('p1')
+    expect(ultimo.proyectoActivoId).toBeNull()
+    expect(ultimo.ultimoProyectoId).toBe('p1')
     expect(ultimo.proyectos.map(p => p.id)).toEqual(['p1', 'p2'])
   })
 
@@ -265,7 +266,9 @@ describe('AuthContext: proyectos y proyecto activo', () => {
       await Promise.resolve()
     })
 
-    expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
+    const ultimo = montaje.valores[montaje.valores.length - 1]
+    expect(ultimo.proyectoActivoId).toBeNull()
+    expect(ultimo.ultimoProyectoId).toBeNull()
     expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
   })
 
@@ -281,7 +284,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
     expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
   })
 
-  it('cambiarProyecto persiste y cambiarProyecto(null) limpia', async () => {
+  it('cambiarProyecto persiste y volver al picker conserva el último proyecto', async () => {
     mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')], error: null })
     let cambiar: (id: string | null) => void = () => {}
     const { AuthProvider, useAuth } = await import('@/context/AuthContext')
@@ -301,10 +304,10 @@ describe('AuthContext: proyectos y proyecto activo', () => {
     expect(localStorage.getItem('proyecto-activo:u1')).toBe('p2')
 
     act(() => cambiar(null))
-    expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
+    expect(localStorage.getItem('proyecto-activo:u1')).toBe('p2')
   })
 
-  it('SIGNED_OUT limpia la clave de proyecto activo', async () => {
+  it('SIGNED_OUT conserva la clave para reanudar en el próximo login del mismo usuario', async () => {
     localStorage.setItem('proyecto-activo:u1', 'p1')
     mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
 
@@ -320,7 +323,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
       await Promise.resolve()
     })
 
-    expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
+    expect(localStorage.getItem('proyecto-activo:u1')).toBe('p1')
     expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
   })
 

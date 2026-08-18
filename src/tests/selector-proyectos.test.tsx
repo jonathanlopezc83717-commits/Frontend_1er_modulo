@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   proyectos: [] as Proyecto[],
   perfil: null as Perfil | null,
   session: null as { user: { id: string } } | null,
+  ultimoProyectoId: null as string | null,
 }))
 
 vi.mock('@/context/AuthContext', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/context/AuthContext', () => ({
     perfil: mocks.perfil,
     proyectos: mocks.proyectos,
     proyectoActivoId: null,
+    ultimoProyectoId: mocks.ultimoProyectoId,
     cargando: false,
     login: vi.fn(),
     logout: mocks.logout,
@@ -97,6 +99,7 @@ beforeEach(() => {
   mocks.proyectos = []
   mocks.perfil = hacerPerfil('usuario')
   mocks.session = null
+  mocks.ultimoProyectoId = null
 })
 
 describe('SelectorProyectos: visibilidad por rol', () => {
@@ -367,6 +370,54 @@ describe('SelectorProyectos: edición', () => {
     await waitFor(() => {
       expect(mocks.actualizarColeccion).toHaveBeenCalledWith('p1', expect.any(Function))
     })
+  })
+})
+
+describe('SelectorProyectos: banner de reanudación', () => {
+  it('muestra el último proyecto con opciones de abrir o ir a proyectos', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')]
+    mocks.ultimoProyectoId = 'p2'
+
+    const { getByTestId, getByText } = render(createElement(SelectorProyectos))
+
+    const banner = getByTestId('banner-reanudar')
+    expect(banner.textContent).toContain('Obra Dos')
+    expect(banner.textContent).toContain('Continuar donde quedaste')
+    expect(getByText('Abrir proyecto')).toBeTruthy()
+    expect(getByText('Ir a proyectos')).toBeTruthy()
+  })
+
+  it('Abrir proyecto activa el último proyecto', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+    mocks.ultimoProyectoId = 'p1'
+
+    const { getByTestId } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('reanudar-abrir'))
+    expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p1')
+  })
+
+  it('Ir a proyectos descarta el banner sin activar nada', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+    mocks.ultimoProyectoId = 'p1'
+
+    const { queryByTestId, getByText } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByText('Ir a proyectos'))
+    expect(queryByTestId('banner-reanudar')).toBeNull()
+    expect(mocks.cambiarProyecto).not.toHaveBeenCalled()
+  })
+
+  it('sin último proyecto persistido no muestra el banner', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { queryByTestId } = render(createElement(SelectorProyectos))
+
+    expect(queryByTestId('banner-reanudar')).toBeNull()
   })
 })
 

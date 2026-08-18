@@ -20,6 +20,7 @@ export interface AuthContextValue {
   perfil: Perfil | null
   proyectos: Proyecto[]
   proyectoActivoId: string | null
+  ultimoProyectoId: string | null
   cargando: boolean
   login: (email: string, password: string) => Promise<{ error: string | null }>
   logout: () => Promise<void>
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [proyectoActivoId, setProyectoActivoId] = useState<string | null>(null)
+  const [ultimoProyectoId, setUltimoProyectoId] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const userIdRef = useRef<string | null>(null)
 
@@ -71,12 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (ignore) return
       setSession(nuevaSession)
       if (!nuevaSession) {
-        if (userIdRef.current) {
-          localStorage.removeItem(claveProyectoActivo(userIdRef.current))
-          userIdRef.current = null
-        }
+        userIdRef.current = null
         setPerfil(null)
         setProyectoActivoId(null)
+        setUltimoProyectoId(null)
         setCargando(false)
         return
       }
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         queryFn: () => listarProyectos(),
       })
       if (ignore) return
-      setProyectoActivoId(leerProyectoActivoValidado(nuevaSession.user.id, proyectosCargados))
+      setUltimoProyectoId(leerProyectoActivoValidado(nuevaSession.user.id, proyectosCargados))
       setCargando(false)
     })
 
@@ -126,11 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cambiarProyecto = useCallback((proyectoId: string | null) => {
     setProyectoActivoId(proyectoId)
     const userId = userIdRef.current
-    if (!userId) return
     if (proyectoId) {
-      localStorage.setItem(claveProyectoActivo(userId), proyectoId)
-    } else {
-      localStorage.removeItem(claveProyectoActivo(userId))
+      setUltimoProyectoId(proyectoId)
+      if (userId) localStorage.setItem(claveProyectoActivo(userId), proyectoId)
     }
   }, [])
 
@@ -158,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       perfil,
       proyectos,
       proyectoActivoId,
+      ultimoProyectoId,
       cargando,
       login,
       logout,
@@ -165,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       crearProyecto,
       cambiarProyecto,
     }),
-    [session, perfil, proyectos, proyectoActivoId, cargando, login, logout, refrescarPerfil, crearProyecto, cambiarProyecto],
+    [session, perfil, proyectos, proyectoActivoId, ultimoProyectoId, cargando, login, logout, refrescarPerfil, crearProyecto, cambiarProyecto],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

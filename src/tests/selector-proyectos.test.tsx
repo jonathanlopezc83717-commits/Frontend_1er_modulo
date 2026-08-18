@@ -50,9 +50,17 @@ vi.mock('sonner', () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }))
 
-vi.mock('@/components/projects/GestionMiembros', () => ({
-  GestionMiembros: ({ open, proyectoId }: { open: boolean; proyectoId?: string }) =>
-    open ? createElement('div', { 'data-testid': 'gestion-miembros', 'data-proyecto-id': proyectoId }) : null,
+vi.mock('@/components/projects/SeccionMiembros', () => ({
+  SeccionMiembros: ({ proyectoId, soloLectura }: { proyectoId: string; soloLectura?: boolean }) =>
+    createElement('div', {
+      'data-testid': 'seccion-miembros',
+      'data-proyecto-id': proyectoId,
+      'data-solo-lectura': String(soloLectura ?? false),
+    }),
+}))
+
+vi.mock('@/components/projects/PanelUsuarios', () => ({
+  PanelUsuarios: () => createElement('div', { 'data-testid': 'panel-usuarios' }),
 }))
 
 import { SelectorProyectos } from '@/components/projects/SelectorProyectos'
@@ -103,24 +111,29 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     expect(queryByRole('button', { name: /Proyecto nuevo/ })).toBeNull()
   })
 
-  it('usuario con proyectos los lista, sin acción de proyecto nuevo', () => {
+  it('usuario con proyectos los lista en la barra lateral, sin acción de proyecto nuevo', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')]
 
-    const { getByText, queryByRole } = render(createElement(SelectorProyectos))
+    const { getByTestId, queryByRole } = render(createElement(SelectorProyectos))
 
-    expect(getByText('Obra Uno')).toBeTruthy()
-    expect(getByText('Obra Dos')).toBeTruthy()
+    expect(getByTestId('proyecto-p1')).toBeTruthy()
+    expect(getByTestId('proyecto-p2')).toBeTruthy()
     expect(queryByRole('button', { name: /Proyecto nuevo/ })).toBeNull()
   })
 
-  it('elegir un proyecto llama a cambiarProyecto con su id', () => {
+  it('enfocar un proyecto no abre la app; Abrir proyecto llama a cambiarProyecto', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
 
-    const { getByTestId } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByRole } = render(createElement(SelectorProyectos))
 
     fireEvent.click(getByTestId('proyecto-p1'))
+    expect(mocks.cambiarProyecto).not.toHaveBeenCalled()
+    expect(getByRole('heading', { name: 'Obra Uno' })).toBeTruthy()
+
+    fireEvent.click(getByTestId('abrir-proyecto'))
+    expect(mocks.cambiarProyecto).toHaveBeenCalledTimes(1)
     expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p1')
   })
 
@@ -137,9 +150,9 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     mocks.perfil = hacerPerfil('general')
     mocks.proyectos = []
 
-    const { getByRole, findByRole } = render(createElement(SelectorProyectos))
+    const { getAllByRole, getByRole, findByRole } = render(createElement(SelectorProyectos))
 
-    fireEvent.click(getByRole('button', { name: /Proyecto nuevo/ }))
+    fireEvent.click(getAllByRole('button', { name: /Proyecto nuevo/ })[0])
 
     const input = await findByRole('textbox', { name: /Nombre/ })
     fireEvent.change(input, { target: { value: 'Obra Norte' } })
@@ -155,9 +168,9 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     mocks.proyectos = []
     mocks.crearProyecto.mockResolvedValue({ success: false, error: 'RLS: rol no autorizado' })
 
-    const { getByRole, findByRole, getByText } = render(createElement(SelectorProyectos))
+    const { getAllByRole, getByRole, findByRole, getByText } = render(createElement(SelectorProyectos))
 
-    fireEvent.click(getByRole('button', { name: /Proyecto nuevo/ }))
+    fireEvent.click(getAllByRole('button', { name: /Proyecto nuevo/ })[0])
     const input = await findByRole('textbox', { name: /Nombre/ })
     fireEvent.change(input, { target: { value: 'Obra Ilegal' } })
     fireEvent.click(getByRole('button', { name: 'Crear proyecto' }))
@@ -166,7 +179,7 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     expect(getByText('RLS: rol no autorizado')).toBeTruthy()
   })
 
-  it('cerrar sesión está disponible desde el picker', () => {
+  it('cerrar sesión está disponible desde el workspace', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = []
 
@@ -177,8 +190,38 @@ describe('SelectorProyectos: visibilidad por rol', () => {
   })
 })
 
-describe('SelectorProyectos: tarjetas enriquecidas', () => {
-  it('muestra miembros con tooltip de emails, creación y actividad en todas las tarjetas', () => {
+describe('SelectorProyectos: búsqueda', () => {
+  it('filtra la lista por nombre y descripción sin distinguir mayúsculas', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [
+      hacerProyecto('p1', 'Obra Norte', { descripcion: 'Viaducto' }),
+      hacerProyecto('p2', 'Puente Sur'),
+    ]
+
+    const { getByLabelText, getByTestId, queryByTestId, getByText } =
+      render(createElement(SelectorProyectos))
+
+    fireEvent.change(getByLabelText('Buscar proyectos'), { target: { value: 'OBRA' } })
+    expect(getByTestId('proyecto-p1')).toBeTruthy()
+    expect(queryByTestId('proyecto-p2')).toBeNull()
+
+    fireEvent.change(getByLabelText('Buscar proyectos'), { target: { value: 'viaducto' } })
+    expect(getByTestId('proyecto-p1')).toBeTruthy()
+    expect(queryByTestId('proyecto-p2')).toBeNull()
+
+    fireEvent.change(getByLabelText('Buscar proyectos'), { target: { value: 'sur' } })
+    expect(queryByTestId('proyecto-p1')).toBeNull()
+    expect(getByTestId('proyecto-p2')).toBeTruthy()
+
+    fireEvent.change(getByLabelText('Buscar proyectos'), { target: { value: 'zzz' } })
+    expect(queryByTestId('proyecto-p1')).toBeNull()
+    expect(queryByTestId('proyecto-p2')).toBeNull()
+    expect(getByText('Ningún proyecto coincide con la búsqueda.')).toBeTruthy()
+  })
+})
+
+describe('SelectorProyectos: panel de detalle', () => {
+  it('muestra meta con miembros y tooltip de emails del proyecto enfocado', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [
       hacerProyecto('p1', 'Obra Uno', {
@@ -188,34 +231,52 @@ describe('SelectorProyectos: tarjetas enriquecidas', () => {
       }),
     ]
 
-    const { getByText, getByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByText, getByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(getByText(/Creada .+ · Actividad hace/)).toBeTruthy()
     const badge = getByTitle('a@test.local, b@test.local')
     expect(badge.textContent).toContain('3')
   })
 
-  it('usuario sin permisos de gestión no ve acciones por tarjeta', () => {
+  it('sin proyecto enfocado muestra el aviso de selección', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { getByText } = render(createElement(SelectorProyectos))
+
+    expect(getByText(/Elegí un proyecto de la lista/)).toBeTruthy()
+  })
+
+  it('usuario sin permisos de gestión ve meta y miembros en solo lectura, sin acciones', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno', { creado_por: 'otro' })]
 
-    const { queryByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, queryByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(queryByTitle('Editar')).toBeNull()
-    expect(queryByTitle('Miembros')).toBeNull()
     expect(queryByTitle('Eliminar')).toBeNull()
+    expect(getByTestId('abrir-proyecto')).toBeTruthy()
+    const seccion = getByTestId('seccion-miembros')
+    expect(seccion.getAttribute('data-proyecto-id')).toBe('p1')
+    expect(seccion.getAttribute('data-solo-lectura')).toBe('true')
   })
 
-  it('general dueño del proyecto ve las acciones de gestión', () => {
+  it('general dueño del proyecto ve las acciones de gestión y miembros editables', () => {
     mocks.perfil = hacerPerfil('general')
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
 
-    const { getByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(getByTitle('Editar')).toBeTruthy()
-    expect(getByTitle('Miembros')).toBeTruthy()
     expect(getByTitle('Eliminar')).toBeTruthy()
+    expect(getByTestId('seccion-miembros').getAttribute('data-solo-lectura')).toBe('false')
   })
 
   it('general no dueño no ve acciones de gestión', () => {
@@ -223,34 +284,68 @@ describe('SelectorProyectos: tarjetas enriquecidas', () => {
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Ajena', { creado_por: 'otro' })]
 
-    const { queryByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, queryByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(queryByTitle('Editar')).toBeNull()
-    expect(queryByTitle('Miembros')).toBeNull()
     expect(queryByTitle('Eliminar')).toBeNull()
   })
 
-  it('administrador ve acciones en cualquier tarjeta', () => {
+  it('administrador ve acciones en cualquier proyecto', () => {
     mocks.perfil = hacerPerfil('administrador')
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Ajena', { creado_por: 'otro' })]
 
-    const { getByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(getByTitle('Editar')).toBeTruthy()
     expect(getByTitle('Eliminar')).toBeTruthy()
   })
+})
 
-  it('abre la gestión de miembros del proyecto de la tarjeta', () => {
-    mocks.perfil = hacerPerfil('general')
+describe('SelectorProyectos: vista de administración', () => {
+  it('admin alterna entre la vista de proyectos y la de usuarios y roles', () => {
+    mocks.perfil = hacerPerfil('administrador')
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
 
-    const { getByTitle, getByTestId } = render(createElement(SelectorProyectos))
+    const { getByRole, getByTestId, queryByTestId } = render(createElement(SelectorProyectos))
 
-    fireEvent.click(getByTitle('Miembros'))
+    expect(queryByTestId('panel-usuarios')).toBeNull()
 
-    expect(getByTestId('gestion-miembros').getAttribute('data-proyecto-id')).toBe('p1')
+    fireEvent.click(getByRole('button', { name: /Usuarios y roles/ }))
+    expect(getByTestId('panel-usuarios')).toBeTruthy()
+    expect(queryByTestId('abrir-proyecto')).toBeNull()
+
+    fireEvent.click(getByRole('button', { name: /Usuarios y roles/ }))
+    expect(queryByTestId('panel-usuarios')).toBeNull()
+  })
+
+  it('usuario no ve el toggle de administración', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { queryByRole, queryByTestId } = render(createElement(SelectorProyectos))
+
+    expect(queryByRole('button', { name: /Usuarios y roles/ })).toBeNull()
+    expect(queryByTestId('panel-usuarios')).toBeNull()
+  })
+
+  it('enfocar un proyecto desde la vista de usuarios vuelve a la vista de proyectos', () => {
+    mocks.perfil = hacerPerfil('administrador')
+    mocks.session = { user: { id: 'u1' } }
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { getByRole, getByTestId } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByRole('button', { name: /Usuarios y roles/ }))
+    expect(getByTestId('panel-usuarios')).toBeTruthy()
+
+    fireEvent.click(getByTestId('proyecto-p1'))
+    expect(getByTestId('abrir-proyecto')).toBeTruthy()
   })
 })
 
@@ -260,8 +355,9 @@ describe('SelectorProyectos: edición', () => {
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno', { descripcion: 'desc vieja' })]
 
-    const { getByTitle, findByRole, getByRole } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle, findByRole, getByRole } = render(createElement(SelectorProyectos))
 
+    fireEvent.click(getByTestId('proyecto-p1'))
     fireEvent.click(getByTitle('Editar'))
     const input = await findByRole('textbox', { name: /Nombre/ })
     expect((input as HTMLInputElement).value).toBe('Obra Uno')
@@ -280,8 +376,9 @@ describe('SelectorProyectos: eliminación con confirmación', () => {
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno', { puntos_count: 7 })]
 
-    const { getByTitle, getByText, getByTestId } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle, getByText } = render(createElement(SelectorProyectos))
 
+    fireEvent.click(getByTestId('proyecto-p1'))
     fireEvent.click(getByTitle('Eliminar'))
     expect(getByText(/Se ocultará el proyecto con sus 7 puntos/)).toBeTruthy()
     expect(getByText(/un administrador puede recuperarlo/)).toBeTruthy()
@@ -306,8 +403,9 @@ describe('SelectorProyectos: eliminación con confirmación', () => {
       },
     })
 
-    const { getByTitle, getByTestId } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle } = render(createElement(SelectorProyectos))
 
+    fireEvent.click(getByTestId('proyecto-p1'))
     fireEvent.click(getByTitle('Eliminar'))
     fireEvent.click(getByTestId('confirmar-eliminacion'))
 

@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
 import { proyectosCollection } from '@/lib/collections'
 import { etiquetaRol } from '@/lib/roles'
-import { GestionMiembros } from '@/components/projects/GestionMiembros'
+import { SeccionMiembros } from '@/components/projects/SeccionMiembros'
+import { PanelUsuarios } from '@/components/projects/PanelUsuarios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -17,10 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, Users, UserCog } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
-import { PanelUsuarios } from '@/components/projects/PanelUsuarios'
 import type { Proyecto } from '@/types'
+
+type Vista = 'proyectos' | 'usuarios'
 
 function formatearFecha(fecha: string): string {
   return new Date(fecha).toLocaleDateString('es-CL', {
@@ -51,6 +52,9 @@ export function SelectorProyectos() {
   const { perfil, session, proyectoActivoId, crearProyecto, cambiarProyecto, logout } = useAuth()
   const { data } = useLiveQuery((q) => q.from({ proyectos: proyectosCollection }))
   const proyectos = data ?? []
+  const [busqueda, setBusqueda] = useState('')
+  const [vista, setVista] = useState<Vista>('proyectos')
+  const [enfocadoId, setEnfocadoId] = useState<string | null>(null)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -62,14 +66,29 @@ export function SelectorProyectos() {
   const [guardando, setGuardando] = useState(false)
   const [eliminarId, setEliminarId] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
-  const [miembrosId, setMiembrosId] = useState<string | null>(null)
-  const [panelUsuarios, setPanelUsuarios] = useState(false)
 
   const puedeCrear = perfil?.rol === 'administrador' || perfil?.rol === 'general'
   const esAdmin = perfil?.rol === 'administrador'
 
   const puedeGestionar = (proyecto: Proyecto) =>
     esAdmin || (Boolean(session?.user.id) && proyecto.creado_por === session?.user.id)
+
+  const filtrados = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
+    if (!termino) return proyectos
+    return proyectos.filter(
+      (proyecto) =>
+        proyecto.nombre.toLowerCase().includes(termino) ||
+        (proyecto.descripcion ?? '').toLowerCase().includes(termino),
+    )
+  }, [proyectos, busqueda])
+
+  const enfocado = enfocadoId ? (proyectos.find((p) => p.id === enfocadoId) ?? null) : null
+
+  const enfocarProyecto = (id: string) => {
+    setEnfocadoId(id)
+    setVista('proyectos')
+  }
 
   const abrirDialogo = () => {
     setNombre('')
@@ -122,6 +141,7 @@ export function SelectorProyectos() {
       await tx.isPersisted.promise
       toast.success('Proyecto eliminado')
       if (eliminarId === proyectoActivoId) cambiarProyecto(null)
+      if (eliminarId === enfocadoId) setEnfocadoId(null)
       setEliminarId(null)
     } catch (error) {
       toast.error(mensajeErrorAccion(error, 'No se pudo eliminar el proyecto'))
@@ -132,22 +152,86 @@ export function SelectorProyectos() {
   const proyectoAEliminar = proyectos.find((p) => p.id === eliminarId) ?? null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <HardHat className="size-6" />
-            <CardTitle className="text-xl">Analizador de Imágenes Ferroviarias</CardTitle>
+    <div className="flex h-screen flex-col bg-background">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
+        <HardHat className="size-5 shrink-0" />
+        <h1 className="hidden min-w-0 truncate text-sm font-medium md:block">
+          Analizador de Imágenes Ferroviarias
+        </h1>
+        <div className="flex-1" />
+        <Input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar proyectos…"
+          aria-label="Buscar proyectos"
+          className="w-48 sm:w-64"
+        />
+        {puedeCrear && (
+          <Button onClick={abrirDialogo}>
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Proyecto nuevo</span>
+          </Button>
+        )}
+        {esAdmin && (
+          <Button
+            variant={vista === 'usuarios' ? 'secondary' : 'outline'}
+            onClick={() => setVista(vista === 'usuarios' ? 'proyectos' : 'usuarios')}
+          >
+            <UserCog className="size-4" />
+            <span className="hidden sm:inline">Usuarios y roles</span>
+          </Button>
+        )}
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="flex w-80 shrink-0 flex-col border-r border-border">
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Proyectos
+            </p>
+            <Badge variant="secondary">{proyectos.length}</Badge>
           </div>
-          <CardDescription>
-            {perfil?.nombre || perfil?.email}
-            {perfil && <Badge variant="secondary" className="ml-2">{etiquetaRol(perfil.rol)}</Badge>}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {proyectos.length === 0 ? (
+          <div className="flex-1 space-y-1 overflow-y-auto p-2">
+            {proyectos.length === 0 ? (
+              <p className="px-2 py-4 text-sm text-muted-foreground">Todavía no hay proyectos.</p>
+            ) : filtrados.length === 0 ? (
+              <p className="px-2 py-4 text-sm text-muted-foreground">
+                Ningún proyecto coincide con la búsqueda.
+              </p>
+            ) : (
+              filtrados.map((proyecto) => (
+                <button
+                  key={proyecto.id}
+                  type="button"
+                  onClick={() => enfocarProyecto(proyecto.id)}
+                  data-testid={`proyecto-${proyecto.id}`}
+                  className={`flex w-full items-center gap-3 rounded-md border p-3 text-left transition-colors hover:bg-accent ${
+                    enfocado?.id === proyecto.id ? 'border-border bg-accent' : 'border-transparent'
+                  }`}
+                >
+                  <FolderOpen className="size-5 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{proyecto.nombre}</span>
+                    {proyecto.descripcion && (
+                      <span className="block truncate text-muted-foreground">
+                        {proyecto.descripcion}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          {vista === 'usuarios' && esAdmin ? (
+            <div className="p-4 sm:p-6">
+              <PanelUsuarios />
+            </div>
+          ) : proyectos.length === 0 ? (
             puedeCrear ? (
-              <div className="space-y-3 text-center">
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-muted-foreground">Todavía no hay proyectos.</p>
                 <Button onClick={abrirDialogo}>
                   <Plus className="size-4" />
@@ -155,114 +239,95 @@ export function SelectorProyectos() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2 rounded-md border border-border p-4 text-center">
-                <p className="font-medium">No tenés proyectos asignados</p>
-                <p className="text-muted-foreground">
-                  Contactá a un administrador para que te asigne un proyecto.
-                </p>
+              <div className="flex h-full items-center justify-center p-6">
+                <div className="space-y-2 rounded-md border border-border p-4 text-center">
+                  <p className="font-medium">No tenés proyectos asignados</p>
+                  <p className="text-muted-foreground">
+                    Contactá a un administrador para que te asigne un proyecto.
+                  </p>
+                </div>
               </div>
             )
+          ) : !enfocado ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+              <FolderOpen className="size-8 text-muted-foreground" />
+              <p className="text-muted-foreground">
+                Elegí un proyecto de la lista para ver su detalle.
+              </p>
+            </div>
           ) : (
-            <>
-              <div className="space-y-2">
-                {proyectos.map((proyecto) => (
-                  <div
-                    key={proyecto.id}
-                    className="flex items-center gap-2 rounded-md border border-border p-3 transition-colors hover:bg-accent"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => cambiarProyecto(proyecto.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      data-testid={`proyecto-${proyecto.id}`}
+            <div className="space-y-6 p-4 sm:p-6">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold">{enfocado.nombre}</h2>
+                  {typeof enfocado.miembros_count === 'number' && (
+                    <Badge
+                      variant="outline"
+                      title={(enfocado.miembros_emails ?? []).join(', ')}
                     >
-                      <FolderOpen className="size-5 shrink-0" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium">{proyecto.nombre}</span>
-                        {proyecto.descripcion && (
-                          <span className="block truncate text-muted-foreground">{proyecto.descripcion}</span>
-                        )}
-                        <span className="block text-xs text-muted-foreground">
-                          Creada {formatearFecha(proyecto.created_at)} · Actividad{' '}
-                          {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
-                        </span>
-                      </span>
-                    </button>
-                    {typeof proyecto.miembros_count === 'number' && (
-                      <Badge
-                        variant="outline"
-                        className="shrink-0"
-                        title={(proyecto.miembros_emails ?? []).join(', ')}
-                      >
-                        {proyecto.miembros_count} miembros
-                      </Badge>
-                    )}
-                    {puedeGestionar(proyecto) && (
-                      <span className="flex shrink-0 gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          title="Editar"
-                          onClick={() => abrirEdicion(proyecto)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          title="Miembros"
-                          onClick={() => setMiembrosId(proyecto.id)}
-                        >
-                          <Users className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-destructive hover:text-destructive"
-                          title="Eliminar"
-                          onClick={() => setEliminarId(proyecto.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </span>
-                    )}
-                  </div>
-                ))}
+                      {enfocado.miembros_count}{' '}
+                      {enfocado.miembros_count === 1 ? 'miembro' : 'miembros'}
+                    </Badge>
+                  )}
+                </div>
+                {enfocado.descripcion && (
+                  <p className="text-muted-foreground">{enfocado.descripcion}</p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Creada {formatearFecha(enfocado.created_at)} · Actividad{' '}
+                  {formatearHace(enfocado.updated_at ?? enfocado.created_at)}
+                </p>
               </div>
-              {puedeCrear && (
-                <Button variant="outline" className="w-full" onClick={abrirDialogo}>
-                  <Plus className="size-4" />
-                  Proyecto nuevo
-                </Button>
-              )}
-            </>
-          )}
-          {esAdmin && (
-            <Button variant="outline" className="w-full" onClick={() => setPanelUsuarios(true)}>
-              <UserCog className="size-4" />
-              Usuarios y roles
-            </Button>
-          )}
-          <Button variant="ghost" className="w-full text-muted-foreground" onClick={logout}>
-            <LogOut className="size-4" />
-            Cerrar sesión
-          </Button>
-        </CardContent>
-      </Card>
 
-      <Dialog open={panelUsuarios} onOpenChange={setPanelUsuarios}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Usuarios y roles</DialogTitle>
-            <DialogDescription>
-              Asigná puestos globales: Administrador, Administrador de equipo o Usuario.
-            </DialogDescription>
-          </DialogHeader>
-          <PanelUsuarios />
-        </DialogContent>
-      </Dialog>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => cambiarProyecto(enfocado.id)} data-testid="abrir-proyecto">
+                  <FolderOpen className="size-4" />
+                  Abrir proyecto
+                </Button>
+                {puedeGestionar(enfocado) && (
+                  <>
+                    <Button variant="outline" title="Editar" onClick={() => abrirEdicion(enfocado)}>
+                      <Pencil className="size-4" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      title="Eliminar"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setEliminarId(enfocado.id)}
+                    >
+                      <Trash2 className="size-4" />
+                      Eliminar
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  Miembros
+                </h3>
+                <SeccionMiembros
+                  proyectoId={enfocado.id}
+                  soloLectura={!puedeGestionar(enfocado)}
+                />
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      <footer className="flex h-12 shrink-0 items-center gap-2 border-t border-border px-4">
+        <span className="min-w-0 truncate text-sm text-muted-foreground">
+          {perfil?.nombre || perfil?.email}
+        </span>
+        {perfil && <Badge variant="secondary">{etiquetaRol(perfil.rol)}</Badge>}
+        <div className="flex-1" />
+        <Button variant="ghost" className="text-muted-foreground" onClick={logout}>
+          <LogOut className="size-4" />
+          Cerrar sesión
+        </Button>
+      </footer>
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <DialogContent>
@@ -371,13 +436,6 @@ export function SelectorProyectos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <GestionMiembros
-        open={miembrosId !== null}
-        onOpenChange={(abierto) => !abierto && setMiembrosId(null)}
-        proyectoId={miembrosId ?? undefined}
-        nombreProyecto={proyectos.find((p) => p.id === miembrosId)?.nombre}
-      />
     </div>
   )
 }

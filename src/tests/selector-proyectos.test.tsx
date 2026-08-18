@@ -27,6 +27,16 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }))
 
+vi.mock('@tanstack/react-db', () => ({
+  useLiveQuery: vi.fn(() => ({ data: mocks.proyectos, isLoading: false })),
+}))
+
+vi.mock('@/lib/collections', () => ({
+  proyectosCollection: {},
+  perfilesCollection: {},
+  getMiembrosCollection: vi.fn(() => ({})),
+}))
+
 import { SelectorProyectos } from '@/components/projects/SelectorProyectos'
 
 function hacerPerfil(rol: Perfil['rol']): Perfil {

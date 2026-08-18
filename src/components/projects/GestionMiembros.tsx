@@ -1,12 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { eq, useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
-import {
-  agregarMiembroProyecto,
-  listarMiembrosProyecto,
-  listarPerfiles,
-  quitarMiembroProyecto,
-  type MiembroProyecto,
-} from '@/lib/supabase-service'
+import { getMiembrosCollection, perfilesCollection } from '@/lib/collections'
+import type { MiembroProyecto } from '@/lib/supabase-service'
 import { DialogoInvitar } from '@/components/projects/DialogoInvitar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,61 +24,106 @@ import {
 } from '@/components/ui/select'
 import { Trash2, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Perfil } from '@/types'
 
 interface GestionMiembrosProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+function mensajeErrorAccion(error: unknown, fallback: string): string {
+  const mensaje = error instanceof Error ? error.message : ''
+  if (/duplicate key/i.test(mensaje)) return 'El usuario ya es miembro del proyecto'
+  if (/row-level security|permission denied/i.test(mensaje)) return 'No tenés permiso para esta acción'
+  return mensaje || fallback
+}
+
 export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
   const { perfil, session, proyectoActivoId } = useAuth()
-  const [miembros, setMiembros] = useState<MiembroProyecto[]>([])
-  const [candidatos, setCandidatos] = useState<Perfil[]>([])
-  const [cargando, setCargando] = useState(false)
   const [seleccionado, setSeleccionado] = useState('')
   const [dialogoInvitar, setDialogoInvitar] = useState(false)
 
   const esAdmin = perfil?.rol === 'administrador'
+  const abierto = open && perfil?.rol !== 'usuario'
+  const miembrosCollection = abierto && proyectoActivoId ? getMiembrosCollection(proyectoActivoId) : undefined
 
-  const cargar = useCallback(async () => {
-    if (!proyectoActivoId) return
-    setCargando(true)
-    const lista = await listarMiembrosProyecto(proyectoActivoId)
-    setMiembros(lista)
-    if (perfil?.rol === 'administrador') {
-      const ids = new Set(lista.map((m) => m.user_id))
-      const perfiles = await listarPerfiles()
-      setCandidatos(perfiles.filter((p) => !ids.has(p.id)))
-    }
-    setCargando(false)
-  }, [proyectoActivoId, perfil?.rol])
+  const miembrosQuery = useLiveQuery(
+    (q) => (miembrosCollection ? q.from({ miembros: miembrosCollection }) : undefined),
+    [miembrosCollection],
+  )
+  const perfilesQuery = useLiveQuery(
+    (q) => (abierto && esAdmin ? q.from({ perfiles: perfilesCollection }) : undefined),
+    [abierto, esAdmin],
+  )
+  const joinQuery = useLiveQuery(
+    (q) =>
+      miembrosCollection && esAdmin
+        ? q
+            .from({ miembros: miembrosCollection })
+            .join({ perfiles: perfilesCollection }, ({ miembros, perfiles }) => eq(miembros.user_id, perfiles.id))
+            .select(({ miembros, perfiles }) => ({
+              user_id: miembros.user_id,
+              creado_por: miembros.creado_por,
+              creado_en: miembros.creado_en,
+              email: perfiles.email,
+              nombre: perfiles.nombre,
+              rol: perfiles.rol,
+            }))
+        : undefined,
+    [miembrosCollection, esAdmin],
+  )
 
   useEffect(() => {
-    if (open && perfil?.rol !== 'usuario') void cargar()
-  }, [open, cargar, perfil?.rol])
+    if (abierto && proyectoActivoId) void getMiembrosCollection(proyectoActivoId).utils.refetch()
+    if (abierto && esAdmin) void perfilesCollection.utils.refetch()
+  }, [abierto, proyectoActivoId, esAdmin])
 
-  if (!open || perfil?.rol === 'usuario' || !proyectoActivoId) return null
+  const miembros = useMemo(() => miembrosQuery.data ?? [], [miembrosQuery.data])
+  const filas: MiembroProyecto[] =
+    esAdmin && joinQuery.data
+      ? joinQuery.data.map((f) => ({
+          user_id: f.user_id,
+          creado_por: f.creado_por ?? '',
+          creado_en: f.creado_en ?? '',
+          email: f.email ?? null,
+          nombre: f.nombre ?? null,
+          rol: f.rol ?? null,
+        }))
+      : miembros
+  const candidatos = useMemo(() => {
+    const ids = new Set(miembros.map((m) => m.user_id))
+    return (perfilesQuery.data ?? []).filter((p) => !ids.has(p.id))
+  }, [miembros, perfilesQuery.data])
+
+  if (!abierto || !proyectoActivoId) return null
 
   const quitar = async (userId: string) => {
-    const respuesta = await quitarMiembroProyecto(proyectoActivoId, userId)
-    if (respuesta.success) {
+    if (!miembrosCollection) return
+    const tx = miembrosCollection.delete(userId)
+    try {
+      await tx.isPersisted.promise
       toast.success('Miembro quitado del proyecto')
-      void cargar()
-    } else {
-      toast.error(respuesta.error || 'No se pudo quitar al miembro')
+    } catch (error) {
+      toast.error(mensajeErrorAccion(error, 'No se pudo quitar al miembro'))
     }
   }
 
   const agregar = async () => {
-    if (!seleccionado) return
-    const respuesta = await agregarMiembroProyecto(proyectoActivoId, seleccionado, session?.user.id ?? '')
-    if (respuesta.success) {
+    if (!seleccionado || !miembrosCollection) return
+    const elegido = (perfilesQuery.data ?? []).find((p) => p.id === seleccionado)
+    const tx = miembrosCollection.insert({
+      user_id: seleccionado,
+      creado_por: session?.user.id ?? '',
+      creado_en: new Date().toISOString(),
+      email: elegido?.email ?? null,
+      nombre: elegido?.nombre ?? null,
+      rol: elegido?.rol ?? null,
+    })
+    try {
+      await tx.isPersisted.promise
       toast.success('Miembro agregado al proyecto')
       setSeleccionado('')
-      void cargar()
-    } else {
-      toast.error(respuesta.error || 'No se pudo agregar al miembro')
+    } catch (error) {
+      toast.error(mensajeErrorAccion(error, 'No se pudo agregar al miembro'))
     }
   }
 
@@ -98,10 +139,10 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              {cargando && miembros.length === 0 && (
+              {miembrosQuery.isLoading && filas.length === 0 && (
                 <p className="text-sm text-muted-foreground">Cargando miembros…</p>
               )}
-              {miembros.map((miembro) => (
+              {filas.map((miembro) => (
                 <div
                   key={miembro.user_id}
                   className="flex items-center gap-2 rounded-md border border-border p-2.5"
@@ -127,7 +168,7 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
                   </Button>
                 </div>
               ))}
-              {!cargando && miembros.length === 0 && (
+              {!miembrosQuery.isLoading && filas.length === 0 && (
                 <p className="text-sm text-muted-foreground">Todavía no hay miembros.</p>
               )}
             </div>
@@ -173,7 +214,7 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
         open={dialogoInvitar}
         onOpenChange={setDialogoInvitar}
         proyectoId={proyectoActivoId}
-        onInvitado={() => void cargar()}
+        onInvitado={() => { void miembrosCollection?.utils.refetch() }}
       />
     </>
   )

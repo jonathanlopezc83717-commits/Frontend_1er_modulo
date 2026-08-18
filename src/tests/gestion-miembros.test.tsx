@@ -6,7 +6,7 @@
 
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { render, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 import { createElement } from 'react'
 import type { MiembroProyecto } from '@/lib/supabase-service'
 import type { Perfil } from '@/types'
@@ -45,6 +45,8 @@ vi.mock('@/lib/supabase-service', () => ({
   agregarMiembroProyecto: mocks.agregarMiembroProyecto,
   quitarMiembroProyecto: mocks.quitarMiembroProyecto,
   invitarUsuario: mocks.invitarUsuario,
+  listarProyectos: vi.fn(),
+  crearProyecto: vi.fn(),
 }))
 
 import { GestionMiembros } from '@/components/projects/GestionMiembros'
@@ -101,12 +103,12 @@ describe('GestionMiembros: listado y gating', () => {
   it('lista los miembros del proyecto activo con email y rol', async () => {
     mocks.perfil = hacerPerfil('administrador', 'yo-1')
 
-    const { findByText, findAllByText } = montar()
+    const { findByText } = montar()
 
-    expect(await findByText('yo@test.local')).toBeTruthy()
+    expect(await findByText('yo-1@test.local')).toBeTruthy()
     expect(await findByText('u2@test.local')).toBeTruthy()
-    const badges = await findAllByText('usuario')
-    expect(badges.length).toBe(2)
+    expect(await findByText('administrador')).toBeTruthy()
+    expect(await findByText('usuario')).toBeTruthy()
     expect(mocks.listarMiembrosProyecto).toHaveBeenCalledWith('p1')
   })
 
@@ -144,12 +146,12 @@ describe('GestionMiembros: acciones', () => {
   it('quitar miembro llama al servicio y recarga la lista', async () => {
     mocks.perfil = hacerPerfil('administrador', 'yo-1')
 
-    const { findByTestId, getAllByRole } = montar()
-    await findByTestId('miembro-u2')
+    const { findByTestId } = montar()
+    const filaU2 = await findByTestId('miembro-u2')
 
-    fireEvent.click(getAllByRole('button', { name: /Quitar del proyecto/ })[0])
+    fireEvent.click(within(filaU2).getByRole('button', { name: /Quitar del proyecto/ }))
     await waitFor(() => {
-      expect(mocks.quitarMiembroProyecto).toHaveBeenCalledWith('p1', 'yo-1')
+      expect(mocks.quitarMiembroProyecto).toHaveBeenCalledWith('p1', 'u2')
     })
     await waitFor(() => {
       expect(mocks.listarMiembrosProyecto).toHaveBeenCalledTimes(2)

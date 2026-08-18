@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
+import { proyectosCollection } from '@/lib/collections'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,7 +18,9 @@ import {
 import { FolderOpen, LogOut, Plus, HardHat } from 'lucide-react'
 
 export function SelectorProyectos() {
-  const { perfil, proyectos, crearProyecto, cambiarProyecto, logout } = useAuth()
+  const { perfil, crearProyecto, cambiarProyecto, logout } = useAuth()
+  const { data } = useLiveQuery((q) => q.from({ proyectos: proyectosCollection }))
+  const proyectos = data ?? []
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')

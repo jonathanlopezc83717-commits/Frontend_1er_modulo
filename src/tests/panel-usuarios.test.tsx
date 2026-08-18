@@ -37,6 +37,11 @@ vi.mock('@/context/AuthContext', () => ({
 vi.mock('@/lib/supabase-service', () => ({
   listarPerfiles: mocks.listarPerfiles,
   cambiarRolUsuario: mocks.cambiarRolUsuario,
+  listarProyectos: vi.fn(),
+  crearProyecto: vi.fn(),
+  listarMiembrosProyecto: vi.fn(),
+  agregarMiembroProyecto: vi.fn(),
+  quitarMiembroProyecto: vi.fn(),
 }))
 
 import { PanelUsuarios } from '@/components/projects/PanelUsuarios'

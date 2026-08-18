@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
-import { cambiarRolUsuario, listarPerfiles } from '@/lib/supabase-service'
+import { perfilesCollection } from '@/lib/collections'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -11,35 +12,41 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import type { Perfil, RolUsuario } from '@/types'
+import type { RolUsuario } from '@/types'
 
 const ROLES: RolUsuario[] = ['administrador', 'general', 'usuario']
 
+function mensajeErrorRol(error: unknown): string {
+  const mensaje = error instanceof Error ? error.message : ''
+  if (/row-level security|permission denied/i.test(mensaje)) return 'No tenés permiso para cambiar roles'
+  return mensaje || 'No se pudo cambiar el rol'
+}
+
 export function PanelUsuarios() {
   const { perfil, refrescarPerfil } = useAuth()
-  const [usuarios, setUsuarios] = useState<Perfil[]>([])
-  const [cargando, setCargando] = useState(true)
-
-  const cargar = useCallback(async () => {
-    setCargando(true)
-    setUsuarios(await listarPerfiles())
-    setCargando(false)
-  }, [])
+  const esAdmin = perfil?.rol === 'administrador'
+  const usuariosQuery = useLiveQuery(
+    (q) => (esAdmin ? q.from({ perfiles: perfilesCollection }) : undefined),
+    [esAdmin],
+  )
+  const usuarios = usuariosQuery.data ?? []
 
   useEffect(() => {
-    if (perfil?.rol === 'administrador') void cargar()
-  }, [cargar, perfil?.rol])
+    if (esAdmin) void perfilesCollection.utils.refetch()
+  }, [esAdmin])
 
-  if (perfil?.rol !== 'administrador') return null
+  if (!esAdmin) return null
 
   const cambiarRol = async (userId: string, rol: RolUsuario) => {
-    const respuesta = await cambiarRolUsuario(userId, rol)
-    if (respuesta.success) {
+    const tx = perfilesCollection.update(userId, (draft) => {
+      draft.rol = rol
+    })
+    try {
+      await tx.isPersisted.promise
       toast.success('Rol actualizado. Surte efecto en la próxima sesión del usuario.')
       if (userId === perfil.id) await refrescarPerfil()
-      void cargar()
-    } else {
-      toast.error(respuesta.error || 'No se pudo cambiar el rol')
+    } catch (error) {
+      toast.error(mensajeErrorRol(error))
     }
   }
 
@@ -81,7 +88,7 @@ export function PanelUsuarios() {
             </div>
           )
         })}
-        {cargando && usuarios.length === 0 && (
+        {usuariosQuery.isLoading && usuarios.length === 0 && (
           <p className="text-sm text-muted-foreground">Cargando usuarios…</p>
         )}
       </CardContent>

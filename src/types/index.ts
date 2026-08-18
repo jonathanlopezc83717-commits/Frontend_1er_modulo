@@ -25,6 +25,11 @@ export interface Proyecto {
   descripcion: string | null
   creado_por: string
   created_at: string
+  estado?: 'activo' | 'eliminado'
+  updated_at?: string
+  miembros_count?: number
+  miembros_emails?: string[]
+  puntos_count?: number
 }
 
 export interface ProyectoMiembro {

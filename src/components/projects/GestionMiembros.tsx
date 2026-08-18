@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 interface GestionMiembrosProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  proyectoId?: string
 }
 
 function mensajeErrorAccion(error: unknown, fallback: string): string {
@@ -37,14 +38,15 @@ function mensajeErrorAccion(error: unknown, fallback: string): string {
   return mensaje || fallback
 }
 
-export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
+export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiembrosProps) {
   const { perfil, session, proyectoActivoId } = useAuth()
+  const proyectoIdEfectivo = proyectoId ?? proyectoActivoId
   const [seleccionado, setSeleccionado] = useState('')
   const [dialogoInvitar, setDialogoInvitar] = useState(false)
 
   const esAdmin = perfil?.rol === 'administrador'
   const abierto = open && perfil?.rol !== 'usuario'
-  const miembrosCollection = abierto && proyectoActivoId ? getMiembrosCollection(proyectoActivoId) : undefined
+  const miembrosCollection = abierto && proyectoIdEfectivo ? getMiembrosCollection(proyectoIdEfectivo) : undefined
 
   const miembrosQuery = useLiveQuery(
     (q) => (miembrosCollection ? q.from({ miembros: miembrosCollection }) : undefined),
@@ -73,9 +75,9 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
   )
 
   useEffect(() => {
-    if (abierto && proyectoActivoId) void getMiembrosCollection(proyectoActivoId).utils.refetch()
+    if (abierto && proyectoIdEfectivo) void getMiembrosCollection(proyectoIdEfectivo).utils.refetch()
     if (abierto && esAdmin) void perfilesCollection.utils.refetch()
-  }, [abierto, proyectoActivoId, esAdmin])
+  }, [abierto, proyectoIdEfectivo, esAdmin])
 
   const miembros = useMemo(() => miembrosQuery.data ?? [], [miembrosQuery.data])
   const filas: MiembroProyecto[] =
@@ -94,7 +96,7 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
     return (perfilesQuery.data ?? []).filter((p) => !ids.has(p.id))
   }, [miembros, perfilesQuery.data])
 
-  if (!abierto || !proyectoActivoId) return null
+  if (!abierto || !proyectoIdEfectivo) return null
 
   const quitar = async (userId: string) => {
     if (!miembrosCollection) return
@@ -213,7 +215,7 @@ export function GestionMiembros({ open, onOpenChange }: GestionMiembrosProps) {
       <DialogoInvitar
         open={dialogoInvitar}
         onOpenChange={setDialogoInvitar}
-        proyectoId={proyectoActivoId}
+        proyectoId={proyectoIdEfectivo}
         onInvitado={() => { void miembrosCollection?.utils.refetch() }}
       />
     </>

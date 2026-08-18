@@ -825,9 +825,9 @@ export async function cargarPuntosDesdeDB(proyectoId: string): Promise<PuntoFerr
 // =====================================================
 
 export async function listarProyectos(): Promise<Proyecto[]> {
-  const { data, error } = await supabase.from('proyectos').select('id,nombre,descripcion,creado_por,created_at')
+  const { data, error } = await supabase.rpc('listar_proyectos_con_meta')
   if (error || !data) return []
-  const proyectos = (data as Proyecto[]).slice()
+  const proyectos = (data as Proyecto[]).filter((p) => p.estado !== 'eliminado')
   proyectos.sort((a, b) => a.nombre.localeCompare(b.nombre))
   return proyectos
 }
@@ -836,6 +836,21 @@ export async function crearProyecto(proyecto: Proyecto): Promise<{ success: bool
   const { error } = await supabase
     .from('proyectos')
     .insert({ id: proyecto.id, nombre: proyecto.nombre, descripcion: proyecto.descripcion })
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+export async function actualizarProyecto(
+  id: string,
+  cambios: { nombre?: string; descripcion?: string | null },
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('proyectos').update(cambios).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+export async function eliminarProyecto(id: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.rpc('eliminar_proyecto', { p_id: id })
   if (error) return { success: false, error: error.message }
   return { success: true }
 }

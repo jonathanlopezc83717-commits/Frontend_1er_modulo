@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
 import { proyectosCollection } from '@/lib/collections'
+import { GestionMiembros } from '@/components/projects/GestionMiembros'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,10 +16,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FolderOpen, LogOut, Plus, HardHat } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, Users } from 'lucide-react'
+import { toast } from 'sonner'
+import type { Proyecto } from '@/types'
+
+function formatearFecha(fecha: string): string {
+  return new Date(fecha).toLocaleDateString('es-CL', {
+    day: '2-digit',
+    month: 'short',
+    year: '2-digit',
+  })
+}
+
+function formatearHace(fecha: string): string {
+  const ms = Date.now() - new Date(fecha).getTime()
+  if (ms < 60_000) return 'hace instantes'
+  const minutos = Math.floor(ms / 60_000)
+  if (minutos < 60) return `hace ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) return `hace ${horas} h`
+  const dias = Math.floor(horas / 24)
+  if (dias < 30) return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`
+  const meses = Math.floor(dias / 30)
+  return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`
+}
+
+function mensajeErrorAccion(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
 
 export function SelectorProyectos() {
-  const { perfil, crearProyecto, cambiarProyecto, logout } = useAuth()
+  const { perfil, session, proyectoActivoId, crearProyecto, cambiarProyecto, logout } = useAuth()
   const { data } = useLiveQuery((q) => q.from({ proyectos: proyectosCollection }))
   const proyectos = data ?? []
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
@@ -26,8 +54,19 @@ export function SelectorProyectos() {
   const [descripcion, setDescripcion] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [creando, setCreando] = useState(false)
+  const [editarId, setEditarId] = useState<string | null>(null)
+  const [editarNombre, setEditarNombre] = useState('')
+  const [editarDescripcion, setEditarDescripcion] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [eliminarId, setEliminarId] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+  const [miembrosId, setMiembrosId] = useState<string | null>(null)
 
   const puedeCrear = perfil?.rol === 'administrador' || perfil?.rol === 'general'
+  const esAdmin = perfil?.rol === 'administrador'
+
+  const puedeGestionar = (proyecto: Proyecto) =>
+    esAdmin || (Boolean(session?.user.id) && proyecto.creado_por === session?.user.id)
 
   const abrirDialogo = () => {
     setNombre('')
@@ -48,6 +87,46 @@ export function SelectorProyectos() {
     }
     setDialogoAbierto(false)
   }
+
+  const abrirEdicion = (proyecto: Proyecto) => {
+    setEditarNombre(proyecto.nombre)
+    setEditarDescripcion(proyecto.descripcion ?? '')
+    setEditarId(proyecto.id)
+  }
+
+  const confirmarEdicion = async () => {
+    if (!editarId || !editarNombre.trim() || guardando) return
+    setGuardando(true)
+    const tx = proyectosCollection.update(editarId, (draft) => {
+      draft.nombre = editarNombre.trim()
+      draft.descripcion = editarDescripcion.trim() || null
+    })
+    try {
+      await tx.isPersisted.promise
+      toast.success('Proyecto actualizado')
+      setEditarId(null)
+    } catch (error) {
+      toast.error(mensajeErrorAccion(error, 'No se pudo actualizar el proyecto'))
+    }
+    setGuardando(false)
+  }
+
+  const confirmarEliminacion = async () => {
+    if (!eliminarId || eliminando) return
+    setEliminando(true)
+    const tx = proyectosCollection.delete(eliminarId)
+    try {
+      await tx.isPersisted.promise
+      toast.success('Proyecto eliminado')
+      if (eliminarId === proyectoActivoId) cambiarProyecto(null)
+      setEliminarId(null)
+    } catch (error) {
+      toast.error(mensajeErrorAccion(error, 'No se pudo eliminar el proyecto'))
+    }
+    setEliminando(false)
+  }
+
+  const proyectoAEliminar = proyectos.find((p) => p.id === eliminarId) ?? null
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -84,21 +163,69 @@ export function SelectorProyectos() {
             <>
               <div className="space-y-2">
                 {proyectos.map((proyecto) => (
-                  <button
+                  <div
                     key={proyecto.id}
-                    type="button"
-                    onClick={() => cambiarProyecto(proyecto.id)}
-                    className="flex w-full items-center gap-3 rounded-md border border-border p-3 text-left transition-colors hover:bg-accent"
-                    data-testid={`proyecto-${proyecto.id}`}
+                    className="flex items-center gap-2 rounded-md border border-border p-3 transition-colors hover:bg-accent"
                   >
-                    <FolderOpen className="size-5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{proyecto.nombre}</span>
-                      {proyecto.descripcion && (
-                        <span className="block truncate text-muted-foreground">{proyecto.descripcion}</span>
-                      )}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => cambiarProyecto(proyecto.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      data-testid={`proyecto-${proyecto.id}`}
+                    >
+                      <FolderOpen className="size-5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{proyecto.nombre}</span>
+                        {proyecto.descripcion && (
+                          <span className="block truncate text-muted-foreground">{proyecto.descripcion}</span>
+                        )}
+                        <span className="block text-xs text-muted-foreground">
+                          Creada {formatearFecha(proyecto.created_at)} · Actividad{' '}
+                          {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
+                        </span>
+                      </span>
+                    </button>
+                    {typeof proyecto.miembros_count === 'number' && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0"
+                        title={(proyecto.miembros_emails ?? []).join(', ')}
+                      >
+                        {proyecto.miembros_count} miembros
+                      </Badge>
+                    )}
+                    {puedeGestionar(proyecto) && (
+                      <span className="flex shrink-0 gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          title="Editar"
+                          onClick={() => abrirEdicion(proyecto)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          title="Miembros"
+                          onClick={() => setMiembrosId(proyecto.id)}
+                        >
+                          <Users className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive"
+                          title="Eliminar"
+                          onClick={() => setEliminarId(proyecto.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
               {puedeCrear && (
@@ -156,6 +283,79 @@ export function SelectorProyectos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editarId !== null} onOpenChange={(abierto) => !abierto && setEditarId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar proyecto</DialogTitle>
+            <DialogDescription>
+              Actualizá el nombre o la descripción del proyecto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editar-nombre">Nombre</Label>
+              <Input
+                id="editar-nombre"
+                value={editarNombre}
+                onChange={(e) => setEditarNombre(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editar-descripcion">Descripción (opcional)</Label>
+              <Input
+                id="editar-descripcion"
+                value={editarDescripcion}
+                onChange={(e) => setEditarDescripcion(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditarId(null)} disabled={guardando}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarEdicion} disabled={!editarNombre.trim() || guardando}>
+              {guardando ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={eliminarId !== null} onOpenChange={(abierto) => !abierto && setEliminarId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar proyecto</DialogTitle>
+            <DialogDescription>
+              {proyectoAEliminar && (
+                <>
+                  Se ocultará el proyecto con sus {proyectoAEliminar.puntos_count ?? 0} puntos. Los
+                  datos no se destruyen — un administrador puede recuperarlo.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEliminarId(null)} disabled={eliminando}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminacion}
+              disabled={eliminando}
+              data-testid="confirmar-eliminacion"
+            >
+              {eliminando ? 'Eliminando...' : 'Eliminar proyecto'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <GestionMiembros
+        open={miembrosId !== null}
+        onOpenChange={(abierto) => !abierto && setMiembrosId(null)}
+        proyectoId={miembrosId ?? undefined}
+      />
     </div>
   )
 }

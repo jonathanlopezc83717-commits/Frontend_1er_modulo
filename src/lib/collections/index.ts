@@ -3,8 +3,10 @@ import { createCollection } from '@tanstack/react-db'
 import { queryCollectionOptions } from '@tanstack/query-db-collection'
 import {
   agregarMiembroProyecto,
+  actualizarProyecto,
   cambiarRolUsuario,
   crearProyecto as crearProyectoRemoto,
+  eliminarProyecto,
   listarMiembrosProyecto,
   listarPerfiles,
   listarProyectos,
@@ -30,6 +32,21 @@ export const proyectosCollection = createCollection(
     onInsert: async ({ transaction }) => {
       for (const mutation of transaction.mutations) {
         assertSuccess(await crearProyectoRemoto(mutation.modified))
+      }
+    },
+    onUpdate: async ({ transaction }) => {
+      for (const mutation of transaction.mutations) {
+        assertSuccess(
+          await actualizarProyecto(mutation.key, {
+            nombre: mutation.modified.nombre,
+            descripcion: mutation.modified.descripcion,
+          }),
+        )
+      }
+    },
+    onDelete: async ({ transaction }) => {
+      for (const mutation of transaction.mutations) {
+        assertSuccess(await eliminarProyecto(mutation.key))
       }
     },
   }),

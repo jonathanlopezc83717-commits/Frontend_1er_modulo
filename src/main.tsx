@@ -4,8 +4,26 @@ import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
 import { AppProvider } from '@/context/AppContext'
-import { AuthProvider } from '@/context/AuthContext'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { AuthGate } from '@/components/auth/AuthGate'
+import { SelectorProyectos } from '@/components/projects/SelectorProyectos'
+
+// Quinta rama del gate (design D4): sin proyecto activo -> picker;
+// con proyecto -> AppProvider con key por proyecto (reset limpio del
+// estado y una única carga por cambio de proyecto).
+function PuertaProyecto() {
+  const { proyectoActivoId } = useAuth()
+
+  if (!proyectoActivoId) {
+    return <SelectorProyectos />
+  }
+
+  return (
+    <AppProvider key={proyectoActivoId}>
+      <App />
+    </AppProvider>
+  )
+}
 
 // Recarga automática cuando un deploy nuevo invalida los chunks cacheados.
 // Evita bucles con una marca en sessionStorage.
@@ -48,9 +66,7 @@ try {
       <AuthProvider>
         <Toaster position="top-right" richColors />
         <AuthGate>
-          <AppProvider>
-            <App />
-          </AppProvider>
+          <PuertaProyecto />
         </AuthGate>
       </AuthProvider>
     </StrictMode>,

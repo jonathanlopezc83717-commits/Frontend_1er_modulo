@@ -17,6 +17,9 @@ vi.mock('@/lib/supabase-service', () => ({
   obtenerEstadoAppDesdeNube: vi.fn().mockResolvedValue(null),
   obtenerUltimoEstadoAppDesdeNube: vi.fn().mockResolvedValue(null),
 }))
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({ proyectoActivoId: 'proyecto-test' }),
+}))
 vi.mock('@/lib/storage', () => ({
   guardarEstado: vi.fn(),
   cargarEstado: vi.fn().mockReturnValue(null),

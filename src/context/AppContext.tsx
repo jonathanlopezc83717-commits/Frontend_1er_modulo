@@ -18,6 +18,7 @@ import {
 } from '@/lib/supabase-service'
 import { appReducer, MAX_ESTADOS_GUARDADOS, reenumerarPuntos } from './app-reducer'
 import { createStore, AppStoreContext, useAppSelector, useAppStore, shallow } from './app-store'
+import { useAuth } from './AuthContext'
 
 export { useAppSelector, useAppStore, shallow }
 
@@ -94,6 +95,8 @@ function getInitialState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { proyectoActivoId } = useAuth()
+  const proyectoId = proyectoActivoId ?? ''
   const [appStore] = useState(() => createStore(appReducer, getInitialState()))
   const state = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot)
   const dispatch = appStore.dispatch
@@ -278,7 +281,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (Date.now() - ultimaFecha >= BACKUP_INTERVAL_MS) {
         const copia = crearCopiaSeguridad('automatico', 'Copia de seguridad automatica cada 2 horas')
-        guardarEstadoAppEnNube(copia).catch(error => {
+        guardarEstadoAppEnNube(copia, proyectoId).catch(error => {
           console.error('Error guardando copia automatica en nube:', error)
         })
       }
@@ -287,7 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     crearSiCorresponde()
     const intervalId = window.setInterval(crearSiCorresponde, 60 * 1000)
     return () => window.clearInterval(intervalId)
-  }, [crearCopiaSeguridad, state.estadosGuardados, state.puntos.length])
+  }, [crearCopiaSeguridad, state.estadosGuardados, state.puntos.length, proyectoId])
 
   const moverPunto = useCallback((id: string, nuevaPosicion: number) => {
     const puntos = appStore.getState().puntos
@@ -325,7 +328,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Sincronizar puntos y snapshot en paralelo: son independientes entre sí
       const [result, snapshotResult] = await Promise.all([
-        sincronizarPuntos(puntos, {
+        sincronizarPuntos(puntos, proyectoId, {
           concurrency: 5,
           onLote: (completadas, tot) => {
             toast.loading('Sincronizando con la nube...', {
@@ -334,7 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             })
           },
         }),
-        guardarEstadoAppEnNube(copiaManual),
+        guardarEstadoAppEnNube(copiaManual, proyectoId),
       ])
 
       if (!snapshotResult.success) {
@@ -368,13 +371,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       return { success: false, message: String(error) }
     }
-  }, [crearCopiaSeguridad, appStore])
+  }, [crearCopiaSeguridad, appStore, proyectoId])
 
   const cargarDesdeSupabase = useCallback(async () => {
     try {
       const [ultimoEstado, estadosNube] = await Promise.all([
-        obtenerUltimoEstadoAppDesdeNube(),
-        obtenerEstadosAppDesdeNube(MAX_ESTADOS_GUARDADOS),
+        obtenerUltimoEstadoAppDesdeNube(proyectoId),
+        obtenerEstadosAppDesdeNube(proyectoId, MAX_ESTADOS_GUARDADOS),
       ])
 
       // La nube es FALLBACK: solo restaura puntos si NO hay estado local.
@@ -390,21 +393,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const puntos = await cargarPuntosDesdeDB()
+      const puntos = await cargarPuntosDesdeDB(proyectoId)
       dispatch({ type: 'SET_PUNTOS', payload: puntos })
         console.log(`📂 ${puntos.length} puntos cargados desde Supabase`)
     } catch (error) {
       console.error('Error cargando desde Supabase:', error)
       throw error
     }
-  }, [])
+  }, [proyectoId])
 
   const cargarEstadoPorIdDesdeSupabase = useCallback(async (id: string): Promise<boolean> => {
     try {
       const estado = await obtenerEstadoAppDesdeNube(id)
       if (!estado) return false
 
-      const estadosNube = await obtenerEstadosAppDesdeNube(MAX_ESTADOS_GUARDADOS)
+      const estadosNube = await obtenerEstadosAppDesdeNube(proyectoId, MAX_ESTADOS_GUARDADOS)
       dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: estado.snapshot })
       dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
       console.log(`Estado cargado desde Supabase: ${estado.descripcion}`)
@@ -413,7 +416,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error cargando estado por id desde Supabase:', error)
       return false
     }
-  }, [])
+  }, [proyectoId])
 
   const guardarCoordenadasDB = useCallback(async (id: string, x: number, y: number, z: number, notas?: string) => {
     await guardarCoordenadas(id, x, y, z, notas)

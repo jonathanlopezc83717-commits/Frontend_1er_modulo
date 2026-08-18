@@ -27,7 +27,7 @@ import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { IndicadorNas } from '@/components/IndicadorNas'
 
 function App() {
-  const { logout, perfil } = useAuth()
+  const { logout, perfil, proyectoActivoId } = useAuth()
   const puntosLength = useAppSelector((s) => s.puntos.length)
   const puntos = useAppSelector((s) => s.puntos)
   const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
@@ -55,8 +55,8 @@ function App() {
     setEstadoNubeSeleccionado(null)
     try {
       const [lista, ultimo] = await Promise.all([
-        obtenerEstadosAppDesdeNube(20),
-        obtenerUltimoEstadoAppDesdeNube(),
+        obtenerEstadosAppDesdeNube(proyectoActivoId ?? '', 20),
+        obtenerUltimoEstadoAppDesdeNube(proyectoActivoId ?? ''),
       ])
       setEstadosNubeLista(lista)
       setEstadoNubeSeleccionado(ultimo?.id || lista[0]?.id || null)
@@ -125,7 +125,7 @@ function App() {
       for (let i = 0; i < aCompactar.length; i++) {
         const punto = aCompactar[i]
         toast.loading(`Compactando ${i + 1}/${aCompactar.length}...`, { id: toastId })
-        const resultado = await guardarPuntoCompleto(punto)
+        const resultado = await guardarPuntoCompleto(punto, proyectoActivoId ?? '')
         if (resultado.success) {
           exitosos++
           if (resultado.moduloData) {

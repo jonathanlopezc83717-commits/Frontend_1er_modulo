@@ -280,4 +280,136 @@ select public.verify_assert(
 
 reset role;
 
+-- ---------- PR#4: gestión de proyectos (soft delete + meta) ----------
+-- P3 del tercero con segundo como miembro (no dueño) y 2 puntos
+insert into public.proyectos (id, nombre, creado_por) values (
+  'aaaaaaaa-0000-0000-0000-000000000003', 'Proyecto Tres verify',
+  '44444444-4444-4444-4444-444444444444');
+insert into public.proyecto_miembros (proyecto_id, user_id, creado_por) values (
+  'aaaaaaaa-0000-0000-0000-000000000003',
+  '22222222-2222-2222-2222-222222222222',
+  '44444444-4444-4444-4444-444444444444');
+insert into public.puntos_ferroviarios (id, numero_serie, nombre, estado, proyecto_id) values
+  ('88888888-8888-8888-8888-888888888881', 5, 'Punto P3 a', 'activo',
+   'aaaaaaaa-0000-0000-0000-000000000003'),
+  ('88888888-8888-8888-8888-888888888882', 6, 'Punto P3 b', 'activo',
+   'aaaaaaaa-0000-0000-0000-000000000003');
+
+-- trigger de puntos: escribir un punto avanza proyectos.updated_at.
+-- now() es estable dentro de la transacción: se retrocede el valor
+-- manualmente (trigger de touch deshabilitado un instante) y se
+-- exige que el touch del punto lo devuelva exactamente a now().
+do $$
+begin
+  alter table public.proyectos disable trigger trg_proyectos_updated_at;
+  update public.proyectos set updated_at = now() - interval '1 hour'
+    where id = 'aaaaaaaa-0000-0000-0000-000000000003';
+  alter table public.proyectos enable trigger trg_proyectos_updated_at;
+
+  update public.puntos_ferroviarios set nombre = 'Punto P3 a editado'
+    where id = '88888888-8888-8888-8888-888888888881';
+
+  if (select updated_at from public.proyectos
+       where id = 'aaaaaaaa-0000-0000-0000-000000000003') <> now() then
+    raise exception 'VERIFY FAILED: escribir puntos debe tocar proyectos.updated_at';
+  end if;
+  raise notice 'OK: trigger de puntos toca proyectos.updated_at';
+end $$;
+
+-- segundo (miembro, no dueño) ve P3 antes de la eliminación
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '22222222-2222-2222-2222-222222222222',
+                    'role', 'authenticated')::text,
+  true);
+select public.verify_assert(
+  (select count(*) = 2 from public.proyectos),
+  'miembro de P3 debe verlo antes de la eliminación');
+
+-- permisos de eliminar: no dueño y no admin rechazado
+do $$
+begin
+  perform public.eliminar_proyecto('aaaaaaaa-0000-0000-0000-000000000003');
+  raise exception 'VERIFY FAILED: un miembro no dueño no debe poder eliminar';
+exception when others then
+  if sqlerrm not like '%permiso%' then
+    raise exception 'VERIFY FAILED: error inesperado al eliminar sin permiso: %', sqlerrm;
+  end if;
+  raise notice 'OK: eliminación por no-dueño rechazada';
+end $$;
+
+-- delete físico revocado para authenticated
+do $$
+begin
+  delete from public.proyectos where id = 'aaaaaaaa-0000-0000-0000-000000000003';
+  raise exception 'VERIFY FAILED: delete físico debe estar revocado';
+exception when insufficient_privilege then
+  raise notice 'OK: delete físico revocado para authenticated';
+end $$;
+
+reset role;
+
+-- tercero (general, dueño de P3) elimina por RPC: soft delete
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '44444444-4444-4444-4444-444444444444',
+                    'role', 'authenticated')::text,
+  true);
+select public.eliminar_proyecto('aaaaaaaa-0000-0000-0000-000000000003');
+reset role;
+
+-- soft delete: estado marca eliminado, los puntos NO se destruyen
+select public.verify_assert(
+  (select estado = 'eliminado' from public.proyectos
+    where id = 'aaaaaaaa-0000-0000-0000-000000000003'),
+  'P3 debe quedar estado=eliminado tras el RPC');
+select public.verify_assert(
+  (select count(*) = 2 from public.puntos_ferroviarios
+    where proyecto_id = 'aaaaaaaa-0000-0000-0000-000000000003'
+      and estado = 'activo'),
+  'los puntos de P3 deben seguir intactos y activos');
+
+-- segundo ya no ve P3; el meta RPC respeta la misma visibilidad
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '22222222-2222-2222-2222-222222222222',
+                    'role', 'authenticated')::text,
+  true);
+select public.verify_assert(
+  (select count(*) = 1 from public.proyectos),
+  'eliminado debe ser invisible para el miembro no admin');
+select public.verify_assert(
+  (select count(*) = 1 from public.listar_proyectos_con_meta()),
+  'meta RPC debe excluir el proyecto eliminado para no-admin');
+select public.verify_assert(
+  (select miembros_count = 2 from public.listar_proyectos_con_meta()
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'meta RPC debe contar los miembros del proyecto visible');
+select public.verify_assert(
+  (select array_length(miembros_emails, 1) = 2
+     from public.listar_proyectos_con_meta()
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'meta RPC debe exponer los emails de miembros al miembro');
+
+reset role;
+
+-- admin sigue viendo P3 (eliminado) vía RLS y vía meta RPC
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111',
+                    'role', 'authenticated')::text,
+  true);
+select public.verify_assert(
+  (select count(*) = 3 from public.proyectos),
+  'admin debe seguir viendo el proyecto eliminado');
+select public.verify_assert(
+  (select count(*) = 3 from public.listar_proyectos_con_meta()),
+  'admin debe ver los 3 proyectos en el meta RPC');
+select public.verify_assert(
+  (select puntos_count = 2 from public.listar_proyectos_con_meta()
+    where id = 'aaaaaaaa-0000-0000-0000-000000000003'),
+  'meta RPC debe contar los puntos activos del proyecto');
+
+reset role;
+
 rollback;

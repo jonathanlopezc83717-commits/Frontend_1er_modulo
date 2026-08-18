@@ -47,6 +47,8 @@ vi.mock('@/lib/supabase-service', () => ({
   invitarUsuario: mocks.invitarUsuario,
   listarProyectos: vi.fn(),
   crearProyecto: vi.fn(),
+  actualizarProyecto: vi.fn(),
+  eliminarProyecto: vi.fn(),
 }))
 
 import { GestionMiembros } from '@/components/projects/GestionMiembros'
@@ -187,5 +189,19 @@ describe('GestionMiembros: acciones', () => {
     fireEvent.click(await findByRole('button', { name: /Invitar usuario nuevo/ }))
 
     expect(await findByText('Invitar usuario')).toBeTruthy()
+  })
+})
+
+describe('GestionMiembros: override de proyecto', () => {
+  it('lista los miembros del proyecto indicado por prop, no del activo', async () => {
+    mocks.perfil = hacerPerfil('administrador', 'yo-1')
+
+    const { findByText } = render(
+      createElement(GestionMiembros, { open: true, onOpenChange: vi.fn(), proyectoId: 'p9' }),
+    )
+
+    expect(await findByText('u2@test.local')).toBeTruthy()
+    expect(mocks.listarMiembrosProyecto).toHaveBeenCalledWith('p9')
+    expect(mocks.listarMiembrosProyecto).not.toHaveBeenCalledWith('p1')
   })
 })

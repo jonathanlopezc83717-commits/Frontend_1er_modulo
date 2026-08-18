@@ -24,6 +24,7 @@ vi.mock('@/lib/supabase', () => ({
         eq: () => ({ maybeSingle: mocks.maybeSingle }),
       }),
     })),
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
   },
 }))
 

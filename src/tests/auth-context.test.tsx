@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   getSession: vi.fn(),
   maybeSingle: vi.fn(),
-  proyectosSelect: vi.fn(),
+  proyectosRpc: vi.fn(),
   proyectosInsert: vi.fn(),
 }))
 
@@ -23,9 +23,10 @@ vi.mock('@/lib/supabase', () => ({
       signOut: mocks.signOut,
       getSession: mocks.getSession,
     },
+    rpc: mocks.proyectosRpc,
     from: vi.fn((tabla: string) => {
       if (tabla === 'proyectos') {
-        return { select: mocks.proyectosSelect, insert: mocks.proyectosInsert }
+        return { insert: mocks.proyectosInsert }
       }
       return {
         select: () => ({
@@ -80,7 +81,7 @@ describe('AuthContext: restauración de sesión y acciones', () => {
     cleanup()
     vi.clearAllMocks()
     localStorage.clear()
-    mocks.proyectosSelect.mockResolvedValue({ data: [], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [], error: null })
     mocks.proyectosInsert.mockResolvedValue({ error: null })
   })
   it('arranca en cargando y restaura sesión + perfil con el evento inicial', async () => {
@@ -212,7 +213,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
     vi.clearAllMocks()
     localStorage.clear()
     mocks.maybeSingle.mockResolvedValue({ data: hacerPerfil('u1') })
-    mocks.proyectosSelect.mockResolvedValue({ data: [], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [], error: null })
     mocks.proyectosInsert.mockResolvedValue({ error: null })
   })
 
@@ -241,7 +242,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
 
   it('restaura el proyecto activo persistido cuando sigue autorizado', async () => {
     localStorage.setItem('proyecto-activo:u1', 'p1')
-    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Alpha'), hacerProyecto('p2', 'Obra Beta')], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Alpha'), hacerProyecto('p2', 'Obra Beta')], error: null })
 
     const montaje = await montarConProyectos()
     await act(async () => {
@@ -256,7 +257,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
 
   it('cae al picker y limpia la clave cuando el proyecto persistido ya no es visible', async () => {
     localStorage.setItem('proyecto-activo:u1', 'p-fuera')
-    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
 
     const montaje = await montarConProyectos()
     await act(async () => {
@@ -269,7 +270,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
   })
 
   it('sin clave persistida arranca en el picker', async () => {
-    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
 
     const montaje = await montarConProyectos()
     await act(async () => {
@@ -281,7 +282,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
   })
 
   it('cambiarProyecto persiste y cambiarProyecto(null) limpia', async () => {
-    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')], error: null })
     let cambiar: (id: string | null) => void = () => {}
     const { AuthProvider, useAuth } = await import('@/context/AuthContext')
     function Sonda() {
@@ -305,7 +306,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
 
   it('SIGNED_OUT limpia la clave de proyecto activo', async () => {
     localStorage.setItem('proyecto-activo:u1', 'p1')
-    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+    mocks.proyectosRpc.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
 
     const montaje = await montarConProyectos()
     await act(async () => {
@@ -326,7 +327,7 @@ describe('AuthContext: proyectos y proyecto activo', () => {
   it('crearProyecto inserta, refresca la lista y activa el nuevo proyecto', async () => {
     const idNuevo = '99999999-9999-9999-9999-999999999999'
     const spyRandom = vi.spyOn(crypto, 'randomUUID').mockReturnValue(idNuevo)
-    mocks.proyectosSelect
+    mocks.proyectosRpc
       .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: [hacerProyecto(idNuevo, 'Obra Nueva')], error: null })
 

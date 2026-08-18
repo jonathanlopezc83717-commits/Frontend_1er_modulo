@@ -9,6 +9,8 @@ import type { Perfil, Proyecto } from '@/types'
 const mocks = vi.hoisted(() => ({
   listarProyectos: vi.fn(),
   crearProyecto: vi.fn(),
+  actualizarProyecto: vi.fn(),
+  eliminarProyecto: vi.fn(),
   listarMiembrosProyecto: vi.fn(),
   agregarMiembroProyecto: vi.fn(),
   quitarMiembroProyecto: vi.fn(),
@@ -95,6 +97,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.listarProyectos.mockResolvedValue([])
   mocks.crearProyecto.mockResolvedValue({ success: true })
+  mocks.actualizarProyecto.mockResolvedValue({ success: true })
+  mocks.eliminarProyecto.mockResolvedValue({ success: true })
   mocks.listarMiembrosProyecto.mockResolvedValue([])
   mocks.agregarMiembroProyecto.mockResolvedValue({ success: true })
   mocks.quitarMiembroProyecto.mockResolvedValue({ success: true })
@@ -226,5 +230,75 @@ describe('collections: optimistic mutations with rollback', () => {
     const tx = proyectosCollection.insert(hacerProyecto('p10'))
     await expect(tx.isPersisted.promise).rejects.toThrow('RLS rejected')
     expect(mocks.crearProyecto).toHaveBeenCalledWith(expect.objectContaining({ id: 'p10' }))
+  })
+
+  it('project update persists only nombre/descripcion via actualizarProyecto', async () => {
+    mocks.listarProyectos.mockResolvedValue([hacerProyecto('p1')])
+    render(createElement(SondaProyectos))
+    await act(async () => {
+      await proyectosCollection.utils.refetch()
+    })
+    expect(await screen.findByTestId('proyecto-p1')).toBeTruthy()
+
+    mocks.listarProyectos.mockResolvedValue([{ ...hacerProyecto('p1'), nombre: 'Obra Nueva' }])
+    await act(async () => {
+      const tx = proyectosCollection.update('p1', (draft) => {
+        draft.nombre = 'Obra Nueva'
+      })
+      await tx.isPersisted.promise
+    })
+
+    expect(mocks.actualizarProyecto).toHaveBeenCalledWith('p1', { nombre: 'Obra Nueva', descripcion: null })
+    await waitFor(() => {
+      expect(mocks.listarProyectos).toHaveBeenCalledTimes(2)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('proyecto-p1').textContent).toBe('Obra Nueva')
+    })
+  })
+
+  it('project delete persists via eliminarProyecto RPC and refetches without the row', async () => {
+    mocks.listarProyectos.mockResolvedValue([hacerProyecto('p10')])
+    render(createElement(SondaProyectos))
+    await act(async () => {
+      await proyectosCollection.utils.refetch()
+    })
+    expect(await screen.findByTestId('proyecto-p10')).toBeTruthy()
+
+    mocks.listarProyectos.mockResolvedValue([])
+    await act(async () => {
+      const tx = proyectosCollection.delete('p10')
+      await tx.isPersisted.promise
+    })
+
+    expect(mocks.eliminarProyecto).toHaveBeenCalledWith('p10')
+    await waitFor(() => {
+      expect(mocks.listarProyectos).toHaveBeenCalledTimes(2)
+    })
+    await waitFor(() => {
+      expect(screen.queryByTestId('proyecto-p10')).toBeNull()
+    })
+  })
+
+  it('project delete rolls back when the RPC rejects (permiso insuficiente)', async () => {
+    mocks.listarProyectos.mockResolvedValue([hacerProyecto('p11')])
+    mocks.eliminarProyecto.mockResolvedValue({
+      success: false,
+      error: 'No tenés permiso para eliminar este proyecto',
+    })
+    render(createElement(SondaProyectos))
+    await act(async () => {
+      await proyectosCollection.utils.refetch()
+    })
+    expect(await screen.findByTestId('proyecto-p11')).toBeTruthy()
+
+    await act(async () => {
+      proyectosCollection.delete('p11')
+    })
+
+    expect(mocks.eliminarProyecto).toHaveBeenCalledWith('p11')
+    await waitFor(() => {
+      expect(screen.getByTestId('proyecto-p11')).toBeTruthy()
+    })
   })
 })

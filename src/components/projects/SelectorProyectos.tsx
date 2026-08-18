@@ -172,6 +172,16 @@ export function SelectorProyectos() {
           aria-label="Buscar proyectos"
           className="w-48 sm:w-64"
         />
+        {ultimoProyecto && (
+          <Button
+            onClick={() => cambiarProyecto(ultimoProyecto.id)}
+            title={`Entrar a "${ultimoProyecto.nombre}"`}
+            data-testid="continuar-ultimo"
+          >
+            <Play className="size-4" />
+            <span className="hidden max-w-[140px] truncate lg:inline">{ultimoProyecto.nombre}</span>
+          </Button>
+        )}
         {puedeCrear && (
           <Button onClick={abrirDialogo}>
             <Plus className="size-4" />

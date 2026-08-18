@@ -419,6 +419,28 @@ describe('SelectorProyectos: banner de reanudación', () => {
 
     expect(queryByTestId('banner-reanudar')).toBeNull()
   })
+
+  it('botón Continuar del header entra directo al último proyecto', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')]
+    mocks.ultimoProyectoId = 'p2'
+
+    const { getByTestId } = render(createElement(SelectorProyectos))
+
+    const boton = getByTestId('continuar-ultimo')
+    expect(boton.textContent).toContain('Obra Dos')
+    fireEvent.click(boton)
+    expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p2')
+  })
+
+  it('sin último proyecto no aparece el botón Continuar', () => {
+    mocks.perfil = hacerPerfil('usuario')
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { queryByTestId } = render(createElement(SelectorProyectos))
+
+    expect(queryByTestId('continuar-ultimo')).toBeNull()
+  })
 })
 
 describe('SelectorProyectos: eliminación con confirmación', () => {

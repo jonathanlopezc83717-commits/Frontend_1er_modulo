@@ -5,8 +5,10 @@ import { HistorialObras } from '@/components/HistorialObras'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive } from 'lucide-react'
+import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive, FolderInput, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { GestionMiembros } from '@/components/projects/GestionMiembros'
+import { PanelUsuarios } from '@/components/projects/PanelUsuarios'
 import { useState, useEffect } from 'react'
 import {
   Dialog,
@@ -27,13 +29,14 @@ import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { IndicadorNas } from '@/components/IndicadorNas'
 
 function App() {
-  const { logout, perfil, proyectoActivoId } = useAuth()
+  const { logout, perfil, proyectoActivoId, cambiarProyecto } = useAuth()
   const puntosLength = useAppSelector((s) => s.puntos.length)
   const puntos = useAppSelector((s) => s.puntos)
   const puntoActivoId = useAppSelector((s) => s.puntoActivo?.id)
   const puntoActivoNombre = useAppSelector((s) => s.puntoActivo?.nombre)
   const { sincronizarConSupabase, cargarEstadoPorIdDesdeSupabase, setModuloActivo, actualizarPunto } = useAppActions()
   const [mostrarConfig, setMostrarConfig] = useState(false)
+  const [mostrarMiembros, setMostrarMiembros] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
@@ -232,6 +235,26 @@ function App() {
             >
               <HardHat className="w-4 h-4" />
             </Button>
+            {perfil?.rol !== 'usuario' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => setMostrarMiembros(true)}
+                title="Miembros del proyecto"
+              >
+                <Users className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => cambiarProyecto(null)}
+              title="Cambiar de proyecto"
+            >
+              <FolderInput className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -262,7 +285,7 @@ function App() {
 
       {/* Config Dialog */}
       <Dialog open={mostrarConfig} onOpenChange={setMostrarConfig}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configuración</DialogTitle>
             <DialogDescription>
@@ -270,6 +293,7 @@ function App() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {perfil?.rol === 'administrador' && <PanelUsuarios />}
             <Card>
               <CardContent className="py-3">
                 <p className="text-sm text-muted-foreground">
@@ -492,6 +516,8 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GestionMiembros open={mostrarMiembros} onOpenChange={setMostrarMiembros} />
     </div>
   )
 }

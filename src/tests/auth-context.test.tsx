@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { createElement } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Perfil } from '@/types'
+import type { Perfil, Proyecto } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   onAuthStateChange: vi.fn(),
@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   getSession: vi.fn(),
   maybeSingle: vi.fn(),
+  proyectosSelect: vi.fn(),
+  proyectosInsert: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -21,11 +23,16 @@ vi.mock('@/lib/supabase', () => ({
       signOut: mocks.signOut,
       getSession: mocks.getSession,
     },
-    from: vi.fn(() => ({
-      select: () => ({
-        eq: () => ({ maybeSingle: mocks.maybeSingle }),
-      }),
-    })),
+    from: vi.fn((tabla: string) => {
+      if (tabla === 'proyectos') {
+        return { select: mocks.proyectosSelect, insert: mocks.proyectosInsert }
+      }
+      return {
+        select: () => ({
+          eq: () => ({ maybeSingle: mocks.maybeSingle }),
+        }),
+      }
+    }),
   },
 }))
 
@@ -42,6 +49,16 @@ function hacerPerfil(userId: string, debeCambiar = false): Perfil {
     debe_cambiar_password: debeCambiar,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
+  }
+}
+
+function hacerProyecto(id: string, nombre: string): Proyecto {
+  return {
+    id,
+    nombre,
+    descripcion: null,
+    creado_por: 'u1',
+    created_at: '2026-01-01T00:00:00Z',
   }
 }
 
@@ -62,8 +79,10 @@ describe('AuthContext: restauración de sesión y acciones', () => {
   beforeEach(() => {
     cleanup()
     vi.clearAllMocks()
+    localStorage.clear()
+    mocks.proyectosSelect.mockResolvedValue({ data: [], error: null })
+    mocks.proyectosInsert.mockResolvedValue({ error: null })
   })
-
   it('arranca en cargando y restaura sesión + perfil con el evento inicial', async () => {
     const { AuthProvider, useAuth } = await import('@/context/AuthContext')
     const montaje = montarConCallback()
@@ -184,5 +203,156 @@ describe('AuthContext: restauración de sesión y acciones', () => {
       await refrescar()
     })
     expect(perfilesVistos[perfilesVistos.length - 1]?.debe_cambiar_password).toBe(false)
+  })
+})
+
+describe('AuthContext: proyectos y proyecto activo', () => {
+  beforeEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+    localStorage.clear()
+    mocks.maybeSingle.mockResolvedValue({ data: hacerPerfil('u1') })
+    mocks.proyectosSelect.mockResolvedValue({ data: [], error: null })
+    mocks.proyectosInsert.mockResolvedValue({ error: null })
+  })
+
+  async function montarConProyectos() {
+    const { AuthProvider, useAuth } = await import('@/context/AuthContext')
+
+    let authCallback: AuthCallback = () => {}
+    mocks.onAuthStateChange.mockImplementation((cb: AuthCallback) => {
+      authCallback = cb
+      return { data: { subscription: { unsubscribe: vi.fn() } } }
+    })
+
+    const valores: Array<{ proyectos: Proyecto[]; proyectoActivoId: string | null }> = []
+    function Sonda() {
+      const v = useAuth()
+      valores.push({ proyectos: v.proyectos, proyectoActivoId: v.proyectoActivoId })
+      return createElement('div', null)
+    }
+    render(createElement(AuthProvider, null, createElement(Sonda)))
+
+    return {
+      emitir: (e: string, s: Session | null) => authCallback(e, s),
+      valores,
+    }
+  }
+
+  it('restaura el proyecto activo persistido cuando sigue autorizado', async () => {
+    localStorage.setItem('proyecto-activo:u1', 'p1')
+    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Alpha'), hacerProyecto('p2', 'Obra Beta')], error: null })
+
+    const montaje = await montarConProyectos()
+    await act(async () => {
+      montaje.emitir('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+
+    const ultimo = montaje.valores[montaje.valores.length - 1]
+    expect(ultimo.proyectoActivoId).toBe('p1')
+    expect(ultimo.proyectos.map(p => p.id)).toEqual(['p1', 'p2'])
+  })
+
+  it('cae al picker y limpia la clave cuando el proyecto persistido ya no es visible', async () => {
+    localStorage.setItem('proyecto-activo:u1', 'p-fuera')
+    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+
+    const montaje = await montarConProyectos()
+    await act(async () => {
+      montaje.emitir('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+
+    expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
+    expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
+  })
+
+  it('sin clave persistida arranca en el picker', async () => {
+    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+
+    const montaje = await montarConProyectos()
+    await act(async () => {
+      montaje.emitir('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+
+    expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
+  })
+
+  it('cambiarProyecto persiste y cambiarProyecto(null) limpia', async () => {
+    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')], error: null })
+    let cambiar: (id: string | null) => void = () => {}
+    const { AuthProvider, useAuth } = await import('@/context/AuthContext')
+    function Sonda() {
+      const v = useAuth()
+      cambiar = v.cambiarProyecto
+      return createElement('div', null)
+    }
+    render(createElement(AuthProvider, null, createElement(Sonda)))
+
+    await act(async () => {
+      mocks.onAuthStateChange.mock.calls[0][0]('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+
+    act(() => cambiar('p2'))
+    expect(localStorage.getItem('proyecto-activo:u1')).toBe('p2')
+
+    act(() => cambiar(null))
+    expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
+  })
+
+  it('SIGNED_OUT limpia la clave de proyecto activo', async () => {
+    localStorage.setItem('proyecto-activo:u1', 'p1')
+    mocks.proyectosSelect.mockResolvedValue({ data: [hacerProyecto('p1', 'Obra Uno')], error: null })
+
+    const montaje = await montarConProyectos()
+    await act(async () => {
+      montaje.emitir('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+    expect(localStorage.getItem('proyecto-activo:u1')).toBe('p1')
+
+    await act(async () => {
+      montaje.emitir('SIGNED_OUT', null)
+      await Promise.resolve()
+    })
+
+    expect(localStorage.getItem('proyecto-activo:u1')).toBeNull()
+    expect(montaje.valores[montaje.valores.length - 1].proyectoActivoId).toBeNull()
+  })
+
+  it('crearProyecto inserta, refresca la lista y activa el nuevo proyecto', async () => {
+    const idNuevo = '99999999-9999-9999-9999-999999999999'
+    const spyRandom = vi.spyOn(crypto, 'randomUUID').mockReturnValue(idNuevo)
+    mocks.proyectosSelect
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [hacerProyecto(idNuevo, 'Obra Nueva')], error: null })
+
+    let crear: (n: string, d?: string) => Promise<{ success: boolean; error?: string }> = async () => ({ success: true })
+    const { AuthProvider, useAuth } = await import('@/context/AuthContext')
+    const activos: Array<string | null> = []
+    function Sonda() {
+      const v = useAuth()
+      crear = v.crearProyecto
+      activos.push(v.proyectoActivoId)
+      return createElement('div', null)
+    }
+    render(createElement(AuthProvider, null, createElement(Sonda)))
+
+    await act(async () => {
+      mocks.onAuthStateChange.mock.calls[0][0]('INITIAL_SESSION', hacerSession('u1'))
+      await Promise.resolve()
+    })
+
+    const resultado = await act(() => crear('Obra Nueva', 'descripción'))
+    expect(resultado.success).toBe(true)
+    expect(mocks.proyectosInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: idNuevo, nombre: 'Obra Nueva', descripcion: 'descripción' }),
+    )
+    expect(activos[activos.length - 1]).toBe(idNuevo)
+    expect(localStorage.getItem('proyecto-activo:u1')).toBe(idNuevo)
+    spyRandom.mockRestore()
   })
 })

@@ -19,6 +19,21 @@ export interface Perfil {
   updated_at: string
 }
 
+export interface Proyecto {
+  id: string
+  nombre: string
+  descripcion: string | null
+  creado_por: string
+  created_at: string
+}
+
+export interface ProyectoMiembro {
+  proyecto_id: string
+  user_id: string
+  creado_por: string
+  creado_en: string
+}
+
 
 export interface AIModel {
   id: ModelId

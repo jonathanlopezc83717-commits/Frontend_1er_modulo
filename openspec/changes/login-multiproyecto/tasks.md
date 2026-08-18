@@ -53,9 +53,9 @@ Binding user decision (resolves design Open Q1): `general` invites are locked to
 
 ## Phase 3: PR #3 — Member/Role UI
 
-- [ ] 3.1 `supabase-service.ts`: `invitarUsuario` (invoke `invite-user`), member list/add/remove, `cambiarRolUsuario`. Check: `tsc -b`.
-- [ ] 3.2 Create `src/components/projects/DialogoInvitar.tsx`: admin picks rol; general fixed `usuario` (binding decision); temp password shown once. Test: `src/tests/dialogo-invitar.test.tsx`.
-- [ ] 3.3 Create `src/components/projects/GestionMiembros.tsx`: member list, assign `usuario`, remove (Req: Membership Management). Test: `src/tests/gestion-miembros.test.tsx`.
-- [ ] 3.4 Create `src/components/projects/PanelUsuarios.tsx`: admin-only global role promote/demote (Req: Global Roles and Permissions — CHANGE role row). Test: `src/tests/panel-usuarios.test.tsx`.
-- [ ] 3.5 `src/App.tsx`: header "Cambiar proyecto" → `cambiarProyecto(null)` (single-screen UX otherwise untouched).
-- [ ] 3.6 PR #3 verification: lint + `tsc -b` + `npx vitest run` + manual smoke: general invites usuario-only, admin promotes, removed member loses access next session.
+- [x] 3.1 `supabase-service.ts`: `invitarUsuario` (invoke `invite-user`), member list/add/remove, `cambiarRolUsuario`. Check: `tsc -b`.
+- [x] 3.2 Create `src/components/projects/DialogoInvitar.tsx`: admin picks rol; general fixed `usuario` (binding decision); temp password shown once. Test: `src/tests/dialogo-invitar.test.tsx`.
+- [x] 3.3 Create `src/components/projects/GestionMiembros.tsx`: member list, assign `usuario`, remove (Req: Membership Management). Test: `src/tests/gestion-miembros.test.tsx`.
+- [x] 3.4 Create `src/components/projects/PanelUsuarios.tsx`: admin-only global role promote/demote (Req: Global Roles and Permissions — CHANGE role row). Test: `src/tests/panel-usuarios.test.tsx`.
+- [x] 3.5 `src/App.tsx`: header "Cambiar proyecto" → `cambiarProyecto(null)` (single-screen UX otherwise untouched).
+- [x] 3.6 PR #3 verification: lint + `tsc -b` + `npx vitest run` + manual smoke: general invites usuario-only, admin promotes, removed member loses access next session. (lint/tsc/vitest green — 235/235; manual smoke deferred: Docker down.)

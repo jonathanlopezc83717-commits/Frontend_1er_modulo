@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useLiveQuery } from '@tanstack/react-db'
 import { supabase } from '@/lib/supabase'
+import { proyectosCollection, queryClient } from '@/lib/collections'
+import { listarProyectos } from '@/lib/supabase-service'
 import type { Perfil, Proyecto } from '@/types'
 
 export interface AuthContextValue {
@@ -38,14 +41,6 @@ async function obtenerPerfil(userId: string): Promise<Perfil | null> {
   return (data as Perfil | null) ?? null
 }
 
-async function obtenerProyectos(): Promise<Proyecto[]> {
-  const { data, error } = await supabase.from('proyectos').select('id,nombre,descripcion,creado_por,created_at')
-  if (error || !data) return []
-  const proyectos = (data as Proyecto[]).slice()
-  proyectos.sort((a, b) => a.nombre.localeCompare(b.nombre))
-  return proyectos
-}
-
 function leerProyectoActivoValidado(userId: string, proyectos: Proyecto[]): string | null {
   const guardado = localStorage.getItem(claveProyectoActivo(userId))
   if (!guardado) return null
@@ -59,10 +54,15 @@ function leerProyectoActivoValidado(userId: string, proyectos: Proyecto[]): stri
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
-  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [proyectoActivoId, setProyectoActivoId] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const userIdRef = useRef<string | null>(null)
+
+  const proyectosQuery = useLiveQuery((q) => q.from({ proyectos: proyectosCollection }))
+  const proyectos = useMemo(
+    () => (session && perfil ? proyectosQuery.data : []),
+    [session, perfil, proyectosQuery.data],
+  )
 
   useEffect(() => {
     let ignore = false
@@ -76,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userIdRef.current = null
         }
         setPerfil(null)
-        setProyectos([])
         setProyectoActivoId(null)
         setCargando(false)
         return
@@ -88,14 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (ignore) return
       setPerfil(perfilCargado)
       if (!perfilCargado) {
-        setProyectos([])
         setProyectoActivoId(null)
         setCargando(false)
         return
       }
-      const proyectosCargados = await obtenerProyectos()
+      const proyectosCargados = await queryClient.fetchQuery({
+        queryKey: ['proyectos'],
+        queryFn: () => listarProyectos(),
+      })
       if (ignore) return
-      setProyectos(proyectosCargados)
       setProyectoActivoId(leerProyectoActivoValidado(nuevaSession.user.id, proyectosCargados))
       setCargando(false)
     })
@@ -136,19 +136,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const crearProyecto = useCallback(async (nombre: string, descripcion?: string) => {
     const id = crypto.randomUUID()
-    const { error } = await supabase
-      .from('proyectos')
-      .insert({ id, nombre: nombre.trim(), descripcion: descripcion?.trim() || null })
-    if (error) return { success: false, error: error.message }
-
-    const proyectosActualizados = await obtenerProyectos()
-    setProyectos(proyectosActualizados)
-    const creado = proyectosActualizados.find(p => p.id === id)
-    if (creado) {
-      cambiarProyecto(creado.id)
+    const tx = proyectosCollection.insert({
+      id,
+      nombre: nombre.trim(),
+      descripcion: descripcion?.trim() || null,
+      creado_por: session?.user.id ?? '',
+      created_at: new Date().toISOString(),
+    })
+    try {
+      await tx.isPersisted.promise
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'No se pudo crear el proyecto' }
     }
+    cambiarProyecto(id)
     return { success: true }
-  }, [cambiarProyecto])
+  }, [cambiarProyecto, session?.user.id])
 
   const value = useMemo<AuthContextValue>(
     () => ({

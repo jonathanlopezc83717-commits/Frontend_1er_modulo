@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase'
 import { subirImagenDedup } from './storage-dedup'
-import type { PuntoFerroviario, ImageAnalysisResult, EstadoGuardado, Perfil, RolUsuario } from '@/types'
+import type { PuntoFerroviario, ImageAnalysisResult, EstadoGuardado, Perfil, Proyecto, RolUsuario } from '@/types'
 
 // =====================================================
 // TIPOS PARA SUPABASE
@@ -818,6 +818,26 @@ export async function sincronizarPuntos(
  */
 export async function cargarPuntosDesdeDB(proyectoId: string): Promise<PuntoFerroviario[]> {
   return await cargarPuntosCompletos(proyectoId)
+}
+
+// =====================================================
+// PROYECTOS
+// =====================================================
+
+export async function listarProyectos(): Promise<Proyecto[]> {
+  const { data, error } = await supabase.from('proyectos').select('id,nombre,descripcion,creado_por,created_at')
+  if (error || !data) return []
+  const proyectos = (data as Proyecto[]).slice()
+  proyectos.sort((a, b) => a.nombre.localeCompare(b.nombre))
+  return proyectos
+}
+
+export async function crearProyecto(proyecto: Proyecto): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('proyectos')
+    .insert({ id: proyecto.id, nombre: proyecto.nombre, descripcion: proyecto.descripcion })
+  if (error) return { success: false, error: error.message }
+  return { success: true }
 }
 
 // =====================================================

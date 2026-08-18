@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
+import { etiquetaRol } from '@/lib/roles'
 import type { Perfil, RolUsuario } from '@/types'
 
 const mocks = vi.hoisted(() => ({
@@ -70,7 +71,7 @@ async function elegirRol(email: string, rol: RolUsuario) {
   fireEvent.click(disparador)
   const opcion = await waitFor(() => {
     const opciones = Array.from(document.querySelectorAll('[role="option"]'))
-    const objetivo = opciones.find((o) => o.textContent === rol)
+    const objetivo = opciones.find((o) => o.textContent === etiquetaRol(rol))
     expect(objetivo).toBeTruthy()
     return objetivo as HTMLElement
   })

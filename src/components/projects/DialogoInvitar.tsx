@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { AlertTriangle, Copy, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
+import { etiquetaRol } from '@/lib/roles'
 import type { RolUsuario } from '@/types'
 
 interface DialogoInvitarProps {
@@ -152,7 +153,7 @@ export function DialogoInvitar({ open, onOpenChange, proyectoId, onInvitado }: D
                     </SelectTrigger>
                     <SelectContent>
                       {ROLES.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                        <SelectItem key={r} value={r}>{etiquetaRol(r)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

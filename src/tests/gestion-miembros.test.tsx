@@ -109,8 +109,8 @@ describe('GestionMiembros: listado y gating', () => {
 
     expect(await findByText('yo-1@test.local')).toBeTruthy()
     expect(await findByText('u2@test.local')).toBeTruthy()
-    expect(await findByText('administrador')).toBeTruthy()
-    expect(await findByText('usuario')).toBeTruthy()
+    expect(await findByText('Administrador')).toBeTruthy()
+    expect(await findByText('Usuario')).toBeTruthy()
     expect(mocks.listarMiembrosProyecto).toHaveBeenCalledWith('p1')
   })
 

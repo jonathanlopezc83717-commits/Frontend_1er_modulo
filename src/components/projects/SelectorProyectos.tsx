@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
 import { proyectosCollection } from '@/lib/collections'
+import { etiquetaRol } from '@/lib/roles'
 import { GestionMiembros } from '@/components/projects/GestionMiembros'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -138,7 +139,7 @@ export function SelectorProyectos() {
           </div>
           <CardDescription>
             {perfil?.nombre || perfil?.email}
-            {perfil && <Badge variant="secondary" className="ml-2">{perfil.rol}</Badge>}
+            {perfil && <Badge variant="secondary" className="ml-2">{etiquetaRol(perfil.rol)}</Badge>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

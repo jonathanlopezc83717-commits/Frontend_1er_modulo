@@ -100,7 +100,7 @@ describe('DialogoInvitar: gating de rol', () => {
 
     fireEvent.click(getByRole('combobox', { name: 'Rol inicial' }))
     const opciones = await findAllByRole('option')
-    expect(opciones.map((o) => o.textContent)).toEqual(['administrador', 'general', 'usuario'])
+    expect(opciones.map((o) => o.textContent)).toEqual(['Administrador', 'Administrador de equipo', 'Usuario'])
   })
 
   it('general no ve selector: rol fijo usuario y la invitación viaja con ese rol', async () => {

@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { etiquetaRol } from '@/lib/roles'
 import type { RolUsuario } from '@/types'
 
 const ROLES: RolUsuario[] = ['administrador', 'general', 'usuario']
@@ -81,7 +82,7 @@ export function PanelUsuarios() {
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                    <SelectItem key={r} value={r}>{etiquetaRol(r)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

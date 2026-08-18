@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
 import { getMiembrosCollection, perfilesCollection } from '@/lib/collections'
+import { etiquetaRol } from '@/lib/roles'
 import type { MiembroProyecto } from '@/lib/supabase-service'
 import { DialogoInvitar } from '@/components/projects/DialogoInvitar'
 import { Button } from '@/components/ui/button'
@@ -158,7 +159,7 @@ export function GestionMiembros({ open, onOpenChange, proyectoId }: GestionMiemb
                       <p className="truncate text-xs text-muted-foreground">{miembro.nombre}</p>
                     )}
                   </div>
-                  {miembro.rol && <Badge variant="secondary">{miembro.rol}</Badge>}
+                  {miembro.rol && <Badge variant="secondary">{etiquetaRol(miembro.rol)}</Badge>}
                   <Button
                     variant="ghost"
                     size="icon"

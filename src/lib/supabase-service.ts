@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase'
 import { subirImagenDedup } from './storage-dedup'
-import type { PuntoFerroviario, ImageAnalysisResult, EstadoGuardado } from '@/types'
+import type { PuntoFerroviario, ImageAnalysisResult, EstadoGuardado, Perfil, RolUsuario } from '@/types'
 
 // =====================================================
 // TIPOS PARA SUPABASE
@@ -818,4 +818,129 @@ export async function sincronizarPuntos(
  */
 export async function cargarPuntosDesdeDB(proyectoId: string): Promise<PuntoFerroviario[]> {
   return await cargarPuntosCompletos(proyectoId)
+}
+
+// =====================================================
+// MIEMBROS Y ROLES
+// =====================================================
+
+export interface MiembroProyecto {
+  user_id: string
+  creado_por: string
+  creado_en: string
+  email: string | null
+  nombre: string | null
+  rol: RolUsuario | null
+}
+
+export async function listarMiembrosProyecto(proyectoId: string): Promise<MiembroProyecto[]> {
+  const { data, error } = await supabase
+    .from('proyecto_miembros')
+    .select('user_id, creado_por, creado_en, perfiles(email, nombre, rol)')
+    .eq('proyecto_id', proyectoId)
+  if (error || !data) return []
+  const filas = data as unknown as Array<{
+    user_id: string
+    creado_por: string
+    creado_en: string
+    perfiles: { email: string; nombre: string | null; rol: RolUsuario } | null
+  }>
+  const miembros: MiembroProyecto[] = filas.map((fila) => ({
+    user_id: fila.user_id,
+    creado_por: fila.creado_por,
+    creado_en: fila.creado_en,
+    email: fila.perfiles?.email ?? null,
+    nombre: fila.perfiles?.nombre ?? null,
+    rol: fila.perfiles?.rol ?? null,
+  }))
+  miembros.sort((a, b) => (a.email ?? a.user_id).localeCompare(b.email ?? b.user_id))
+  return miembros
+}
+
+export async function agregarMiembroProyecto(
+  proyectoId: string,
+  userId: string,
+  creadoPor: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('proyecto_miembros').insert({
+    proyecto_id: proyectoId,
+    user_id: userId,
+    creado_por: creadoPor,
+  })
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+export async function quitarMiembroProyecto(
+  proyectoId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('proyecto_miembros')
+    .delete()
+    .eq('proyecto_id', proyectoId)
+    .eq('user_id', userId)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+export async function listarPerfiles(): Promise<Perfil[]> {
+  const { data, error } = await supabase.from('perfiles').select('*')
+  if (error || !data) return []
+  const perfiles = (data as Perfil[]).slice()
+  perfiles.sort((a, b) => a.email.localeCompare(b.email))
+  return perfiles
+}
+
+export async function cambiarRolUsuario(
+  userId: string,
+  rol: RolUsuario
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('perfiles').update({ rol }).eq('id', userId)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+interface RespuestaInvitacion {
+  user_id: string
+  email: string
+  rol: RolUsuario
+  password_temporal: string
+}
+
+export async function invitarUsuario(
+  email: string,
+  rol: RolUsuario
+): Promise<{ success: boolean; passwordTemporal?: string; userId?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke<RespuestaInvitacion>('invite-user', {
+      body: { email, rol },
+    })
+    if (error) throw error
+    if (!data?.password_temporal) {
+      return { success: false, error: 'La función no devolvió el password temporal' }
+    }
+    return { success: true, passwordTemporal: data.password_temporal, userId: data.user_id }
+  } catch (err) {
+    const contexto = (err as { context?: Response } | null)?.context
+    if (contexto) {
+      let mensajeServidor: string | undefined
+      try {
+        const cuerpo = (await contexto.json()) as { error?: string }
+        mensajeServidor = cuerpo?.error
+      } catch {
+        mensajeServidor = undefined
+      }
+      const mensaje =
+        mensajeServidor ||
+        (contexto.status === 409 ? 'Ya existe un usuario con ese email' : undefined) ||
+        (contexto.status === 403 ? 'No tenés permiso para invitar usuarios' : undefined) ||
+        'No se pudo invitar al usuario'
+      return { success: false, error: mensaje }
+    }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'No se pudo invitar al usuario',
+    }
+  }
 }

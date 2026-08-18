@@ -62,7 +62,7 @@ describe('guardarEstadoAppEnNube', () => {
   it('borra los excedentes tras un upsert exitoso', async () => {
     mocks.order.mockResolvedValue({ data: ids(12).map(id => ({ id })), error: null })
 
-    const resultado = await guardarEstadoAppEnNube(ESTADO)
+    const resultado = await guardarEstadoAppEnNube(ESTADO, 'proyecto-1')
 
     expect(resultado.success).toBe(true)
     expect(mocks.upsert).toHaveBeenCalledTimes(1)
@@ -72,7 +72,7 @@ describe('guardarEstadoAppEnNube', () => {
   it('no borra nada cuando hay 10 o menos filas', async () => {
     mocks.order.mockResolvedValue({ data: ids(10).map(id => ({ id })), error: null })
 
-    await guardarEstadoAppEnNube(ESTADO)
+    await guardarEstadoAppEnNube(ESTADO, 'proyecto-1')
 
     expect(mocks.deleteIn).not.toHaveBeenCalled()
   })
@@ -81,7 +81,7 @@ describe('guardarEstadoAppEnNube', () => {
     mocks.order.mockRejectedValue(new Error('boom'))
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const resultado = await guardarEstadoAppEnNube(ESTADO)
+    const resultado = await guardarEstadoAppEnNube(ESTADO, 'proyecto-1')
 
     expect(resultado.success).toBe(true)
     expect(warn).toHaveBeenCalled()

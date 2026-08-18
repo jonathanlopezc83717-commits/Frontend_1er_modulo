@@ -126,7 +126,7 @@ function hacerPunto(): PuntoFerroviario {
 
 describe('construirPayloadPunto', () => {
   it('envía modulo_data sin ninguna cadena data:image y sin doble proceso de fotosIndexadas', async () => {
-    const payload = await construirPayloadPunto(hacerPunto())
+    const payload = await construirPayloadPunto(hacerPunto(), 'proyecto-1')
 
     const moduloData = payload.punto.modulo_data as Record<string, unknown>
     const geo = moduloData.georeferencia as Record<string, unknown>
@@ -150,7 +150,7 @@ describe('construirPayloadPunto', () => {
   })
 
   it('sube la preview de fotos una sola vez pese a existir en el árbol', async () => {
-    await construirPayloadPunto(hacerPunto())
+    await construirPayloadPunto(hacerPunto(), 'proyecto-1')
     const subidasPreview = mocks.upload.mock.calls.filter(call => String(call[0]).startsWith('puntos/p1/fotos'))
     const subidasModulo = mocks.upload.mock.calls.filter(call => String(call[0]).startsWith('puntos/p1/modulo'))
     expect(subidasPreview).toHaveLength(1)
@@ -182,7 +182,7 @@ describe('cargarPuntosCompletos round-trip de modulo_data', () => {
       error: null,
     })
 
-    const puntos = await cargarPuntosCompletos()
+    const puntos = await cargarPuntosCompletos('proyecto-1')
     const geo = puntos[0].moduloData.georeferencia as Record<string, unknown> | undefined
 
     expect(puntos).toHaveLength(1)

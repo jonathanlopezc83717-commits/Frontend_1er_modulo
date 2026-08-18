@@ -24,6 +24,7 @@ export interface PuntoDB {
   created_at: string
   updated_at: string
   modulo_data?: Record<string, unknown> | null
+  proyecto_id?: string
 }
 
 export interface CoordenadasDB {
@@ -257,8 +258,9 @@ export async function sustituirDataUrlsEnArbol(
  * `data:image/...` se resuelven a URLs de Storage aquí (client-side) porque
  * no pueden subirse desde el Edge Function.
  */
-export async function construirPayloadPunto(punto: PuntoFerroviario): Promise<PuntoPayload> {
+export async function construirPayloadPunto(punto: PuntoFerroviario, proyectoId: string): Promise<PuntoPayload> {
   const puntoDb = puntoToDB(punto)
+  puntoDb.proyecto_id = proyectoId
 
   const geoData = punto.moduloData?.georeferencia || punto.moduloData?.georeferenciacion
   let coordenadas: PuntoPayload['coordenadas'] = null
@@ -324,9 +326,9 @@ export async function construirPayloadPunto(punto: PuntoFerroviario): Promise<Pu
  * `moduloData` ya persistido (imágenes resueltas a URLs) para que el
  * llamador pueda sincronizar su estado local.
  */
-export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ success: boolean; error?: string; moduloData?: Record<string, unknown> }> {
+export async function guardarPuntoCompleto(punto: PuntoFerroviario, proyectoId: string): Promise<{ success: boolean; error?: string; moduloData?: Record<string, unknown> }> {
   try {
-    const payload = await construirPayloadPunto(punto)
+    const payload = await construirPayloadPunto(punto, proyectoId)
     const { data, error } = await supabase.rpc('guardar_punto_completo', { p_payload: payload })
     if (error) throw error
 
@@ -350,9 +352,9 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario): Promise<{ s
  * (cargar_puntos_completos). El join server-side reemplaza las 5 consultas
  * separadas previas y evita el error PGRST200 sin workarounds del cliente.
  */
-export async function cargarPuntosCompletos(): Promise<PuntoFerroviario[]> {
+export async function cargarPuntosCompletos(proyectoId: string): Promise<PuntoFerroviario[]> {
   try {
-    const { data, error } = await supabase.rpc('cargar_puntos_completos')
+    const { data, error } = await supabase.rpc('cargar_puntos_completos', { p_proyecto: proyectoId })
     if (error) throw error
     if (!data || !Array.isArray(data) || data.length === 0) return []
     return (data as PuntoDB[]).map(puntoFromDB)
@@ -457,7 +459,7 @@ async function aplicarRetencionSnapshots(limite = 10): Promise<void> {
  * Tras el upsert aplica retención: conserva sólo los 10 snapshots
  * más recientes por created_at.
  */
-export async function guardarEstadoAppEnNube(estado: EstadoGuardado): Promise<{ success: boolean; error?: string }> {
+export async function guardarEstadoAppEnNube(estado: EstadoGuardado, proyectoId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const snapshot = await prepararValorParaNube(estado.snapshot)
     const { error } = await supabase
@@ -468,6 +470,7 @@ export async function guardarEstadoAppEnNube(estado: EstadoGuardado): Promise<{ 
         descripcion: estado.descripcion,
         snapshot,
         created_at: estado.createdAt,
+        proyecto_id: proyectoId,
       }, { onConflict: 'id' })
 
     if (error) throw error
@@ -487,11 +490,12 @@ export async function guardarEstadoAppEnNube(estado: EstadoGuardado): Promise<{ 
 /**
  * Obtiene los estados restaurables guardados en Supabase.
  */
-export async function obtenerEstadosAppDesdeNube(limit = 24): Promise<EstadoGuardado[]> {
+export async function obtenerEstadosAppDesdeNube(proyectoId: string, limit = 24): Promise<EstadoGuardado[]> {
   try {
     const { data, error } = await supabase
       .from('app_state_snapshots')
       .select('id,tipo,descripcion,created_at')
+      .eq('proyecto_id', proyectoId)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -524,11 +528,12 @@ export async function obtenerEstadoAppDesdeNube(id: string): Promise<EstadoGuard
 /**
  * Obtiene el snapshot mas reciente guardado en Supabase.
  */
-export async function obtenerUltimoEstadoAppDesdeNube(): Promise<EstadoGuardado | null> {
+export async function obtenerUltimoEstadoAppDesdeNube(proyectoId: string): Promise<EstadoGuardado | null> {
   try {
     const { data, error } = await supabase
       .from('app_state_snapshots')
       .select('*')
+      .eq('proyecto_id', proyectoId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
@@ -753,6 +758,7 @@ export async function guardarAnalisis(
  */
 export async function sincronizarPuntos(
   puntos: PuntoFerroviario[],
+  proyectoId: string,
   opciones?: { concurrency?: number; onLote?: (guardados: number, total: number) => void }
 ): Promise<{
   success: boolean;
@@ -767,7 +773,7 @@ export async function sincronizarPuntos(
   opciones?.onLote?.(0, puntos.length)
 
   try {
-    const payloads = await Promise.all(puntos.map(construirPayloadPunto))
+    const payloads = await Promise.all(puntos.map(punto => construirPayloadPunto(punto, proyectoId)))
 
     const { data, error } = await supabase.functions.invoke<{
       guardados: number
@@ -810,6 +816,6 @@ export async function sincronizarPuntos(
 /**
  * Carga puntos desde Supabase y los convierte al formato del frontend
  */
-export async function cargarPuntosDesdeDB(): Promise<PuntoFerroviario[]> {
-  return await cargarPuntosCompletos()
+export async function cargarPuntosDesdeDB(proyectoId: string): Promise<PuntoFerroviario[]> {
+  return await cargarPuntosCompletos(proyectoId)
 }

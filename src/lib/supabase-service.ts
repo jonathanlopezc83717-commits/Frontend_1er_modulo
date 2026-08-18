@@ -919,6 +919,18 @@ export async function quitarMiembroProyecto(
   return { success: true }
 }
 
+export async function listarProyectosDeUsuario(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('proyecto_miembros')
+    .select('proyecto_id')
+    .eq('user_id', userId)
+  if (error) {
+    console.error('listarProyectosDeUsuario:', error.message)
+    return []
+  }
+  return ((data ?? []) as Array<{ proyecto_id: string }>).map((fila) => fila.proyecto_id)
+}
+
 export async function listarPerfiles(): Promise<Perfil[]> {
   const { data, error } = await supabase.from('perfiles').select('*')
   if (error || !data) return []

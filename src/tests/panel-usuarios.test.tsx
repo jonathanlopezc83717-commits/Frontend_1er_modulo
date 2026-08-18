@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   perfiles: [] as Perfil[],
   listarPerfiles: vi.fn(),
   cambiarRolUsuario: vi.fn(),
+  listarProyectos: vi.fn(),
+  listarProyectosDeUsuario: vi.fn(),
 }))
 
 vi.mock('@/context/AuthContext', () => ({
@@ -38,7 +40,8 @@ vi.mock('@/context/AuthContext', () => ({
 vi.mock('@/lib/supabase-service', () => ({
   listarPerfiles: mocks.listarPerfiles,
   cambiarRolUsuario: mocks.cambiarRolUsuario,
-  listarProyectos: vi.fn(),
+  listarProyectos: mocks.listarProyectos,
+  listarProyectosDeUsuario: mocks.listarProyectosDeUsuario,
   crearProyecto: vi.fn(),
   listarMiembrosProyecto: vi.fn(),
   agregarMiembroProyecto: vi.fn(),
@@ -85,6 +88,8 @@ beforeEach(() => {
   mocks.perfiles = [hacerPerfil('administrador', 'admin-1'), hacerPerfil('usuario', 'u2')]
   mocks.listarPerfiles.mockResolvedValue(mocks.perfiles)
   mocks.cambiarRolUsuario.mockResolvedValue({ success: true })
+  mocks.listarProyectos.mockResolvedValue([])
+  mocks.listarProyectosDeUsuario.mockResolvedValue([])
 })
 
 describe('PanelUsuarios', () => {
@@ -135,5 +140,22 @@ describe('PanelUsuarios', () => {
     await waitFor(() => {
       expect(mocks.listarPerfiles).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('la fila propia no tiene boton de proyectos; la de otro usuario si', async () => {
+    const { findByText, queryByRole, findByRole } = montar()
+    await findByText('u2@test.local')
+
+    expect(queryByRole('button', { name: 'Proyectos de admin-1@test.local' })).toBeNull()
+    expect(await findByRole('button', { name: 'Proyectos de u2@test.local' })).toBeTruthy()
+  })
+
+  it('abre el dialogo de proyectos del usuario elegido', async () => {
+    const { findByRole, findByText } = montar()
+
+    fireEvent.click(await findByRole('button', { name: 'Proyectos de u2@test.local' }))
+
+    expect(await findByText('Proyectos de u2@test.local')).toBeTruthy()
+    expect(mocks.listarProyectosDeUsuario).toHaveBeenCalledWith('u2')
   })
 })

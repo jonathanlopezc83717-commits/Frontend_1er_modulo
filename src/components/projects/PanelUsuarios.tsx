@@ -83,7 +83,7 @@ export function PanelUsuarios() {
                   onValueChange={(v) => cambiarRol(usuario.id, v as RolUsuario)}
                   disabled={esPropio}
                 >
-                  <SelectTrigger className="w-[150px] shrink-0" aria-label={`Rol de ${usuario.email}`}>
+                  <SelectTrigger className="w-[200px] shrink-0" aria-label={`Rol de ${usuario.email}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

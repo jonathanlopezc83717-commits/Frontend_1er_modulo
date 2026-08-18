@@ -26,7 +26,7 @@ export function GestionMiembros({ open, onOpenChange, proyectoId, nombreProyecto
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {nombreProyecto ? `Miembros · ${nombreProyecto}` : 'Miembros del proyecto'}

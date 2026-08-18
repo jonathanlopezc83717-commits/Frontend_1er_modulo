@@ -5,7 +5,6 @@ import { ordenarPuntos, type SortKey } from '@/components/gestor-puntos-logica'
 import { useSeleccionPuntos, useEdicionInline, useEdicionModal, useReordenarPuntos, usePuntoCarpeta } from '@/components/gestor-puntos-hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -14,6 +13,7 @@ import { toast } from 'sonner'
 import { exportarPdfFicha, exportarExcelFicha } from './modulos/ModuloMateriales'
 import { cargarPlantillasLogos, type FichaFormatoData, type PlantillaLogos } from './modulos/ModuloMateriales'
 import { FichaPreview } from './FichaPreview'
+import { FormularioPunto } from './FormularioPunto'
 import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
 
 import {
@@ -255,7 +255,7 @@ export function GestorPuntos() {
     setDialogoBloquear(null)
   }
 
-  const { puntoEditandoModal, setPuntoEditandoModal, editForm, setEditForm, guardarEdicionModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: puntos, puntoActivo: puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
+  const { puntoEditandoModal, setPuntoEditandoModal, handleEditarPunto, setEditarPuntoCreado } = useEdicionModal({ puntos: puntos, puntoActivo: puntoActivo, moverPunto, actualizarPunto, setPuntoActivo, setDialogoBloquear })
   const { procesandoCarpeta, progreso, mostrarRouting, setMostrarRouting, routingActual, resumenMultiple, setResumenMultiple, previewsSubcarpetas, setPreviewsSubcarpetas, handleSeleccionarCarpeta, handleSeleccionarRaizMultipunto, confirmarAgregarSeleccion, handleRoutingManual, cargarArchivoIndividual, cargarFotos } = usePuntoCarpeta({ puntoActivo: puntoActivo, nomenclaturasGlobales: nomenclaturasGlobales, puntosLength: puntos.length, agregarPunto, actualizarPunto, setNomenclaturasGlobales, setEditarPuntoCreado })
 
   // Tras terminar una carga, refrescar la cola pendiente (se limpia si todo OK).
@@ -903,88 +903,19 @@ export function GestorPuntos() {
               Modifica los datos del punto ferroviario
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">N° de serie / posición</label>
-              <Input
-                type="number"
-                min={1}
-                max={puntos.length}
-                value={editForm.numeroSerie}
-                onChange={(e) => setEditForm(prev => ({ ...prev, numeroSerie: e.target.value }))}
-                placeholder="1"
+          {(() => {
+            const puntoEditado = puntos.find((p) => p.id === puntoEditandoModal)
+            if (!puntoEditado) return null
+            return (
+              <FormularioPunto
+                punto={puntoEditado}
+                puntos={puntos}
+                moverPunto={moverPunto}
+                actualizarPunto={actualizarPunto}
+                onClose={() => setPuntoEditandoModal(null)}
               />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre</label>
-              <Input
-                value={editForm.nombre}
-                onChange={(e) => setEditForm(prev => ({ ...prev, nombre: e.target.value }))}
-                placeholder="Nombre del punto"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Descripción</label>
-              <Textarea
-                value={editForm.descripcion}
-                onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
-                placeholder="Descripción opcional"
-                rows={2}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Ruta de carpeta</label>
-              <Input
-                value={editForm.carpetaPath}
-                onChange={(e) => setEditForm(prev => ({ ...prev, carpetaPath: e.target.value }))}
-                placeholder="Ruta de la carpeta"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Cadenamiento</label>
-              <Input
-                value={editForm.cadenamiento}
-                onChange={(e) => setEditForm(prev => ({ ...prev, cadenamiento: e.target.value }))}
-                placeholder="Ej: 56 (separado al sincronizar)"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Latitud</label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={editForm.coordenadas.lat}
-                  onChange={(e) => setEditForm(prev => ({
-                    ...prev,
-                    coordenadas: { ...prev.coordenadas, lat: e.target.value }
-                  }))}
-                  placeholder="-33.4567"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Longitud</label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={editForm.coordenadas.lng}
-                  onChange={(e) => setEditForm(prev => ({
-                    ...prev,
-                    coordenadas: { ...prev.coordenadas, lng: e.target.value }
-                  }))}
-                  placeholder="-70.6789"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPuntoEditandoModal(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={guardarEdicionModal}>
-              Guardar cambios
-            </Button>
-          </DialogFooter>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 

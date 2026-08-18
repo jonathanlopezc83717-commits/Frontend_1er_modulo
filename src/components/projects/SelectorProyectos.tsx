@@ -66,6 +66,7 @@ export function SelectorProyectos() {
   const [guardando, setGuardando] = useState(false)
   const [eliminarId, setEliminarId] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+  const [confirmacionTexto, setConfirmacionTexto] = useState('')
 
   const puedeCrear = perfil?.rol === 'administrador' || perfil?.rol === 'general'
   const esAdmin = perfil?.rol === 'administrador'
@@ -150,6 +151,7 @@ export function SelectorProyectos() {
   }
 
   const proyectoAEliminar = proyectos.find((p) => p.id === eliminarId) ?? null
+  const textoConfirmacion = proyectoAEliminar ? `BORRAR "${proyectoAEliminar.nombre}"` : ''
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -408,7 +410,7 @@ export function SelectorProyectos() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={eliminarId !== null} onOpenChange={(abierto) => !abierto && setEliminarId(null)}>
+      <Dialog open={eliminarId !== null} onOpenChange={(abierto) => { if (!abierto) { setEliminarId(null); setConfirmacionTexto('') } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar proyecto</DialogTitle>
@@ -421,14 +423,37 @@ export function SelectorProyectos() {
               )}
             </DialogDescription>
           </DialogHeader>
+          {proyectoAEliminar && (
+            <div className="space-y-2">
+              <Label htmlFor="confirmar-eliminacion">
+                Escribí <span className="font-mono font-semibold">{textoConfirmacion}</span> para confirmar
+              </Label>
+              <Input
+                id="confirmar-eliminacion"
+                value={confirmacionTexto}
+                onChange={(e) => setConfirmacionTexto(e.target.value)}
+                onPaste={(e) => e.preventDefault()}
+                onCopy={(e) => e.preventDefault()}
+                onContextMenu={(e) => e.preventDefault()}
+                onDrop={(e) => e.preventDefault()}
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="confirmar-eliminacion-input"
+              />
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEliminarId(null)} disabled={eliminando}>
+            <Button
+              variant="outline"
+              onClick={() => { setEliminarId(null); setConfirmacionTexto('') }}
+              disabled={eliminando}
+            >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              onClick={confirmarEliminacion}
-              disabled={eliminando}
+              onClick={() => { setConfirmacionTexto(''); void confirmarEliminacion() }}
+              disabled={eliminando || confirmacionTexto !== textoConfirmacion}
               data-testid="confirmar-eliminacion"
             >
               {eliminando ? 'Eliminando...' : 'Eliminar proyecto'}

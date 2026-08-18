@@ -371,7 +371,7 @@ describe('SelectorProyectos: edición', () => {
 })
 
 describe('SelectorProyectos: eliminación con confirmación', () => {
-  it('confirma con el conteo de puntos y elimina vía la colección', async () => {
+  it('exige escribir BORRAR "nombre" y elimina vía la colección', async () => {
     mocks.perfil = hacerPerfil('general')
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno', { puntos_count: 7 })]
@@ -383,7 +383,15 @@ describe('SelectorProyectos: eliminación con confirmación', () => {
     expect(getByText(/Se ocultará el proyecto con sus 7 puntos/)).toBeTruthy()
     expect(getByText(/un administrador puede recuperarlo/)).toBeTruthy()
 
-    fireEvent.click(getByTestId('confirmar-eliminacion'))
+    const boton = getByTestId('confirmar-eliminacion') as HTMLButtonElement
+    expect(boton.disabled).toBe(true)
+
+    fireEvent.change(getByTestId('confirmar-eliminacion-input'), { target: { value: 'BORRAR' } })
+    expect(boton.disabled).toBe(true)
+
+    fireEvent.change(getByTestId('confirmar-eliminacion-input'), { target: { value: 'BORRAR "Obra Uno"' } })
+    expect(boton.disabled).toBe(false)
+    fireEvent.click(boton)
 
     await waitFor(() => {
       expect(mocks.eliminarColeccion).toHaveBeenCalledWith('p1')
@@ -391,6 +399,22 @@ describe('SelectorProyectos: eliminación con confirmación', () => {
     await waitFor(() => {
       expect(mocks.toastSuccess).toHaveBeenCalledWith('Proyecto eliminado')
     })
+  })
+
+  it('bloquea el pegado en el campo de confirmación', () => {
+    mocks.perfil = hacerPerfil('general')
+    mocks.session = { user: { id: 'u1' } }
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
+
+    const { getByTestId, getByTitle } = render(createElement(SelectorProyectos))
+
+    fireEvent.click(getByTestId('proyecto-p1'))
+    fireEvent.click(getByTitle('Eliminar'))
+
+    const input = getByTestId('confirmar-eliminacion-input')
+    const pegado = new Event('paste', { bubbles: true, cancelable: true })
+    input.dispatchEvent(pegado)
+    expect(pegado.defaultPrevented).toBe(true)
   })
 
   it('el rechazo del permiso surfacea el error en español como toast', async () => {
@@ -407,6 +431,7 @@ describe('SelectorProyectos: eliminación con confirmación', () => {
 
     fireEvent.click(getByTestId('proyecto-p1'))
     fireEvent.click(getByTitle('Eliminar'))
+    fireEvent.change(getByTestId('confirmar-eliminacion-input'), { target: { value: 'BORRAR "Obra Uno"' } })
     fireEvent.click(getByTestId('confirmar-eliminacion'))
 
     await waitFor(() => {

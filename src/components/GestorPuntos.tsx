@@ -15,6 +15,8 @@ import { cargarPlantillasLogos, type FichaFormatoData, type PlantillaLogos } fro
 import { FichaPreview } from './FichaPreview'
 import { FormularioPunto } from './FormularioPunto'
 import { leerCola, limpiarCola, carpetasPendientes, type ColaCarga } from '@/lib/cola-carga'
+import { puntosListosParaExportar } from '@/lib/progreso-punto'
+import { BarraProgresoPunto } from './BarraProgresoPunto'
 
 import {
   Dialog,
@@ -121,6 +123,7 @@ export function GestorPuntos() {
   useEffect(() => {
     const cola = leerCola()
     if (cola && carpetasPendientes(cola).length > 0) setColaPendiente(cola)
+    setPlantillasLogos(cargarPlantillasLogos())
   }, [])
   const { seleccionados: puntosSeleccionados, togglePunto, toggleTodos, remove: removeSeleccion, clear: clearSeleccion } = useSeleccionPuntos(puntos)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -138,6 +141,10 @@ export function GestorPuntos() {
 
   // Puntos ordenados según el filtro activo
   const puntosOrdenados = useMemo(() => ordenarPuntos(puntos, sortKey), [puntos, sortKey])
+  const cantidadListos = useMemo(
+    () => puntosListosParaExportar(puntosOrdenados, plantillasLogos).length,
+    [puntosOrdenados, plantillasLogos],
+  )
 
   const { swipeState, dragState, itemRefs, handlePointerDown, getSwipeOffset, shouldIgnoreDragStart } = useReordenarPuntos({ puntosOrdenados, moverPunto, setSortKey })
 
@@ -442,15 +449,25 @@ export function GestorPuntos() {
                 </Button>
               )}
 
-              <Button
-                onClick={exportarTodasLasDisponibles}
-                disabled={generando || puntos.length === 0}
-                title="Exporta PDF + Excel de todas las carpetas que tengan datos de ficha"
-                size="sm"
-              >
-                <FileDown className="w-4 h-4 mr-2" />
-                Exportar todas las fichas
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={exportarTodasLasDisponibles}
+                  disabled={generando || puntos.length === 0}
+                  title="Exporta PDF + Excel de todas las carpetas que tengan datos de ficha"
+                  size="sm"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Exportar todas las fichas
+                </Button>
+                <Badge
+                  variant="secondary"
+                  className="text-xs shrink-0"
+                  title="Puntos con los 5 pasos del progreso completados"
+                >
+                  {cantidadListos}/{puntosOrdenados.length} listos
+                </Badge>
+              </div>
             </div>
 
             {procesandoCarpeta && progreso && (
@@ -743,6 +760,7 @@ export function GestorPuntos() {
                                   )}
                                   <span className="flex-shrink-0">· {formatFecha(punto.updatedAt)}</span>
                                 </div>
+                                <BarraProgresoPunto punto={punto} plantillas={plantillasLogos} esActivo={isActivo} />
                               </>
                             )}
                           </div>

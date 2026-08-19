@@ -125,7 +125,7 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     expect(queryByRole('button', { name: /Proyecto nuevo/ })).toBeNull()
   })
 
-  it('enfocar un proyecto no abre la app; Abrir proyecto llama a cambiarProyecto', () => {
+  it('enfocar un proyecto no abre la app; doble clic llama a cambiarProyecto', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
 
@@ -135,7 +135,7 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     expect(mocks.cambiarProyecto).not.toHaveBeenCalled()
     expect(getByRole('heading', { name: 'Obra Uno' })).toBeTruthy()
 
-    fireEvent.click(getByTestId('abrir-proyecto'))
+    fireEvent.doubleClick(getByTestId('proyecto-p1'))
     expect(mocks.cambiarProyecto).toHaveBeenCalledTimes(1)
     expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p1')
   })
@@ -249,20 +249,20 @@ describe('SelectorProyectos: panel de detalle', () => {
 
     const { getByText } = render(createElement(SelectorProyectos))
 
-    expect(getByText(/Elegí un proyecto de la lista/)).toBeTruthy()
+    expect(getByText(/Elegí un proyecto para ver su detalle/)).toBeTruthy()
   })
 
   it('usuario sin permisos de gestión ve meta y miembros en solo lectura, sin acciones', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno', { creado_por: 'otro' })]
 
-    const { getByTestId, queryByTitle } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByRole, queryByTitle } = render(createElement(SelectorProyectos))
 
     fireEvent.click(getByTestId('proyecto-p1'))
 
     expect(queryByTitle('Editar')).toBeNull()
     expect(queryByTitle('Eliminar')).toBeNull()
-    expect(getByTestId('abrir-proyecto')).toBeTruthy()
+    expect(getByRole('heading', { name: 'Obra Uno' })).toBeTruthy()
     const seccion = getByTestId('seccion-miembros')
     expect(seccion.getAttribute('data-proyecto-id')).toBe('p1')
     expect(seccion.getAttribute('data-solo-lectura')).toBe('true')
@@ -315,13 +315,13 @@ describe('SelectorProyectos: vista de administración', () => {
     mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
 
-    const { getByRole, getByTestId, queryByTestId } = render(createElement(SelectorProyectos))
+    const { getByRole, getByTestId, queryByRole, queryByTestId } = render(createElement(SelectorProyectos))
 
     expect(queryByTestId('panel-usuarios')).toBeNull()
 
     fireEvent.click(getByRole('button', { name: /Usuarios y roles/ }))
     expect(getByTestId('panel-usuarios')).toBeTruthy()
-    expect(queryByTestId('abrir-proyecto')).toBeNull()
+    expect(queryByRole('heading', { name: 'Obra Uno' })).toBeNull()
 
     fireEvent.click(getByRole('button', { name: /Usuarios y roles/ }))
     expect(queryByTestId('panel-usuarios')).toBeNull()
@@ -348,7 +348,7 @@ describe('SelectorProyectos: vista de administración', () => {
     expect(getByTestId('panel-usuarios')).toBeTruthy()
 
     fireEvent.click(getByTestId('proyecto-p1'))
-    expect(getByTestId('abrir-proyecto')).toBeTruthy()
+    expect(getByRole('heading', { name: 'Obra Uno' })).toBeTruthy()
   })
 })
 
@@ -374,41 +374,43 @@ describe('SelectorProyectos: edición', () => {
 })
 
 describe('SelectorProyectos: banner de reanudación', () => {
-  it('muestra el último proyecto con opciones de abrir o ir a proyectos', () => {
+  it('muestra la última sesión con la pista de doble clic', () => {
     mocks.perfil = hacerPerfil('usuario')
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')]
     mocks.ultimoProyectoId = 'p2'
 
-    const { getByTestId, getByText } = render(createElement(SelectorProyectos))
+    const { getByTestId } = render(createElement(SelectorProyectos))
 
     const banner = getByTestId('banner-reanudar')
     expect(banner.textContent).toContain('Obra Dos')
     expect(banner.textContent).toContain('Última sesión')
-    expect(getByText('Abrir proyecto')).toBeTruthy()
-    expect(getByText('Ir a proyectos')).toBeTruthy()
+    expect(banner.textContent).toContain('doble clic')
   })
 
-  it('Abrir proyecto activa el último proyecto', () => {
+  it('doble clic en una card abre el proyecto', () => {
     mocks.perfil = hacerPerfil('usuario')
-    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
-    mocks.ultimoProyectoId = 'p1'
+    mocks.proyectos = [hacerProyecto('p1', 'Obra Uno'), hacerProyecto('p2', 'Obra Dos')]
+    mocks.ultimoProyectoId = 'p2'
 
     const { getByTestId } = render(createElement(SelectorProyectos))
 
-    fireEvent.click(getByTestId('reanudar-abrir'))
-    expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p1')
+    fireEvent.click(getByTestId('proyecto-p2'))
+    expect(mocks.cambiarProyecto).not.toHaveBeenCalled()
+
+    fireEvent.doubleClick(getByTestId('proyecto-p2'))
+    expect(mocks.cambiarProyecto).toHaveBeenCalledWith('p2')
   })
 
-  it('Ir a proyectos descarta el banner sin activar nada', () => {
-    mocks.perfil = hacerPerfil('usuario')
+  it('un solo clic enfoca sin abrir', () => {
+    mocks.perfil = hacerPerfil('general')
+    mocks.session = { user: { id: 'u1' } }
     mocks.proyectos = [hacerProyecto('p1', 'Obra Uno')]
-    mocks.ultimoProyectoId = 'p1'
 
-    const { queryByTestId, getByText } = render(createElement(SelectorProyectos))
+    const { getByTestId, getByTitle } = render(createElement(SelectorProyectos))
 
-    fireEvent.click(getByText('Ir a proyectos'))
-    expect(queryByTestId('banner-reanudar')).toBeNull()
+    fireEvent.click(getByTestId('proyecto-p1'))
     expect(mocks.cambiarProyecto).not.toHaveBeenCalled()
+    expect(getByTitle('Editar')).toBeTruthy()
   })
 
   it('sin último proyecto persistido no muestra el banner', () => {

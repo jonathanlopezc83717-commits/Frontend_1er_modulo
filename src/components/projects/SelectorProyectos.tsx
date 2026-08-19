@@ -55,7 +55,7 @@ export function SelectorProyectos() {
   const [busqueda, setBusqueda] = useState('')
   const [vista, setVista] = useState<Vista>('proyectos')
   const [enfocadoId, setEnfocadoId] = useState<string | null>(null)
-  const [bannerDescartado, setBannerDescartado] = useState(false)
+  const [bannerDescartado] = useState(false)
   const carruselRef = useRef<HTMLDivElement>(null)
   const autohideTimerRef = useRef<number | null>(null)
   const [carruselPagina, setCarruselPagina] = useState(0)
@@ -248,21 +248,12 @@ export function SelectorProyectos() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Última sesión
+                Última sesión — doble clic en un proyecto para abrirlo
               </p>
               <p className="truncate text-lg font-semibold">{ultimoProyecto.nombre}</p>
               {ultimoProyecto.descripcion && (
                 <p className="truncate text-sm text-muted-foreground">{ultimoProyecto.descripcion}</p>
               )}
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Button onClick={() => cambiarProyecto(ultimoProyecto.id)} data-testid="reanudar-abrir">
-                <Play className="size-4" />
-                Abrir proyecto
-              </Button>
-              <Button variant="outline" onClick={() => setBannerDescartado(true)}>
-                Ir a proyectos
-              </Button>
             </div>
           </div>
         </section>
@@ -326,6 +317,7 @@ export function SelectorProyectos() {
                     key={proyecto.id}
                     type="button"
                     onClick={() => enfocarProyecto(proyecto.id)}
+                    onDoubleClick={() => cambiarProyecto(proyecto.id)}
                     data-testid={`proyecto-${proyecto.id}`}
                     aria-current={seleccionado ? 'true' : undefined}
                     className={`relative flex h-36 w-64 shrink-0 snap-start flex-col overflow-hidden rounded-xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring ${
@@ -427,7 +419,7 @@ export function SelectorProyectos() {
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
               <FolderOpen className="size-8 text-muted-foreground" />
               <p className="text-muted-foreground">
-                Elegí un proyecto de la lista para ver su detalle.
+                Elegí un proyecto para ver su detalle — doble clic para abrirlo.
               </p>
             </div>
           ) : (
@@ -455,10 +447,6 @@ export function SelectorProyectos() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => cambiarProyecto(enfocado.id)} data-testid="abrir-proyecto">
-                  <FolderOpen className="size-4" />
-                  Abrir proyecto
-                </Button>
                 {puedeGestionar(enfocado) && (
                   <>
                     <Button variant="outline" title="Editar" onClick={() => abrirEdicion(enfocado)}>

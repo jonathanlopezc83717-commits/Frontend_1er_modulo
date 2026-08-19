@@ -207,7 +207,7 @@ export function SelectorProyectos() {
             </p>
             <Badge variant="secondary">{proyectos.length}</Badge>
           </div>
-          <div className="flex-1 space-y-1 overflow-y-auto p-2">
+          <div className="flex-1 space-y-3 overflow-y-auto p-3">
             {proyectos.length === 0 ? (
               <p className="px-2 py-4 text-sm text-muted-foreground">Todavía no hay proyectos.</p>
             ) : filtrados.length === 0 ? (
@@ -215,27 +215,50 @@ export function SelectorProyectos() {
                 Ningún proyecto coincide con la búsqueda.
               </p>
             ) : (
-              filtrados.map((proyecto) => (
-                <button
-                  key={proyecto.id}
-                  type="button"
-                  onClick={() => enfocarProyecto(proyecto.id)}
-                  data-testid={`proyecto-${proyecto.id}`}
-                  className={`flex w-full items-center gap-3 rounded-md border p-3 text-left transition-colors hover:bg-accent ${
-                    enfocado?.id === proyecto.id ? 'border-border bg-accent' : 'border-transparent'
-                  }`}
-                >
-                  <FolderOpen className="size-5 shrink-0" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{proyecto.nombre}</span>
-                    {proyecto.descripcion && (
-                      <span className="block truncate text-muted-foreground">
-                        {proyecto.descripcion}
-                      </span>
+              filtrados.map((proyecto) => {
+                const seleccionado = enfocado?.id === proyecto.id
+                return (
+                  <button
+                    key={proyecto.id}
+                    type="button"
+                    onClick={() => enfocarProyecto(proyecto.id)}
+                    data-testid={`proyecto-${proyecto.id}`}
+                    aria-current={seleccionado ? 'true' : undefined}
+                    className={`relative flex min-h-[76px] w-full items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
+                      seleccionado
+                        ? 'bg-primary text-primary-foreground shadow'
+                        : 'bg-card text-card-foreground hover:bg-accent'
+                    }`}
+                  >
+                    {seleccionado && (
+                      <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
                     )}
-                  </span>
-                </button>
-              ))
+                    <span className="min-w-0 flex-1 pl-1.5">
+                      <span className="block truncate text-base font-semibold leading-tight">
+                        {proyecto.nombre}
+                      </span>
+                      {proyecto.descripcion ? (
+                        <span
+                          className={`mt-0.5 block truncate text-xs ${
+                            seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {proyecto.descripcion}
+                        </span>
+                      ) : null}
+                      <span
+                        className={`mt-1 block text-[11px] ${
+                          seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
+                        }`}
+                      >
+                        Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
+                        {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
+                      </span>
+                    </span>
+                    {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
+                  </button>
+                )
+              })
             )}
           </div>
         </aside>

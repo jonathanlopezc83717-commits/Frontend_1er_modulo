@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { CampoCombo, COORDS_CON_OPCIONES, useOpcionesCampos } from './campo-combo'
 import { EditarEtiquetasMateriales } from './EditarEtiquetasMateriales'
 import { latLngToUtmEasting, latLngToUtmNorthing } from '@/lib/utm'
+import { EVENTO_FOCO_CAMPO, consumirFocoCampo, type FocoCampoFaltante } from '@/lib/foco-campo'
 
 // =====================================================
 // TIPOS
@@ -1425,12 +1426,42 @@ export function ModuloMateriales() {
   const [camposCustom, setCamposCustom] = useState<Array<{ coord: string; etiqueta: string; origen?: string; combo?: boolean; coordenadas?: boolean; lados?: string[]; columnas?: 1 | 2 | 3 }>>([])
   const [coordsManuales, setCoordsManuales] = useState<string[]>([])
   const [aplicandoGlobal, setAplicandoGlobal] = useState(false)
+  const [coordResaltada, setCoordResaltada] = useState<string | null>(null)
+  const resaltarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const guardarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const puntoIdAnteriorRef = useRef<string | null>(null)
   const autocompletarPrevRef = useRef<string | null>(null)
   const croquisFolderRef = useRef<File[]>([])
   const croquisInputRef = useRef<HTMLInputElement>(null)
   const croquisPendienteRef = useRef<'todos' | null>(null)
+
+  const resaltarCoord = useCallback((coord: string) => {
+    const el = document.querySelector(`[data-coord="${coord}"]`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setCoordResaltada(coord)
+    if (resaltarTimeoutRef.current) clearTimeout(resaltarTimeoutRef.current)
+    resaltarTimeoutRef.current = setTimeout(() => setCoordResaltada(null), 2000)
+  }, [])
+
+  useEffect(() => {
+    const manejarFoco = (detalle: FocoCampoFaltante) => {
+      if (detalle.puntoId === punto?.id) resaltarCoord(detalle.coord)
+    }
+    const pendiente = consumirFocoCampo()
+    if (pendiente) manejarFoco(pendiente)
+    const onEvento = (e: Event) => {
+      manejarFoco((e as CustomEvent<FocoCampoFaltante>).detail)
+    }
+    window.addEventListener(EVENTO_FOCO_CAMPO, onEvento)
+    return () => {
+      window.removeEventListener(EVENTO_FOCO_CAMPO, onEvento)
+      if (resaltarTimeoutRef.current) clearTimeout(resaltarTimeoutRef.current)
+    }
+  }, [punto?.id, resaltarCoord])
+
+  const claseResalte = (coord: string) =>
+    `space-y-1 rounded-md transition-shadow${coordResaltada === coord ? ' ring-2 ring-destructive' : ''}`
 
   // Cargar datos persistidos al montar o cambiar de punto. Lee estado live
   // (selector estrecho sin moduloData); depende solo del id del punto.
@@ -2439,13 +2470,15 @@ export function ModuloMateriales() {
                   onChange={e => setEtiquetas(prev => ({ ...prev, 'sec:proyecto': e.target.value }))}
                   className="border-0 px-0 py-0 text-sm"
                 />
-                <CoordInput
-                  coord="0-F"
-                  value={valores['0-F'] || ''}
-                  onChange={v => actualizarValor('0-F', v)}
-                  onFocus={setCoordActiva}
-                  placeholder="Clave"
-                />
+                <div className={claseResalte('0-F')} data-coord="0-F">
+                  <CoordInput
+                    coord="0-F"
+                    value={valores['0-F'] || ''}
+                    onChange={v => actualizarValor('0-F', v)}
+                    onFocus={setCoordActiva}
+                    placeholder="Clave"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2457,7 +2490,7 @@ export function ModuloMateriales() {
                     const etiquetaCombo = COORDS_CON_OPCIONES[coord]
                     const etiquetaResuelta = resolverLabel(coord, etiquetas)
                     return (
-                      <div key={coord} className="space-y-1">
+                      <div key={coord} className={claseResalte(coord)} data-coord={coord}>
                         <label className="block text-xs font-medium text-muted-foreground">
                           {etiquetaResuelta}
                         </label>
@@ -2496,7 +2529,7 @@ export function ModuloMateriales() {
                   >
                     {grupo.map(campo => {
                       return (
-                      <div key={campo.coord} className="space-y-1">
+                      <div key={campo.coord} className={claseResalte(campo.coord)} data-coord={campo.coord}>
                         <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                           <span className="flex items-center gap-1">
                             {campo.etiqueta}
@@ -2548,7 +2581,7 @@ export function ModuloMateriales() {
 
             {/* Estado actual */}
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
+              <div className={claseResalte('7-D')} data-coord="7-D">
                 <label className="block text-xs font-medium text-muted-foreground">
                   Estado actual - Lado izquierdo
                 </label>
@@ -2560,7 +2593,7 @@ export function ModuloMateriales() {
                   className="px-2 py-1"
                 />
               </div>
-              <div className="space-y-1">
+              <div className={claseResalte('7-F')} data-coord="7-F">
                 <label className="block text-xs font-medium text-muted-foreground">
                   Estado actual - Lado derecho
                 </label>
@@ -2590,7 +2623,7 @@ export function ModuloMateriales() {
                   onClear={() => limpiarImagen('croquis')}
                 />
               </div>
-              <div className="space-y-1">
+              <div className={claseResalte('8-F')} data-coord="8-F">
                 <label className="block text-xs font-medium text-muted-foreground">
                   Observaciones
                 </label>

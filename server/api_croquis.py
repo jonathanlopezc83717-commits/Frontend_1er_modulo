@@ -21,6 +21,10 @@ Endpoints:
   POST /api/nas-pending/ack     JSON {eventIds} -> filtra pendientes (escritura atomica)
   GET  /api/nas-file?path=      -> sirve un archivo del NAS (anti path-traversal)
   GET  /api/nas-stream          -> SSE `nas:eventos` con {updatedAt, pendientes}
+  POST /api/nas-snapshots       JSON {proyectoId, tipo, descripcion, guardadoPor, snapshot}
+      -> guarda snapshot en {NAS}/.snapshots/{proyectoId}/ (tmp+rename, retencion 10)
+  GET  /api/nas-snapshots?proyectoId= -> indice de snapshots del proyecto
+  GET  /api/nas-snapshot?proyectoId=&id= -> cuerpo completo de un snapshot
 
 Arranque:
   uvicorn server.api_croquis:app --reload --port 8000
@@ -48,6 +52,7 @@ import socket
 import sys
 import tempfile
 import threading
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -476,6 +481,147 @@ async def nas_stream():
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+_SNAPSHOTS_RETENCION = 10
+
+
+def _es_uuid(valor: str) -> bool:
+    return bool(_UUID_RE.match(valor or ""))
+
+
+def _dir_snapshots(proyecto_id: str) -> Optional[Path]:
+    return _nas_join(f".snapshots/{proyecto_id}")
+
+
+def _escribir_json_atomico(ruta: Path, valor) -> None:
+    tmp = Path(str(ruta) + ".tmp")
+    tmp.write_text(json.dumps(valor, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, ruta)
+
+
+def _leer_indice_snapshots(dir_proyecto: Path) -> dict:
+    ruta = dir_proyecto / "index.json"
+    if ruta.exists():
+        try:
+            data = json.loads(ruta.read_text(encoding="utf-8"))
+            if isinstance(data.get("snapshots"), list):
+                return data
+        except Exception:
+            pass
+    return {"updatedAt": None, "snapshots": []}
+
+
+class SnapshotBody(BaseModel):
+    proyectoId: str
+    tipo: str
+    descripcion: str
+    guardadoPor: str = ""
+    snapshot: dict
+
+
+@app.post("/api/nas-snapshots")
+def nas_snapshots_crear(body: SnapshotBody):
+    """Guarda un snapshot de estado de app en {NAS}/.snapshots/{proyectoId}/.
+
+    Cuerpo tmp+rename, indice reescrito atomicamente con retencion 10:
+    los archivos y entradas mas alla del tope se eliminan.
+    """
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+    if not _es_uuid(body.proyectoId):
+        return JSONResponse(status_code=400, content={"error": "proyectoId debe ser un UUID valido"})
+    if body.tipo not in ("manual", "automatico"):
+        return JSONResponse(status_code=400, content={"error": "tipo debe ser 'manual' o 'automatico'"})
+
+    dir_proyecto = _dir_snapshots(body.proyectoId)
+    if dir_proyecto is None:
+        return JSONResponse(status_code=400, content={"error": "ruta de snapshots invalida"})
+    dir_proyecto.mkdir(parents=True, exist_ok=True)
+
+    snap_id = str(uuid.uuid4())
+    creado = datetime.now(timezone.utc)
+    created_at = creado.isoformat()
+    sello = creado.strftime("%Y-%m-%dT%H%M%S.%f")[:-3] + "Z"
+    nombre = f"{sello}-{snap_id}.json"
+    ruta_body = dir_proyecto / nombre
+
+    _escribir_json_atomico(ruta_body, body.snapshot)
+
+    entradas = _leer_indice_snapshots(dir_proyecto)["snapshots"]
+    entradas.append(
+        {
+            "id": snap_id,
+            "tipo": body.tipo,
+            "descripcion": body.descripcion,
+            "created_at": created_at,
+            "guardadoPor": body.guardadoPor,
+            "kb": round(ruta_body.stat().st_size / 1024, 1),
+            "archivo": nombre,
+        }
+    )
+    entradas.sort(key=lambda e: e["created_at"], reverse=True)
+    for excedente in entradas[_SNAPSHOTS_RETENCION:]:
+        try:
+            (dir_proyecto / excedente["archivo"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+    entradas = entradas[:_SNAPSHOTS_RETENCION]
+    _escribir_json_atomico(
+        dir_proyecto / "index.json",
+        {"updatedAt": created_at, "snapshots": entradas},
+    )
+
+    return {"ok": True, "id": snap_id, "created_at": created_at}
+
+
+@app.get("/api/nas-snapshots")
+def nas_snapshots_listar(proyectoId: str = ""):
+    """Metadatos del indice de snapshots del proyecto (desc por created_at)."""
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+    if not _es_uuid(proyectoId):
+        return JSONResponse(status_code=400, content={"error": "proyectoId debe ser un UUID valido"})
+    dir_proyecto = _dir_snapshots(proyectoId)
+    if dir_proyecto is None or not dir_proyecto.is_dir():
+        return {"updatedAt": None, "snapshots": []}
+    indice = _leer_indice_snapshots(dir_proyecto)
+    claves = ("id", "tipo", "descripcion", "created_at", "guardadoPor", "kb")
+    return {
+        "updatedAt": indice.get("updatedAt"),
+        "snapshots": [{k: e.get(k) for k in claves} for e in indice.get("snapshots", [])],
+    }
+
+
+@app.get("/api/nas-snapshot")
+def nas_snapshot_leer(proyectoId: str = "", id: str = ""):
+    """Cuerpo completo de un snapshot: entrada del indice + archivo JSON."""
+    if not _NAS_ROOT:
+        return _nas_no_configurado()
+    if not _es_uuid(proyectoId) or not _es_uuid(id):
+        return JSONResponse(status_code=400, content={"error": "proyectoId e id deben ser UUID validos"})
+    dir_proyecto = _dir_snapshots(proyectoId)
+    entrada = None
+    if dir_proyecto is not None and dir_proyecto.is_dir():
+        entrada = next((e for e in _leer_indice_snapshots(dir_proyecto)["snapshots"] if e.get("id") == id), None)
+    if not entrada:
+        return JSONResponse(status_code=404, content={"error": "snapshot no encontrado"})
+    ruta_body = _nas_join(f".snapshots/{proyectoId}/{entrada.get('archivo', '')}")
+    if ruta_body is None or not ruta_body.is_file():
+        return JSONResponse(status_code=404, content={"error": "snapshot no encontrado"})
+    try:
+        snapshot = json.loads(ruta_body.read_text(encoding="utf-8"))
+    except Exception:
+        return JSONResponse(status_code=404, content={"error": "snapshot no encontrado"})
+    return {
+        "id": entrada["id"],
+        "tipo": entrada["tipo"],
+        "descripcion": entrada["descripcion"],
+        "created_at": entrada["created_at"],
+        "guardadoPor": entrada.get("guardadoPor", ""),
+        "snapshot": snapshot,
+    }
 
 
 _DIST = _RAIZ.parent / "dist"

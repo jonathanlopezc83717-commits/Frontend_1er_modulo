@@ -328,38 +328,58 @@ export function SelectorProyectos() {
                     onClick={() => enfocarProyecto(proyecto.id)}
                     data-testid={`proyecto-${proyecto.id}`}
                     aria-current={seleccionado ? 'true' : undefined}
-                    className={`relative flex min-h-[76px] w-60 shrink-0 snap-start items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`relative flex h-36 w-64 shrink-0 snap-start flex-col overflow-hidden rounded-xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring ${
                       seleccionado
-                        ? 'bg-primary text-primary-foreground shadow'
-                        : 'bg-card text-card-foreground hover:bg-accent'
+                        ? 'bg-primary text-primary-foreground shadow-md ring-1 ring-primary'
+                        : 'bg-card text-card-foreground'
                     }`}
                   >
                     {seleccionado && (
                       <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
                     )}
-                    <span className="min-w-0 flex-1 pl-1.5">
-                      <span className="block truncate text-base font-semibold leading-tight">
-                        {proyecto.nombre}
+                    <span className="flex items-start gap-2.5 pl-1.5">
+                      <span
+                        className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                          seleccionado ? 'bg-primary-foreground/15' : 'bg-primary/10'
+                        }`}
+                      >
+                        <FolderOpen
+                          className={`size-5 ${seleccionado ? 'text-primary-foreground' : 'text-primary'}`}
+                        />
                       </span>
-                      {proyecto.descripcion ? (
+                      <span className="min-w-0 flex-1 pt-0.5">
+                        <span className="block truncate text-base font-semibold leading-tight">
+                          {proyecto.nombre}
+                        </span>
                         <span
-                          className={`mt-0.5 block truncate text-xs ${
-                            seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
+                          className={`block truncate text-[11px] ${
+                            seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground'
                           }`}
                         >
-                          {proyecto.descripcion}
+                          {typeof proyecto.miembros_count === 'number'
+                            ? `${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`
+                            : 'Creada ' + formatearFecha(proyecto.created_at)}
                         </span>
-                      ) : null}
+                      </span>
+                    </span>
+                    <span
+                      className={`mt-2 line-clamp-2 pl-1.5 text-xs leading-snug ${
+                        seleccionado ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {proyecto.descripcion || 'Sin descripción.'}
+                    </span>
+                    <span className="mt-auto pl-1.5">
                       <span
-                        className={`mt-1 block truncate text-[11px] ${
-                          seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
+                        className={`block truncate border-t pt-1.5 text-[11px] ${
+                          seleccionado
+                            ? 'border-primary-foreground/25 text-primary-foreground/70'
+                            : 'border-border text-muted-foreground/80'
                         }`}
                       >
                         Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
-                        {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
                       </span>
                     </span>
-                    {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
                   </button>
                 )
               })}

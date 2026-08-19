@@ -199,102 +199,100 @@ export function SelectorProyectos() {
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-border">
-          <div className="flex items-center justify-between px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Proyectos
-            </p>
-            <Badge variant="secondary">{proyectos.length}</Badge>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {proyectos.length === 0 ? (
-              <p className="px-2 py-4 text-sm text-muted-foreground">Todavía no hay proyectos.</p>
-            ) : filtrados.length === 0 ? (
-              <p className="px-2 py-4 text-sm text-muted-foreground">
-                Ningún proyecto coincide con la búsqueda.
+      {ultimoProyecto && !bannerDescartado && (
+        <section className="shrink-0 border-b border-primary/30 bg-primary/5 px-4 py-3" data-testid="banner-reanudar">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Última sesión
               </p>
-            ) : (
-              filtrados.map((proyecto) => {
-                const seleccionado = enfocado?.id === proyecto.id
-                return (
-                  <button
-                    key={proyecto.id}
-                    type="button"
-                    onClick={() => enfocarProyecto(proyecto.id)}
-                    data-testid={`proyecto-${proyecto.id}`}
-                    aria-current={seleccionado ? 'true' : undefined}
-                    className={`relative flex min-h-[76px] w-full items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
-                      seleccionado
-                        ? 'bg-primary text-primary-foreground shadow'
-                        : 'bg-card text-card-foreground hover:bg-accent'
-                    }`}
-                  >
-                    {seleccionado && (
-                      <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
-                    )}
-                    <span className="min-w-0 flex-1 pl-1.5">
-                      <span className="block truncate text-base font-semibold leading-tight">
-                        {proyecto.nombre}
-                      </span>
-                      {proyecto.descripcion ? (
-                        <span
-                          className={`mt-0.5 block truncate text-xs ${
-                            seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
-                          }`}
-                        >
-                          {proyecto.descripcion}
-                        </span>
-                      ) : null}
+              <p className="truncate text-lg font-semibold">{ultimoProyecto.nombre}</p>
+              {ultimoProyecto.descripcion && (
+                <p className="truncate text-sm text-muted-foreground">{ultimoProyecto.descripcion}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button onClick={() => cambiarProyecto(ultimoProyecto.id)} data-testid="reanudar-abrir">
+                <Play className="size-4" />
+                Abrir proyecto
+              </Button>
+              <Button variant="outline" onClick={() => setBannerDescartado(true)}>
+                Ir a proyectos
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="shrink-0 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Proyectos disponibles
+          </p>
+          <Badge variant="secondary">{proyectos.length}</Badge>
+        </div>
+        {proyectos.length === 0 ? (
+          <p className="py-3 text-sm text-muted-foreground">Todavía no hay proyectos.</p>
+        ) : filtrados.length === 0 ? (
+          <p className="py-3 text-sm text-muted-foreground">
+            Ningún proyecto coincide con la búsqueda.
+          </p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2 pt-1">
+            {filtrados.map((proyecto) => {
+              const seleccionado = enfocado?.id === proyecto.id
+              return (
+                <button
+                  key={proyecto.id}
+                  type="button"
+                  onClick={() => enfocarProyecto(proyecto.id)}
+                  data-testid={`proyecto-${proyecto.id}`}
+                  aria-current={seleccionado ? 'true' : undefined}
+                  className={`relative flex min-h-[76px] w-60 shrink-0 items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
+                    seleccionado
+                      ? 'bg-primary text-primary-foreground shadow'
+                      : 'bg-card text-card-foreground hover:bg-accent'
+                  }`}
+                >
+                  {seleccionado && (
+                    <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
+                  )}
+                  <span className="min-w-0 flex-1 pl-1.5">
+                    <span className="block truncate text-base font-semibold leading-tight">
+                      {proyecto.nombre}
+                    </span>
+                    {proyecto.descripcion ? (
                       <span
-                        className={`mt-1 block text-[11px] ${
-                          seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
+                        className={`mt-0.5 block truncate text-xs ${
+                          seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
                         }`}
                       >
-                        Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
-                        {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
+                        {proyecto.descripcion}
                       </span>
+                    ) : null}
+                    <span
+                      className={`mt-1 block truncate text-[11px] ${
+                        seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
+                      }`}
+                    >
+                      Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
+                      {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
                     </span>
-                    {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
-                  </button>
-                )
-              })
-            )}
+                  </span>
+                  {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
+                </button>
+              )
+            })}
           </div>
-        </aside>
+        )}
+      </section>
 
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          {vista === 'usuarios' && esAdmin ? (
-            <div className="p-4 sm:p-6">
-              <PanelUsuarios />
-            </div>
-          ) : ultimoProyecto && !bannerDescartado ? (
-            <div className="p-4 sm:p-6">
-              <div
-                className="flex flex-col gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center"
-                data-testid="banner-reanudar"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Continuar donde quedaste
-                  </p>
-                  <p className="truncate text-lg font-semibold">{ultimoProyecto.nombre}</p>
-                  {ultimoProyecto.descripcion && (
-                    <p className="truncate text-sm text-muted-foreground">{ultimoProyecto.descripcion}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button onClick={() => cambiarProyecto(ultimoProyecto.id)} data-testid="reanudar-abrir">
-                    <Play className="size-4" />
-                    Abrir proyecto
-                  </Button>
-                  <Button variant="outline" onClick={() => setBannerDescartado(true)}>
-                    Ir a proyectos
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : proyectos.length === 0 ? (
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        {vista === 'usuarios' && esAdmin ? (
+          <div className="p-4 sm:p-6">
+            <PanelUsuarios />
+          </div>
+        ) : proyectos.length === 0 ? (
             puedeCrear ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-muted-foreground">Todavía no hay proyectos.</p>
@@ -379,8 +377,7 @@ export function SelectorProyectos() {
               </div>
             </div>
           )}
-        </main>
-      </div>
+      </main>
 
       <footer className="flex h-12 shrink-0 items-center gap-2 border-t border-border px-4">
         <span className="min-w-0 truncate text-sm text-muted-foreground">

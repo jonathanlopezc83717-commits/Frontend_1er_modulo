@@ -383,7 +383,7 @@ describe('SelectorProyectos: banner de reanudación', () => {
 
     const banner = getByTestId('banner-reanudar')
     expect(banner.textContent).toContain('Obra Dos')
-    expect(banner.textContent).toContain('Continuar donde quedaste')
+    expect(banner.textContent).toContain('Última sesión')
     expect(getByText('Abrir proyecto')).toBeTruthy()
     expect(getByText('Ir a proyectos')).toBeTruthy()
   })

@@ -406,7 +406,6 @@ export const MODULOS: ModuloConfig[] = [
   { id: 'analisis', nombre: 'Análisis de Imágenes', descripcion: 'Análisis visual con IA', icono: 'Wand2', componente: 'ModuloAnalisis' },
   { id: 'georeferencia', nombre: 'Georeferencia', descripcion: 'Ubicación GPS y coordenadas', icono: 'MapPin', componente: 'ModuloGeoreferencia' },
   { id: 'documentacion', nombre: 'Documentación', descripcion: 'Documentos técnicos y planos', icono: 'FileText', componente: 'ModuloDocumentacion' },
-  { id: 'reportes', nombre: 'Checklist', descripcion: 'Verificación de módulos completados', icono: 'BarChart3', componente: 'ModuloReportes' },
   { id: 'sincronizacion', nombre: 'Sincronización', descripcion: 'Sincronizar puntos desde Excel con nomenclaturas', icono: 'RefreshCw', componente: 'ModuloSincronizacion' },
   { id: 'materiales', nombre: 'Formato', descripcion: 'Formato editable desde Excel', icono: 'Package', componente: 'ModuloMateriales' },
   { id: 'nomenclaturas', nombre: 'Nomenclaturas', descripcion: 'Códigos y nomenclaturas registradas', icono: 'Tag', componente: 'ModuloNomenclaturas' },

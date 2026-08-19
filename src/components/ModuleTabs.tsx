@@ -30,7 +30,6 @@ import {
   FileText,
   FileSpreadsheet,
   Package,
-  BarChart3,
   Tag,
   RefreshCw,
 } from 'lucide-react'
@@ -39,7 +38,6 @@ import { ModuloGeoreferencia } from './modulos/ModuloGeoreferencia'
 import { ModuloDocumentacion } from './modulos/ModuloDocumentacion'
 import { ModuloNomenclaturas } from './modulos/ModuloNomenclaturas'
 import { ModuloMateriales } from './modulos/ModuloMateriales'
-import { ModuloReportes } from './modulos/ModuloReportes'
 import { ModuloSincronizacion } from './modulos/ModuloSincronizacion'
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -48,7 +46,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
   FileSpreadsheet,
   Package,
-  BarChart3,
   Tag,
   RefreshCw,
 }
@@ -59,7 +56,6 @@ const componentMap: Record<string, React.ComponentType> = {
   ModuloDocumentacion,
   ModuloNomenclaturas,
   ModuloMateriales,
-  ModuloReportes,
   ModuloSincronizacion,
 }
 

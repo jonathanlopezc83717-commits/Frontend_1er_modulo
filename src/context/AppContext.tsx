@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { MODULOS } from '@/types'
 import type { PuntoFerroviario, AppState, AppAction, EstadoGuardado, ImageAnalysisResult, PlantillaFormato, PlantillaPdfFormato } from '@/types'
 import { guardarEstado, cargarEstado, cargarEstadoCompleto } from '@/lib/storage'
 import { cargarArchivosPlantilla } from '@/lib/template-file-store'
@@ -115,7 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           payload: {
             puntos: stored.puntos as PuntoFerroviario[],
             puntoActivoId: stored.puntoActivoId,
-            moduloActivo: stored.moduloActivo,
+      moduloActivo: MODULOS.some(m => m.id === stored.moduloActivo) ? stored.moduloActivo : 'analisis',
             modulosOrden: stored.modulosOrden || null,
             nomenclaturasGlobales: (stored.nomenclaturasGlobales || []) as AppState['nomenclaturasGlobales'],
             plantillasFormato: (stored.plantillasFormato || []) as PlantillaFormato[],

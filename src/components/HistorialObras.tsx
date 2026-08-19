@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Archive, Clock, MapPin, FileText, Shield, ClipboardCheck, Package, TreePine, BarChart3, Wand2, RotateCcw, AlertTriangle, MapPinned } from 'lucide-react'
+import { Archive, Clock, MapPin, FileText, Shield, ClipboardCheck, Package, TreePine, Wand2, RotateCcw, AlertTriangle, MapPinned } from 'lucide-react'
 
 const iconosModulo: Record<string, React.ReactNode> = {
   analisis: <Wand2 className="w-4 h-4" />,
@@ -16,7 +16,6 @@ const iconosModulo: Record<string, React.ReactNode> = {
   materiales: <Package className="w-4 h-4" />,
   seguridad: <Shield className="w-4 h-4" />,
   ambiental: <TreePine className="w-4 h-4" />,
-  reportes: <BarChart3 className="w-4 h-4" />,
 }
 
 const coloresEvento: Record<string, string> = {

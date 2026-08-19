@@ -1,7 +1,11 @@
-import { readFileSync, existsSync, statSync, writeFileSync, renameSync, readdirSync, watch } from 'node:fs'
+import { readFileSync, existsSync, statSync, writeFileSync, renameSync, readdirSync, watch, mkdirSync, unlinkSync } from 'node:fs'
 import { join, resolve, normalize } from 'node:path'
+import { randomUUID } from 'node:crypto'
 
 const ACK_BODY_LIMIT = 64 * 1024
+const SNAP_BODY_LIMIT = 64 * 1024 * 1024
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const SNAPSHOTS_RETENCION = 10
 
 function readJson(path, fallback) {
   try {
@@ -131,6 +135,124 @@ export function nasBridgePlugin() {
           }
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ inicio: primeraX, fin: ultimaX, archivo: archivoUsado }))
+          return
+        }
+
+        if (url.pathname === '/api/nas-snapshots' && req.method === 'POST') {
+          if (!watchPath) {
+            res.statusCode = 503
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'NAS no configurado' }))
+            return
+          }
+          const body = JSON.parse(await readBody(req, SNAP_BODY_LIMIT))
+          const { proyectoId, tipo, descripcion, guardadoPor = '', snapshot } = body
+          if (!UUID_RE.test(proyectoId || '')) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'proyectoId debe ser un UUID valido' }))
+            return
+          }
+          if (tipo !== 'manual' && tipo !== 'automatico') {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: "tipo debe ser 'manual' o 'automatico'" }))
+            return
+          }
+          const dir = safeJoin(watchPath, `.snapshots/${proyectoId}`)
+          mkdirSync(dir, { recursive: true })
+          const id = randomUUID()
+          const createdAt = new Date().toISOString()
+          const nombre = `${createdAt.slice(0, 23).replace(/[:.]/g, '')}-${id}.json`
+          writeJsonAtomic(join(dir, nombre), snapshot)
+          const actual = readJson(join(dir, 'index.json'), { updatedAt: null, snapshots: [] })
+          const entradas = [
+            ...actual.snapshots,
+            {
+              id,
+              tipo,
+              descripcion: descripcion || '',
+              created_at: createdAt,
+              guardadoPor: guardadoPor || '',
+              kb: Math.round(statSync(join(dir, nombre)).size / 102.4) / 10,
+              archivo: nombre,
+            },
+          ]
+          entradas.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
+          for (const excedente of entradas.slice(SNAPSHOTS_RETENCION)) {
+            try {
+              unlinkSync(join(dir, excedente.archivo))
+            } catch {}
+          }
+          const conservadas = entradas.slice(0, SNAPSHOTS_RETENCION)
+          writeJsonAtomic(join(dir, 'index.json'), { updatedAt: createdAt, snapshots: conservadas })
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: true, id, created_at: createdAt }))
+          return
+        }
+
+        if (url.pathname === '/api/nas-snapshots' && req.method === 'GET') {
+          if (!watchPath) {
+            res.statusCode = 503
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'NAS no configurado' }))
+            return
+          }
+          const proyectoId = url.searchParams.get('proyectoId') || ''
+          if (!UUID_RE.test(proyectoId)) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'proyectoId debe ser un UUID valido' }))
+            return
+          }
+          const dir = safeJoin(watchPath, `.snapshots/${proyectoId}`)
+          const indice = dir && existsSync(join(dir, 'index.json'))
+            ? readJson(join(dir, 'index.json'), { updatedAt: null, snapshots: [] })
+            : { updatedAt: null, snapshots: [] }
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({
+            updatedAt: indice.updatedAt ?? null,
+            snapshots: (indice.snapshots || []).map(({ id, tipo, descripcion, created_at, guardadoPor, kb }) => ({
+              id, tipo, descripcion, created_at, guardadoPor, kb,
+            })),
+          }))
+          return
+        }
+
+        if (url.pathname === '/api/nas-snapshot' && req.method === 'GET') {
+          if (!watchPath) {
+            res.statusCode = 503
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'NAS no configurado' }))
+            return
+          }
+          const proyectoId = url.searchParams.get('proyectoId') || ''
+          const id = url.searchParams.get('id') || ''
+          if (!UUID_RE.test(proyectoId) || !UUID_RE.test(id)) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'proyectoId e id deben ser UUID validos' }))
+            return
+          }
+          const dir = safeJoin(watchPath, `.snapshots/${proyectoId}`)
+          const indice = dir && existsSync(join(dir, 'index.json'))
+            ? readJson(join(dir, 'index.json'), { updatedAt: null, snapshots: [] })
+            : { updatedAt: null, snapshots: [] }
+          const entrada = (indice.snapshots || []).find((e) => e.id === id)
+          const ruta = entrada && safeJoin(watchPath, `.snapshots/${proyectoId}/${entrada.archivo}`)
+          const cuerpo = ruta && existsSync(ruta) ? readJson(ruta, null) : null
+          if (!entrada || cuerpo === null) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'snapshot no encontrado' }))
+            return
+          }
+          const { tipo, descripcion, created_at, guardadoPor } = entrada
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({
+            id, tipo, descripcion, created_at, guardadoPor: guardadoPor || '',
+            snapshot: cuerpo,
+          }))
           return
         }
 

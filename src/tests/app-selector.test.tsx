@@ -12,13 +12,15 @@ vi.mock('@/lib/supabase-service', () => ({
   guardarCoordenadas: vi.fn().mockResolvedValue(undefined),
   guardarDocumentacion: vi.fn().mockResolvedValue(undefined),
   guardarAnalisis: vi.fn().mockResolvedValue(undefined),
-  guardarEstadoAppEnNube: vi.fn().mockResolvedValue({ success: true }),
-  obtenerEstadosAppDesdeNube: vi.fn().mockResolvedValue([]),
-  obtenerEstadoAppDesdeNube: vi.fn().mockResolvedValue(null),
-  obtenerUltimoEstadoAppDesdeNube: vi.fn().mockResolvedValue(null),
+}))
+vi.mock('@/lib/snapshot-store', () => ({
+  guardarSnapshotNAS: vi.fn().mockResolvedValue({ success: true }),
+  listarSnapshotsNAS: vi.fn().mockResolvedValue([]),
+  leerSnapshotNAS: vi.fn().mockResolvedValue(null),
+  snapNASDisponible: vi.fn().mockResolvedValue(true),
 }))
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ proyectoActivoId: 'proyecto-test' }),
+  useAuth: () => ({ proyectoActivoId: 'proyecto-test', perfil: null }),
 }))
 vi.mock('@/lib/storage', () => ({
   guardarEstado: vi.fn(),

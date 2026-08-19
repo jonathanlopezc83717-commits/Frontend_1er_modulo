@@ -6,17 +6,14 @@ import { guardarEstado, cargarEstado, cargarEstadoCompleto } from '@/lib/storage
 import { cargarArchivosPlantilla } from '@/lib/template-file-store'
 import { generarUUID } from '@/lib/utils'
 import { consolidarNomenclaturas, type NomenclaturaEntry } from '@/lib/nomenclaturas'
-import { 
-  cargarPuntosDesdeDB, 
+import {
+  cargarPuntosDesdeDB,
   sincronizarPuntos,
   guardarCoordenadas,
   guardarDocumentacion,
   guardarAnalisis,
-  guardarEstadoAppEnNube,
-  obtenerEstadosAppDesdeNube,
-  obtenerEstadoAppDesdeNube,
-  obtenerUltimoEstadoAppDesdeNube,
 } from '@/lib/supabase-service'
+import { guardarSnapshotNAS, listarSnapshotsNAS, leerSnapshotNAS } from '@/lib/snapshot-store'
 import { appReducer, MAX_ESTADOS_GUARDADOS, reenumerarPuntos } from './app-reducer'
 import { createStore, AppStoreContext, useAppSelector, useAppStore, shallow } from './app-store'
 import { useAuth } from './AuthContext'
@@ -96,8 +93,9 @@ function getInitialState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { proyectoActivoId } = useAuth()
+  const { proyectoActivoId, perfil } = useAuth()
   const proyectoId = proyectoActivoId ?? ''
+  const guardadoPor = perfil?.email || ''
   const [appStore] = useState(() => createStore(appReducer, getInitialState()))
   const state = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot)
   const dispatch = appStore.dispatch
@@ -264,14 +262,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!estadoGuardado) return false
 
     if (estadoGuardado.snapshotCompleto === false) {
-      const estadoCompleto = await obtenerEstadoAppDesdeNube(id)
+      const estadoCompleto = await leerSnapshotNAS(proyectoId, id)
       if (!estadoCompleto) return false
       estadoGuardado = estadoCompleto
     }
 
     dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: estadoGuardado.snapshot })
     return true
-  }, [appStore, dispatch])
+  }, [appStore, dispatch, proyectoId])
 
   useEffect(() => {
     const crearSiCorresponde = () => {
@@ -282,8 +280,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (Date.now() - ultimaFecha >= BACKUP_INTERVAL_MS) {
         const copia = crearCopiaSeguridad('automatico', 'Copia de seguridad automatica cada 2 horas')
-        guardarEstadoAppEnNube(copia, proyectoId).catch(error => {
-          console.error('Error guardando copia automatica en nube:', error)
+        guardarSnapshotNAS({
+          proyectoId,
+          tipo: copia.tipo,
+          descripcion: copia.descripcion,
+          guardadoPor,
+          snapshot: copia.snapshot,
+        }).catch(error => {
+          console.error('Error guardando copia automatica en NAS:', error)
         })
       }
     }
@@ -291,7 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     crearSiCorresponde()
     const intervalId = window.setInterval(crearSiCorresponde, 60 * 1000)
     return () => window.clearInterval(intervalId)
-  }, [crearCopiaSeguridad, state.estadosGuardados, state.puntos.length, proyectoId])
+  }, [crearCopiaSeguridad, state.estadosGuardados, state.puntos.length, proyectoId, guardadoPor])
 
   const moverPunto = useCallback((id: string, nuevaPosicion: number) => {
     const puntos = appStore.getState().puntos
@@ -327,7 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         description: total > 0 ? `0 / ${total} puntos` : 'Guardando estado',
       })
 
-      // Sincronizar puntos y snapshot en paralelo: son independientes entre sí
+      // Sincronizar puntos (Supabase) y snapshot (NAS) en paralelo: son independientes entre sí
       const [result, snapshotResult] = await Promise.all([
         sincronizarPuntos(puntos, proyectoId, {
           concurrency: 5,
@@ -338,17 +342,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             })
           },
         }),
-        guardarEstadoAppEnNube(copiaManual, proyectoId),
+        guardarSnapshotNAS({
+          proyectoId,
+          tipo: copiaManual.tipo,
+          descripcion: copiaManual.descripcion,
+          guardadoPor,
+          snapshot: copiaManual.snapshot,
+        }),
       ])
 
       if (!snapshotResult.success) {
-        toast.error('El estado completo no se guardó en la nube', {
+        toast.error('Servidor de archivos no disponible — no se pudo guardar el snapshot', {
           id: toastId,
           description: snapshotResult.error || 'error desconocido',
         })
         return {
           success: false,
-          message: `Puntos sincronizados, pero el estado completo no se guardo en nube: ${snapshotResult.error || 'error desconocido'}`,
+          message: `Puntos sincronizados, pero el snapshot no se guardo en el servidor de archivos: ${snapshotResult.error || 'error desconocido'}`,
         }
       }
 
@@ -372,14 +382,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       return { success: false, message: String(error) }
     }
-  }, [crearCopiaSeguridad, appStore, proyectoId])
+  }, [crearCopiaSeguridad, appStore, proyectoId, guardadoPor])
 
   const cargarDesdeSupabase = useCallback(async () => {
     try {
-      const [ultimoEstado, estadosNube] = await Promise.all([
-        obtenerUltimoEstadoAppDesdeNube(proyectoId),
-        obtenerEstadosAppDesdeNube(proyectoId, MAX_ESTADOS_GUARDADOS),
-      ])
+      const estadosNube = await listarSnapshotsNAS(proyectoId)
+      const ultimoMeta = estadosNube[0] ?? null
 
       // La nube es FALLBACK: solo restaura puntos si NO hay estado local.
       // Al recargar, IndexedDB/localStorage ya trae el estado actual (con la
@@ -387,34 +395,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // auto-backup es cada 2h) reiniciaría la plantilla y los datos.
       if (appStore.getState().puntos.length > 0) return
 
-      if (ultimoEstado) {
-        dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: ultimoEstado.snapshot })
-        dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
-        console.log(`Estado completo cargado desde Supabase: ${ultimoEstado.snapshot.puntos.length} puntos`)
-        return
+      if (ultimoMeta) {
+        const ultimoEstado = ultimoMeta.snapshotCompleto === false
+          ? await leerSnapshotNAS(proyectoId, ultimoMeta.id)
+          : ultimoMeta
+        if (ultimoEstado) {
+          dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: ultimoEstado.snapshot })
+          dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
+          return
+        }
       }
 
       const puntos = await cargarPuntosDesdeDB(proyectoId)
       dispatch({ type: 'SET_PUNTOS', payload: puntos })
-        console.log(`📂 ${puntos.length} puntos cargados desde Supabase`)
     } catch (error) {
-      console.error('Error cargando desde Supabase:', error)
+      console.error('Error cargando desde Supabase/NAS:', error)
       throw error
     }
-  }, [proyectoId])
+  }, [proyectoId, appStore])
 
   const cargarEstadoPorIdDesdeSupabase = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const estado = await obtenerEstadoAppDesdeNube(id)
+      const estado = await leerSnapshotNAS(proyectoId, id)
       if (!estado) return false
 
-      const estadosNube = await obtenerEstadosAppDesdeNube(proyectoId, MAX_ESTADOS_GUARDADOS)
+      const estadosNube = await listarSnapshotsNAS(proyectoId)
       dispatch({ type: 'RESTAURAR_ESTADO_GUARDADO', payload: estado.snapshot })
       dispatch({ type: 'SET_ESTADOS_GUARDADOS', payload: estadosNube })
-      console.log(`Estado cargado desde Supabase: ${estado.descripcion}`)
       return true
     } catch (error) {
-      console.error('Error cargando estado por id desde Supabase:', error)
+      console.error('Error cargando estado por id desde NAS:', error)
       return false
     }
   }, [proyectoId])

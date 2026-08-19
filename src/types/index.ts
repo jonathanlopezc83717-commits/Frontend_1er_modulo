@@ -346,6 +346,7 @@ export interface EstadoGuardado {
   tipo: 'manual' | 'automatico'
   descripcion: string
   createdAt: string
+  guardadoPor?: string
   snapshotCompleto?: boolean
   snapshot: {
     puntos: PuntoFerroviario[]

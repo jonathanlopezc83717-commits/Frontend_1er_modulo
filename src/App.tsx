@@ -21,7 +21,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { obtenerUltimoEstadoAppDesdeNube, obtenerEstadosAppDesdeNube, guardarPuntoCompleto } from '@/lib/supabase-service'
+import { guardarPuntoCompleto } from '@/lib/supabase-service'
+import { listarSnapshotsNAS, snapNASDisponible } from '@/lib/snapshot-store'
 import { MODULOS, type EstadoGuardado, type PuntoFerroviario } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
@@ -56,12 +57,14 @@ function App() {
     setEstadoNubeCargando(true)
     setEstadoNubeSeleccionado(null)
     try {
-      const [lista, ultimo] = await Promise.all([
-        obtenerEstadosAppDesdeNube(proyectoActivoId ?? '', 20),
-        obtenerUltimoEstadoAppDesdeNube(proyectoActivoId ?? ''),
-      ])
+      if (!(await snapNASDisponible())) {
+        toast.info('Servidor de archivos no disponible')
+        setEstadosNubeLista([])
+        return
+      }
+      const lista = await listarSnapshotsNAS(proyectoActivoId ?? '')
       setEstadosNubeLista(lista)
-      setEstadoNubeSeleccionado(ultimo?.id || lista[0]?.id || null)
+      setEstadoNubeSeleccionado(lista[0]?.id || null)
     } finally {
       setEstadoNubeCargando(false)
     }
@@ -484,6 +487,7 @@ function App() {
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {new Date(estado.createdAt).toLocaleString('es-ES')}
+                            {estado.guardadoPor ? ` · por ${estado.guardadoPor}` : ''}
                           </p>
                         </div>
                       </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useAuth } from '@/context/AuthContext'
 import { proyectosCollection } from '@/lib/collections'
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, UserCog, Play } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, HardHat, Pencil, Trash2, UserCog, Play, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Proyecto } from '@/types'
 
@@ -56,6 +56,11 @@ export function SelectorProyectos() {
   const [vista, setVista] = useState<Vista>('proyectos')
   const [enfocadoId, setEnfocadoId] = useState<string | null>(null)
   const [bannerDescartado, setBannerDescartado] = useState(false)
+  const carruselRef = useRef<HTMLDivElement>(null)
+  const [carruselPagina, setCarruselPagina] = useState(0)
+  const [carruselPuedeAntes, setCarruselPuedeAntes] = useState(false)
+  const [carruselPuedeDespues, setCarruselPuedeDespues] = useState(false)
+  const [carruselTotalPaginas, setCarruselTotalPaginas] = useState(1)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -89,6 +94,27 @@ export function SelectorProyectos() {
   const ultimoProyecto = ultimoProyectoId
     ? (proyectos.find((p) => p.id === ultimoProyectoId) ?? null)
     : null
+
+  const sincronizarCarrusel = () => {
+    const el = carruselRef.current
+    if (!el) return
+    const anchoPagina = el.clientWidth
+    if (anchoPagina === 0) return
+    setCarruselPagina(Math.round(el.scrollLeft / anchoPagina))
+    setCarruselPuedeAntes(el.scrollLeft > 4)
+    setCarruselPuedeDespues(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    setCarruselTotalPaginas(Math.max(1, Math.ceil(el.scrollWidth / anchoPagina)))
+  }
+
+  useEffect(() => {
+    sincronizarCarrusel()
+  }, [filtrados.length])
+
+  const desplazarCarrusel = (direccion: 1 | -1) => {
+    const el = carruselRef.current
+    if (!el) return
+    el.scrollBy({ left: direccion * el.clientWidth, behavior: 'smooth' })
+  }
 
   const enfocarProyecto = (id: string) => {
     setEnfocadoId(id)
@@ -229,7 +255,27 @@ export function SelectorProyectos() {
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Proyectos disponibles
           </p>
-          <Badge variant="secondary">{proyectos.length}</Badge>
+          <div className="flex items-center gap-2">
+            {carruselTotalPaginas > 1 && (
+              <div className="flex items-center gap-1" data-testid="carrusel-puntos">
+                {Array.from({ length: carruselTotalPaginas }, (_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Página ${i + 1} de proyectos`}
+                    onClick={() => {
+                      const el = carruselRef.current
+                      if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+                    }}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === carruselPagina ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground/70'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+            <Badge variant="secondary">{proyectos.length}</Badge>
+          </div>
         </div>
         {proyectos.length === 0 ? (
           <p className="py-3 text-sm text-muted-foreground">Todavía no hay proyectos.</p>
@@ -238,51 +284,79 @@ export function SelectorProyectos() {
             Ningún proyecto coincide con la búsqueda.
           </p>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2 pt-1">
-            {filtrados.map((proyecto) => {
-              const seleccionado = enfocado?.id === proyecto.id
-              return (
-                <button
-                  key={proyecto.id}
-                  type="button"
-                  onClick={() => enfocarProyecto(proyecto.id)}
-                  data-testid={`proyecto-${proyecto.id}`}
-                  aria-current={seleccionado ? 'true' : undefined}
-                  className={`relative flex min-h-[76px] w-60 shrink-0 items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
-                    seleccionado
-                      ? 'bg-primary text-primary-foreground shadow'
-                      : 'bg-card text-card-foreground hover:bg-accent'
-                  }`}
-                >
-                  {seleccionado && (
-                    <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
-                  )}
-                  <span className="min-w-0 flex-1 pl-1.5">
-                    <span className="block truncate text-base font-semibold leading-tight">
-                      {proyecto.nombre}
-                    </span>
-                    {proyecto.descripcion ? (
+          <div className="relative mt-1">
+            {carruselPuedeAntes && (
+              <button
+                type="button"
+                aria-label="Proyectos anteriores"
+                onClick={() => desplazarCarrusel(-1)}
+                className="absolute left-0 top-1/2 z-10 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-md transition-transform hover:scale-105"
+                data-testid="carrusel-anterior"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+            )}
+            <div
+              ref={carruselRef}
+              onScroll={sincronizarCarrusel}
+              className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {filtrados.map((proyecto) => {
+                const seleccionado = enfocado?.id === proyecto.id
+                return (
+                  <button
+                    key={proyecto.id}
+                    type="button"
+                    onClick={() => enfocarProyecto(proyecto.id)}
+                    data-testid={`proyecto-${proyecto.id}`}
+                    aria-current={seleccionado ? 'true' : undefined}
+                    className={`relative flex min-h-[76px] w-60 shrink-0 snap-start items-center gap-3 overflow-hidden rounded-lg px-4 py-3 text-left shadow-sm transition-all hover:shadow focus-visible:ring-2 focus-visible:ring-ring ${
+                      seleccionado
+                        ? 'bg-primary text-primary-foreground shadow'
+                        : 'bg-card text-card-foreground hover:bg-accent'
+                    }`}
+                  >
+                    {seleccionado && (
+                      <span className="absolute inset-y-0 left-0 w-1.5 bg-primary-foreground/70" />
+                    )}
+                    <span className="min-w-0 flex-1 pl-1.5">
+                      <span className="block truncate text-base font-semibold leading-tight">
+                        {proyecto.nombre}
+                      </span>
+                      {proyecto.descripcion ? (
+                        <span
+                          className={`mt-0.5 block truncate text-xs ${
+                            seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {proyecto.descripcion}
+                        </span>
+                      ) : null}
                       <span
-                        className={`mt-0.5 block truncate text-xs ${
-                          seleccionado ? 'text-primary-foreground/75' : 'text-muted-foreground'
+                        className={`mt-1 block truncate text-[11px] ${
+                          seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
                         }`}
                       >
-                        {proyecto.descripcion}
+                        Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
+                        {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
                       </span>
-                    ) : null}
-                    <span
-                      className={`mt-1 block truncate text-[11px] ${
-                        seleccionado ? 'text-primary-foreground/70' : 'text-muted-foreground/80'
-                      }`}
-                    >
-                      Actividad {formatearHace(proyecto.updated_at ?? proyecto.created_at)}
-                      {typeof proyecto.miembros_count === 'number' && ` · ${proyecto.miembros_count} miembro${proyecto.miembros_count === 1 ? '' : 's'}`}
                     </span>
-                  </span>
-                  {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
-                </button>
-              )
-            })}
+                    {seleccionado && <FolderOpen className="size-5 shrink-0 opacity-80" />}
+                  </button>
+                )
+              })}
+            </div>
+            {carruselPuedeDespues && (
+              <button
+                type="button"
+                aria-label="Proyectos siguientes"
+                onClick={() => desplazarCarrusel(1)}
+                className="absolute right-0 top-1/2 z-10 flex size-9 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-md transition-transform hover:scale-105"
+                data-testid="carrusel-siguiente"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+            )}
           </div>
         )}
       </section>

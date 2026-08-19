@@ -57,6 +57,7 @@ export function SelectorProyectos() {
   const [enfocadoId, setEnfocadoId] = useState<string | null>(null)
   const [bannerDescartado, setBannerDescartado] = useState(false)
   const carruselRef = useRef<HTMLDivElement>(null)
+  const autohideTimerRef = useRef<number | null>(null)
   const [carruselPagina, setCarruselPagina] = useState(0)
   const [carruselPuedeAntes, setCarruselPuedeAntes] = useState(false)
   const [carruselPuedeDespues, setCarruselPuedeDespues] = useState(false)
@@ -109,6 +110,23 @@ export function SelectorProyectos() {
   useEffect(() => {
     sincronizarCarrusel()
   }, [filtrados.length])
+
+  useEffect(() => {
+    return () => {
+      if (autohideTimerRef.current) window.clearTimeout(autohideTimerRef.current)
+    }
+  }, [])
+
+  const alScrollearCarrusel = () => {
+    const el = carruselRef.current
+    if (!el) return
+    el.classList.add('scrolleando')
+    if (autohideTimerRef.current) window.clearTimeout(autohideTimerRef.current)
+    autohideTimerRef.current = window.setTimeout(() => {
+      el.classList.remove('scrolleando')
+    }, 900)
+    sincronizarCarrusel()
+  }
 
   const desplazarCarrusel = (direccion: 1 | -1) => {
     const el = carruselRef.current
@@ -298,8 +316,8 @@ export function SelectorProyectos() {
             )}
             <div
               ref={carruselRef}
-              onScroll={sincronizarCarrusel}
-              className="sin-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2"
+              onScroll={alScrollearCarrusel}
+              className="auto-hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2"
             >
               {filtrados.map((proyecto) => {
                 const seleccionado = enfocado?.id === proyecto.id

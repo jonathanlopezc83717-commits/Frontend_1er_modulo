@@ -11,7 +11,7 @@ const logDir = process.env.NAS_WATCH_LOG_DIR
 const statePath = logDir ? join(logDir, 'nas-watcher-state.json') : ''
 const logPath = logDir ? join(logDir, 'nas-events.jsonl') : ''
 
-const ignoredNames = new Set(['.watcher', '@eaDir', '#recycle', '.DS_Store', 'Thumbs.db'])
+const ignoredNames = new Set(['.watcher', '.snapshots', '@eaDir', '#recycle', '.DS_Store', 'Thumbs.db'])
 const ALLOWED_EXTS = new Set(['.xlsx', '.xls', '.csv', '.jpg', '.jpeg', '.png', '.kmz', '.kml', '.txt'])
 const pendingPath = logDir ? join(logDir, 'pending-approval.json') : ''
 

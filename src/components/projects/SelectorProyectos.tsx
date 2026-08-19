@@ -299,7 +299,7 @@ export function SelectorProyectos() {
             <div
               ref={carruselRef}
               onScroll={sincronizarCarrusel}
-              className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="sin-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2"
             >
               {filtrados.map((proyecto) => {
                 const seleccionado = enfocado?.id === proyecto.id

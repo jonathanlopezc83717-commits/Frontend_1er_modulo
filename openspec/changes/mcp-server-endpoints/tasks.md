@@ -98,7 +98,7 @@ Chain strategy: stacked-to-main
   - Section 3: commented `INSERT INTO proyecto_miembros` example (operator uncomment+edit per project).
   - Verify: file is idempotent (`ON CONFLICT DO NOTHING` everywhere); safe to re-run.
   - Rollback: doc/SQL file deletion; `auth.users` row remains until manually deleted.
-- [ ] **1.4** Extend `supabase/queries/verify_rls.sql` with mcp-readonly persona
+  - [x] **1.4** Extend `supabase/queries/verify_rls.sql` with mcp-readonly persona
   - GIVEN `mcp` user authenticated, querying `puntos_ferroviarios WHERE proyecto_id = <other>` returns 0 rows.
   - Verify: `psql -p 54322 -f supabase/queries/verify_rls.sql` returns the new scenario rows as expected.
   - Rollback: revert file extension.
@@ -108,7 +108,7 @@ Chain strategy: stacked-to-main
 
 **Goal**: Add the slug-keyed upsert RPC, the 3 buckets, and Storage RLS. Depends on PR #1a (enum committed).
 
-- [ ] **2.1** Same migration file `20260821000001_mcp_endpoints_schema.sql`: append RPC + helpers + RLS
+- [x] **2.1** Same migration file `20260821000001_mcp_endpoints_schema.sql`: append RPC + helpers + RLS
   - `CREATE OR REPLACE FUNCTION public.fn_es_mcp() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ select coalesce(public.fn_rol_actual()::text = 'mcp', false) $$;`
   - `CREATE OR REPLACE FUNCTION public.fn_puntos_slug_inmutable() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public ...` (raises `slug_inmutable_post_insert` when NEW.slug IS DISTINCT FROM OLD.slug).
   - `CREATE TRIGGER trg_puntos_slug_inmutable BEFORE UPDATE ON public.puntos_ferroviarios FOR EACH ROW EXECUTE FUNCTION public.fn_puntos_slug_inmutable();`
@@ -118,16 +118,16 @@ Chain strategy: stacked-to-main
   - Grants: `grant usage on type kind_archivo`, `grant select, insert, update on puntos_archivos`, `grant execute on function mcp_upsert_punto_por_slug, fn_es_mcp`.
   - Verify: `supabase db reset`; `psql -p 54322 -c "\df mcp_upsert_punto_por_slug"` + `select * from mcp_upsert_punto_por_slug(...)` insert + second call returns same id (idempotent).
   - Rollback: `DROP FUNCTION ...; DROP TRIGGER trg_puntos_slug_inmutable;` + reverse policy `DROP POLICY IF EXISTS ...`.
-- [ ] **2.2** Add migration `supabase/migrations/20260821000002_mcp_buckets_policies.sql`
+- [x] **2.2** Add migration `supabase/migrations/20260821000002_mcp_buckets_policies.sql`
   - 3× `INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES (...)` with mime lists from design §Storage RLS.
   - `CREATE POLICY mcp_evidencia_insert` (MCP under own UID prefix), `mcp_referencias_insert` (same), `mcp_evidence_read` (admin + miembros), `mcp_fichas_read` (admin + general only — no mcp).
   - NO insert policy on `mcp-fichas` for any user role (platform writes only).
   - Verify: `psql -p 54322 -c "select id, name, public from storage.buckets where id like 'mcp-%'"` shows 3 rows; anon insert to `mcp-evidencia` rejected; mcp insert to own UID prefix allowed.
   - Rollback: `delete from storage.buckets where id in ('mcp-evidencia','mcp-fichas','mcp-referencias');` + `DROP POLICY IF EXISTS ...`.
-- [ ] **2.3** Update `supabase/config.toml`: add 3 `[storage.buckets.mcp-evidencia]` / `mcp-fichas` / `mcp-referencias` sections (private = `public = false`).
+- [x] **2.3** Update `supabase/config.toml`: add 3 `[storage.buckets.mcp-evidencia]` / `mcp-fichas` / `mcp-referencias` sections (private = `public = false`).
   - Verify: `supabase status` lists 3 buckets after `supabase db reset`.
   - Rollback: revert config.toml.
-- [ ] **PR #1b verification**: `supabase db reset` clean + `pnpm lint` + verify_rls personas green + manual `select fn_crear_usuario_mcp();` creates mcp user idempotently. Commit: `feat(mcp): add mcp_upsert_punto_por_slug RPC, slug immutability trigger, 3 storage buckets and Storage RLS`.
+- [x] **PR #1b verification**: `supabase db reset` clean + `pnpm lint` + verify_rls personas green + manual `select fn_crear_usuario_mcp();` creates mcp user idempotently. Commit: `feat(mcp): add mcp_upsert_punto_por_slug RPC, slug immutability trigger, 3 storage buckets and Storage RLS`.
 
 ## Phase 3: PR #2 — Helpers + mcp-upload-files  (~350 lines)
 

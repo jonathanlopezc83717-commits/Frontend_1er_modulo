@@ -74,8 +74,24 @@ describe('guardarSnapshotNAS', () => {
     })
 
     expect(resultado.success).toBe(false)
+    expect(resultado.nasAusente).not.toBe(true)
     expect(resultado.error).toContain('503')
     expect(resultado.error).toContain('NAS no configurado')
+  })
+
+  it('404 (host sin API, p.ej. Vercel) marca nasAusente para degradar a informativo', async () => {
+    fetchMock.mockResolvedValue(respuesta(404, { }))
+
+    const { guardarSnapshotNAS } = await import('@/lib/snapshot-store')
+    const resultado = await guardarSnapshotNAS({
+      proyectoId: '11111111-1111-1111-1111-111111111111',
+      tipo: 'manual',
+      descripcion: 'x',
+      snapshot: SNAPSHOT,
+    })
+
+    expect(resultado.success).toBe(false)
+    expect(resultado.nasAusente).toBe(true)
   })
 
   it('fallo de red devuelve success false sin lanzar', async () => {

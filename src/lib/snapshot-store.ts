@@ -37,7 +37,7 @@ async function mensajeDeError(r: Response): Promise<string> {
   }
 }
 
-export async function guardarSnapshotNAS(args: GuardarSnapshotNASArgs): Promise<{ success: boolean; error?: string }> {
+export async function guardarSnapshotNAS(args: GuardarSnapshotNASArgs): Promise<{ success: boolean; nasAusente?: boolean; error?: string }> {
   try {
     const r = await fetch(`${API_BASE}/nas-snapshots`, {
       method: 'POST',
@@ -52,7 +52,10 @@ export async function guardarSnapshotNAS(args: GuardarSnapshotNASArgs): Promise<
     })
     if (!r.ok) {
       const detalle = await mensajeDeError(r)
-      return { success: false, error: `nas-snapshots: ${r.status}${detalle ? ` ${detalle}` : ''}` }
+      // 404 = el host no tiene /api (deploy estático tipo Vercel): el NAS es
+      // local por diseño, no es un error del usuario. 503 = la API existe pero
+      // el NAS no está configurado: eso sí es una falla local real.
+      return { success: false, nasAusente: r.status === 404, error: `nas-snapshots: ${r.status}${detalle ? ` ${detalle}` : ''}` }
     }
     return { success: true }
   } catch (error) {

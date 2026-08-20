@@ -357,6 +357,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
 
       if (!snapshotResult.success) {
+        if (snapshotResult.nasAusente) {
+          // Deploy sin API local (p.ej. Vercel): el NAS es infraestructura
+          // local por diseño. Los puntos ya están en Supabase — informar, no
+          // gritar error.
+          toast.info(`Estado “${titulo}” sincronizado en la nube`, {
+            id: toastId,
+            description: 'Sin servidor de archivos en este entorno — los snapshots NAS se generan solo en la app local.',
+          })
+          return { success: true, message: `${result.guardados} puntos sincronizados (entorno sin servidor de archivos)` }
+        }
         toast.error('No se pudo guardar el snapshot en el servidor de archivos', {
           id: toastId,
           description: snapshotResult.error || 'error desconocido',

@@ -61,10 +61,11 @@ export function nasBridgePlugin() {
   const logDir = watchPath ? join(watchPath, '.watcher') : ''
   const pendingPath = logDir ? join(logDir, 'pending-approval.json') : ''
 
-  return {
-    name: 'nas-bridge',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
+  // Middleware compartido por dev (configureServer) y preview
+  // (configurePreviewServer): sin esto, `vite preview` sirve dist/ sin las
+  // rutas /api/nas-* y el front ve 404 en todos los endpoints del NAS.
+  function instalarMiddleware(server) {
+    server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url, 'http://localhost')
 
         if (url.pathname === '/api/nas-pending' && req.method === 'GET') {
@@ -283,26 +284,37 @@ export function nasBridgePlugin() {
 
         next()
       })
+  }
 
-      if (logDir && existsSync(logDir)) {
-        let debounceTimer = null
-        const emitirPendientes = () => {
-          const data = existsSync(pendingPath)
-            ? readJson(pendingPath, { pending: [], updatedAt: null })
-            : { pending: [], updatedAt: null }
-          server.ws.send('nas:eventos', {
-            updatedAt: data.updatedAt ?? null,
-            pendientes: (data.pending || []).length,
-          })
-        }
-        try {
-          watch(logDir, (_event, filename) => {
-            if (filename !== 'pending-approval.json') return
-            clearTimeout(debounceTimer)
-            debounceTimer = setTimeout(emitirPendientes, 300)
-          })
-        } catch {}
-      }
+  function vigilarPendientes(server) {
+    if (!logDir || !existsSync(logDir) || !server.ws) return
+    let debounceTimer = null
+    const emitirPendientes = () => {
+      const data = existsSync(pendingPath)
+        ? readJson(pendingPath, { pending: [], updatedAt: null })
+        : { pending: [], updatedAt: null }
+      server.ws.send('nas:eventos', {
+        updatedAt: data.updatedAt ?? null,
+        pendientes: (data.pending || []).length,
+      })
+    }
+    try {
+      watch(logDir, (_event, filename) => {
+        if (filename !== 'pending-approval.json') return
+        clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(emitirPendientes, 300)
+      })
+    } catch {}
+  }
+
+  return {
+    name: 'nas-bridge',
+    configureServer(server) {
+      instalarMiddleware(server)
+      vigilarPendientes(server)
+    },
+    configurePreviewServer(server) {
+      instalarMiddleware(server)
     },
   }
 }

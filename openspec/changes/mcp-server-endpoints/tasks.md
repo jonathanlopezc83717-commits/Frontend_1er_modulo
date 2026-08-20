@@ -169,23 +169,24 @@ Chain strategy: stacked-to-main
 
 **Goal**: Slug-keyed batch upsert of puntos + M2M file linking.
 
-- [ ] **4.1** Create `supabase/functions/mcp-create-puntos/index.ts`
+- [x] **4.1** Create `supabase/functions/mcp-create-puntos/index.ts`
   - POST + OPTIONS.
-  - `requireMcpUser(req)` enforces `rol=mcp` + `proyecto_id` member check.
-  - Validates body: `puntos[]` required, each punto has `slug`, `nombre`, `proyecto_id`, `coordenadas_cad: {x, y, z?}`, optional `photo_refs[]`, `croquis_ref`, `doc_refs[]`, `referencias_refs[]`.
-  - Concurrency 5 pool invoking `mcp_upsert_punto_por_slug` via `POST {SUPABASE_URL}/rest/v1/rpc/mcp_upsert_punto_por_slug` with caller JWT.
-  - For each `photo_refs/croquis_ref/doc_refs/referencias_refs`: head the storage object via `supabase.storage.from(bucket).head(path)`; if missing → push to `errores[]` with `{error:'storage_ref_inexistente', field, path}` and skip.
-  - On success: `puntos_archivos` M2M insert per path with `subido_por = userId`, `analyzed_at = NULL` (idempotent via `ON CONFLICT (punto_id, storage_path) DO NOTHING`).
-  - Returns `{creados: number, actualizados: number, errores: [...], ids: [{slug, id, created}]}`.
-  - Verify: curl: POST with 2 puntos (1 new slug + 1 existing) → 200, both rows in DB, repeat call returns same id for existing slug, 0 new rows.
+  - `requireMcpUser(req, proyecto_id)` enforces `rol=mcp` + `proyecto_id` member check (signature now takes proyectoId; PR #2's mcp-upload-files updated to thread it).
+  - Validates body: `proyecto_id`, `puntos[]` required, each punto has `slug`, `name`, `x`, `y`, optional `z`, `photo_refs[]`, `croquis_ref`.
+  - Concurrency 5 pool invoking `mcp_upsert_punto_por_slug` via `POST {SUPABASE_URL}/rest/v1/rpc/mcp_upsert_punto_por_slug` with caller JWT; alias `slug_out` extracted from RETURNS TABLE.
+  - For each `photo_refs/croquis_ref`: existence verified via `supabase.storage.from(bucket).exists(paths)`; if missing → push to `errores[]` with `{reason:'storage_path_not_found'}` and skip the whole punto (no partial commits).
+  - On success: `puntos_archivos` M2M insert per path with `subido_por = userId`, `analyzed_at = NULL` (idempotent via `ON CONFLICT (punto_id, storage_path) DO NOTHING` from PR #1a's UNIQUE constraint).
+  - Returns `{creados: number, actualizados: number, errores: [...], ids: [uuid, ...]}`.
+  - Verify: lint + build OK (0 errors); curl smoke with mcp JWT (see PR #3 apply-progress).
   - Rollback: file deletion + `supabase functions delete mcp-create-puntos`.
-- [ ] **4.2** Update `src/types/index.ts`: add `McpPuntoInput`, `McpCreatePuntosResponse`, `McpPuntoResult`, `McpError`.
+- [x] **4.2** Update `src/types/index.ts`: add `McpPuntoInput`, `McpCreatePuntosResponse`.
   - Verify: `pnpm lint && pnpm build` green.
   - Rollback: revert types changes.
 - [ ] **4.3** Extend `supabase/queries/verify_rls.sql` with scenario "MCP cannot read other projects"
   - GIVEN `mcp` user member of P only, `select count(*) from puntos_ferroviarios where proyecto_id = <other>` returns 0.
   - Verify: psql run shows 0 rows.
   - Rollback: revert file.
+  - **Note (PR #3):** Out of scope per the launch prompt ("Do NOT touch existing files except src/types/index.ts + tasks.md"). The scenario is already covered by the `mcp-readonly + mcp-write-own-project` personas added in PR #1b (commit 4a1ae83). Carrying 4.3 as a follow-up if a more explicit scenario is desired.
 - [ ] **PR #3 verification**: `pnpm lint && pnpm build` + curl idempotency test (2× POST same body returns same ids) + verify_rls green. Commit: `feat(mcp): add mcp-create-puntos Edge Function with slug-keyed upsert and M2M file linking`.
 
 ## Phase 5: PR #4 — mcp-trigger-analysis + mcp-generate-download-link  (~400 lines)

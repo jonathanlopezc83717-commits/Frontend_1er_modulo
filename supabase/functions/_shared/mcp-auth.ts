@@ -47,19 +47,24 @@ export async function requireEnv(
 }
 
 export async function requireMcpUser(
-  req: Request
-): Promise<{ userId: string; email: string } | { response: Response }> {
+  req: Request,
+  proyectoId: string
+): Promise<{ userId: string; email: string; proyectoId: string } | { response: Response }> {
   const jwt = extractJwt(req)
   if (!jwt) return { response: authError('Falta Authorization: Bearer <jwt>') }
 
-  const env = await requireEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY'])
+  if (!proyectoId || !isUuid(proyectoId)) {
+    return { response: json({ error: 'proyecto_id requerido (debe ser UUID)' }, 400) }
+  }
+
+  const env = await requireEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
   if (!env.ok) return { response: env.response }
 
-  const supabase = createClient(env.values.SUPABASE_URL, env.values.SUPABASE_ANON_KEY, {
+  const anon = createClient(env.values.SUPABASE_URL, env.values.SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const { data: userData, error: userError } = await supabase.auth.getUser(jwt)
+  const { data: userData, error: userError } = await anon.auth.getUser(jwt)
   if (userError || !userData?.user) {
     return { response: authError('JWT inválido o expirado') }
   }
@@ -67,12 +72,33 @@ export async function requireMcpUser(
   const userId = userData.user.id
   const email = userData.user.email ?? ''
 
-  const { data: isMcp, error: rpcError } = await supabase.rpc('fn_es_mcp', { uid: userId })
+  const { data: isMcp, error: rpcError } = await anon.rpc('fn_es_mcp', { uid: userId })
   if (rpcError || isMcp !== true) {
     return { response: authError('rol no autorizado (mcp requerido)') }
   }
 
-  return { userId, email }
+  const admin = createClient(env.values.SUPABASE_URL, env.values.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data: member, error: memberError } = await admin
+    .from('proyecto_miembros')
+    .select('proyecto_id')
+    .eq('proyecto_id', proyectoId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (memberError) {
+    return { response: json({ error: `Error verificando membresía: ${memberError.message}` }, 500) }
+  }
+  if (!member) {
+    return { response: json({ error: 'mcp_no_miembro_proyecto', proyecto_id: proyectoId }, 403) }
+  }
+
+  return { userId, email, proyectoId }
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
 export async function requireAdminOrGeneral(

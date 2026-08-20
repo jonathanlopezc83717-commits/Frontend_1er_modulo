@@ -711,14 +711,14 @@ export async function listarProyectos(): Promise<Proyecto[]> {
 export async function crearProyecto(proyecto: Proyecto): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase
     .from('proyectos')
-    .insert({ id: proyecto.id, nombre: proyecto.nombre, descripcion: proyecto.descripcion })
+    .insert({ id: proyecto.id, nombre: proyecto.nombre, descripcion: proyecto.descripcion, carpeta_nas: proyecto.carpeta_nas || null })
   if (error) return { success: false, error: error.message }
   return { success: true }
 }
 
 export async function actualizarProyecto(
   id: string,
-  cambios: { nombre?: string; descripcion?: string | null },
+  cambios: { nombre?: string; descripcion?: string | null; carpeta_nas?: string | null },
 ): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase.from('proyectos').update(cambios).eq('id', id)
   if (error) return { success: false, error: error.message }

@@ -26,7 +26,9 @@ interface DetalleNas {
 
 export function IndicadorNas() {
   const store = useAppStore()
-  const { proyectoActivoId } = useAuth()
+  const { proyectoActivoId, proyectos } = useAuth()
+  const proyectoActivo = proyectos.find((p) => p.id === proyectoActivoId) ?? null
+  const carpetaProyecto = proyectoActivo?.carpeta_nas?.replace(/^[/\\]+|[/\\]+$/g, '') || null
   const [watcherActivo, setWatcherActivo] = useState(true)
   const [pendientes, setPendientes] = useState(0)
   const [recargando, setRecargando] = useState<string | null>(null)
@@ -171,10 +173,28 @@ export function IndicadorNas() {
             ) : detalle ? (
               <>
                 <div className="space-y-1">
-                  <span className="text-muted-foreground">Carpeta vigilada (origen local del NAS)</span>
+                  <span className="text-muted-foreground">Raíz vigilada (origen local del NAS)</span>
                   <code className="block rounded bg-muted px-2 py-1.5 text-xs break-all">
                     {detalle.watchPath || 'No informada por el watcher'}
                   </code>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground">
+                    Carpeta de este proyecto (solo lectura)
+                  </span>
+                  {carpetaProyecto && detalle.watchPath ? (
+                    <code className="block rounded bg-muted px-2 py-1.5 text-xs break-all">
+                      {detalle.watchPath}/{carpetaProyecto}
+                    </code>
+                  ) : carpetaProyecto ? (
+                    <code className="block rounded bg-muted px-2 py-1.5 text-xs break-all">
+                      {'<NAS>'}/{carpetaProyecto}
+                    </code>
+                  ) : (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Sin carpeta definida — editala en el proyecto para acotar las lecturas del NAS.
+                    </p>
+                  )}
                 </div>
                 {detalle.ultimoEscaneo && (
                   <p className="text-xs text-muted-foreground">

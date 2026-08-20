@@ -40,6 +40,7 @@ export const proyectosCollection = createCollection(
           await actualizarProyecto(mutation.key, {
             nombre: mutation.modified.nombre,
             descripcion: mutation.modified.descripcion,
+            carpeta_nas: mutation.modified.carpeta_nas ?? null,
           }),
         )
       }

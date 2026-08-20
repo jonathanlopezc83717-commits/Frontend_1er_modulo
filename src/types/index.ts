@@ -23,6 +23,8 @@ export interface Proyecto {
   id: string
   nombre: string
   descripcion: string | null
+  /** Subcarpeta del NAS (relativa a la raíz vigilada) con los archivos del proyecto. */
+  carpeta_nas?: string | null
   creado_por: string
   created_at: string
   estado?: 'activo' | 'eliminado'

@@ -248,7 +248,7 @@ describe('collections: optimistic mutations with rollback', () => {
       await tx.isPersisted.promise
     })
 
-    expect(mocks.actualizarProyecto).toHaveBeenCalledWith('p1', { nombre: 'Obra Nueva', descripcion: null })
+    expect(mocks.actualizarProyecto).toHaveBeenCalledWith('p1', { nombre: 'Obra Nueva', descripcion: null, carpeta_nas: null })
     await waitFor(() => {
       expect(mocks.listarProyectos).toHaveBeenCalledTimes(2)
     })

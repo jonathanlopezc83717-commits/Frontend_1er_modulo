@@ -25,7 +25,7 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<{ error: string | null }>
   logout: () => Promise<void>
   refrescarPerfil: () => Promise<void>
-  crearProyecto: (nombre: string, descripcion?: string) => Promise<{ success: boolean; error?: string }>
+  crearProyecto: (nombre: string, descripcion?: string, carpetaNas?: string) => Promise<{ success: boolean; error?: string }>
   cambiarProyecto: (proyectoId: string | null) => void
 }
 
@@ -132,12 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const crearProyecto = useCallback(async (nombre: string, descripcion?: string) => {
+  const crearProyecto = useCallback(async (nombre: string, descripcion?: string, carpetaNas?: string) => {
     const id = crypto.randomUUID()
     const tx = proyectosCollection.insert({
       id,
       nombre: nombre.trim(),
       descripcion: descripcion?.trim() || null,
+      carpeta_nas: carpetaNas?.trim() || null,
       creado_por: session?.user.id ?? '',
       created_at: new Date().toISOString(),
     })

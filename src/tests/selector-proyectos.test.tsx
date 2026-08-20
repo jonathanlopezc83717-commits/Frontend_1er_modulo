@@ -162,7 +162,7 @@ describe('SelectorProyectos: visibilidad por rol', () => {
     fireEvent.click(getByRole('button', { name: 'Crear proyecto' }))
 
     await waitFor(() => {
-      expect(mocks.crearProyecto).toHaveBeenCalledWith('Obra Norte', '')
+      expect(mocks.crearProyecto).toHaveBeenCalledWith('Obra Norte', '', '')
     })
   })
 

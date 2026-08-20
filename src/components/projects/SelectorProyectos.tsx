@@ -65,11 +65,13 @@ export function SelectorProyectos() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [carpetaNas, setCarpetaNas] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [creando, setCreando] = useState(false)
   const [editarId, setEditarId] = useState<string | null>(null)
   const [editarNombre, setEditarNombre] = useState('')
   const [editarDescripcion, setEditarDescripcion] = useState('')
+  const [editarCarpetaNas, setEditarCarpetaNas] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [eliminarId, setEliminarId] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
@@ -142,6 +144,7 @@ export function SelectorProyectos() {
   const abrirDialogo = () => {
     setNombre('')
     setDescripcion('')
+    setCarpetaNas('')
     setError(null)
     setDialogoAbierto(true)
   }
@@ -150,7 +153,7 @@ export function SelectorProyectos() {
     if (!nombre.trim() || creando) return
     setCreando(true)
     setError(null)
-    const resultado = await crearProyecto(nombre, descripcion)
+    const resultado = await crearProyecto(nombre, descripcion, carpetaNas)
     setCreando(false)
     if (!resultado.success) {
       setError(resultado.error || 'No se pudo crear el proyecto')
@@ -162,6 +165,7 @@ export function SelectorProyectos() {
   const abrirEdicion = (proyecto: Proyecto) => {
     setEditarNombre(proyecto.nombre)
     setEditarDescripcion(proyecto.descripcion ?? '')
+    setEditarCarpetaNas(proyecto.carpeta_nas ?? '')
     setEditarId(proyecto.id)
   }
 
@@ -171,6 +175,7 @@ export function SelectorProyectos() {
     const tx = proyectosCollection.update(editarId, (draft) => {
       draft.nombre = editarNombre.trim()
       draft.descripcion = editarDescripcion.trim() || null
+      draft.carpeta_nas = editarCarpetaNas.trim() || null
     })
     try {
       await tx.isPersisted.promise
@@ -519,6 +524,18 @@ export function SelectorProyectos() {
                 placeholder="Descripción del proyecto"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="carpeta-proyecto">Carpeta del NAS (opcional)</Label>
+              <Input
+                id="carpeta-proyecto"
+                value={carpetaNas}
+                onChange={(e) => setCarpetaNas(e.target.value)}
+                placeholder="Subcarpeta relativa a la raíz del NAS, ej: Obras/Norte"
+              />
+              <p className="text-xs text-muted-foreground">
+                Solo lectura: la app lee sus archivos y guarda snapshots, nunca los modifica.
+              </p>
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
@@ -556,6 +573,15 @@ export function SelectorProyectos() {
                 id="editar-descripcion"
                 value={editarDescripcion}
                 onChange={(e) => setEditarDescripcion(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editar-carpeta">Carpeta del NAS (opcional)</Label>
+              <Input
+                id="editar-carpeta"
+                value={editarCarpetaNas}
+                onChange={(e) => setEditarCarpetaNas(e.target.value)}
+                placeholder="Subcarpeta relativa a la raíz del NAS, ej: Obras/Norte"
               />
             </div>
           </div>

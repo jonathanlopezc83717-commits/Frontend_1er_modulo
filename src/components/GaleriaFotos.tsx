@@ -111,32 +111,8 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
     onCargarParaAnalisis(seleccionadas)
   }
 
-  // Extraer número natural del nombre del archivo para ordenar correctamente
-  // Si es un solo dígito se trata como 05 (dos dígitos), si son 2 o más se toman los primeros 2
-  const extraerNumero = (foto: FotoIndexada): number => {
-    // Buscar el primer número en el nombre (original o formateado)
-    const fuentes = [foto.nombre, foto.nombreFormateado]
-    for (const texto of fuentes) {
-      if (!texto) continue
-      const match = texto.match(/(\d+)/)
-      if (match) {
-        const numeroCompleto = match[1]
-        // Si es un solo dígito (ej: 5), tratarlo como 05
-        // Si son 2 o más dígitos, tomar solo los primeros 2
-        if (numeroCompleto.length === 1) {
-          return parseInt('0' + numeroCompleto, 10) // 5 -> 05
-        } else {
-          return parseInt(numeroCompleto.substring(0, 2), 10) // 123 -> 12
-        }
-      }
-    }
-    return Number.MAX_SAFE_INTEGER // Sin número va al final
-  }
+  const fotosOrdenadas = [...fotos].sort((a, b) => a.index - b.index)
 
-  // Ordenar fotos por el número natural del nombre (ascendente: 1, 2, 3, ..., n)
-  const fotosOrdenadas = [...fotos].sort((a, b) => extraerNumero(a) - extraerNumero(b))
-
-  // Agrupar por subcarpeta respetando el orden ascendente
   const grupos = fotosOrdenadas.reduce((acc, foto) => {
     const key = foto.subcarpeta === 'raiz' ? 'Fotos principales' : foto.subcarpeta
     if (!acc[key]) acc[key] = []
@@ -144,11 +120,10 @@ export function GaleriaFotos({ fotos, fotosSeleccionadas, onSeleccionChange, onC
     return acc
   }, {} as Record<string, FotoIndexada[]>)
 
-  // Ordenar las carpetas por el menor número natural que contienen (ascendente)
-  const gruposOrdenados = Object.entries(grupos).sort(([, a], [, b]) => {
-    const minA = Math.min(...a.map(extraerNumero))
-    const minB = Math.min(...b.map(extraerNumero))
-    return minA - minB
+  const gruposOrdenados = Object.entries(grupos).sort(([a], [b]) => {
+    if (a === 'Fotos principales') return b === 'Fotos principales' ? 0 : -1
+    if (b === 'Fotos principales') return 1
+    return a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' })
   })
 
   const toggleCarpeta = (key: string) => {

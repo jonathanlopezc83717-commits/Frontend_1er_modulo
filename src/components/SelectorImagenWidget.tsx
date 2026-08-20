@@ -38,14 +38,6 @@ function leerArchivoComoDataUrl(file: File): Promise<string> {
   })
 }
 
-function extraerNumero(nombre: string): number {
-  const match = nombre.match(/(\d+)/)
-  if (!match) return Number.MAX_SAFE_INTEGER
-  const numero = match[1]
-  if (numero.length === 1) return parseInt(`0${numero}`, 10)
-  return parseInt(numero.substring(0, 2), 10)
-}
-
 export function SelectorImagenWidget({ open, onOpenChange, punto, onSeleccionar }: SelectorImagenWidgetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fotos = extraerFotosPunto(punto)
@@ -77,7 +69,7 @@ export function SelectorImagenWidget({ open, onOpenChange, punto, onSeleccionar 
 
   const grupos = fotos
     .slice()
-    .sort((a, b) => extraerNumero(a.nombre) - extraerNumero(b.nombre))
+    .sort((a, b) => a.index - b.index)
     .reduce((acc, foto) => {
       const key = foto.subcarpeta === 'raiz' ? 'Fotos principales' : foto.subcarpeta
       if (!acc[key]) acc[key] = []
@@ -85,10 +77,10 @@ export function SelectorImagenWidget({ open, onOpenChange, punto, onSeleccionar 
       return acc
     }, {} as Record<string, FotoIndexada[]>)
 
-  const gruposOrdenados = Object.entries(grupos).sort(([, a], [, b]) => {
-    const minA = Math.min(...a.map(f => extraerNumero(f.nombre)))
-    const minB = Math.min(...b.map(f => extraerNumero(f.nombre)))
-    return minA - minB
+  const gruposOrdenados = Object.entries(grupos).sort(([a], [b]) => {
+    if (a === 'Fotos principales') return b === 'Fotos principales' ? 0 : -1
+    if (b === 'Fotos principales') return 1
+    return a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' })
   })
 
   return (

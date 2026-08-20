@@ -16,6 +16,9 @@ export interface PantallaLoginProps {
 
 const PASSWORD_MIN = 6
 
+const CLAVE_ULTIMO_EMAIL = 'ultimo-email'
+const CLAVE_RECORDAR = 'recordar-sesion'
+
 /**
  * Pantalla de acceso. Modo "login": email + contraseña, todo error de
  * credenciales muestra el mismo mensaje genérico (anti-enumeración).
@@ -24,7 +27,10 @@ const PASSWORD_MIN = 6
  */
 export function PantallaLogin({ modo = 'login' }: PantallaLoginProps) {
   const { login, refrescarPerfil, session } = useAuth()
-  const [email, setEmail] = useState('')
+  const [recordar, setRecordar] = useState(() => localStorage.getItem(CLAVE_RECORDAR) !== 'false')
+  const [email, setEmail] = useState(() =>
+    recordar ? localStorage.getItem(CLAVE_ULTIMO_EMAIL) ?? '' : '',
+  )
   const [password, setPassword] = useState('')
   const [confirmacion, setConfirmacion] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +44,19 @@ export function PantallaLogin({ modo = 'login' }: PantallaLoginProps) {
     setEnviando(false)
     // Mensaje genérico no enumerable (spec: Email/Password Login)
     if (errorLogin) setError(errorLogin)
+    else if (recordar) {
+      localStorage.setItem(CLAVE_RECORDAR, 'true')
+      localStorage.setItem(CLAVE_ULTIMO_EMAIL, email)
+    } else {
+      localStorage.setItem(CLAVE_RECORDAR, 'false')
+      localStorage.removeItem(CLAVE_ULTIMO_EMAIL)
+      // El cliente ya persistió en localStorage: purgar para que la sesión
+      // viva solo en memoria de esta pestaña (storage real: sessionStorage
+      // en el próximo arranque).
+      for (const clave of Object.keys(localStorage)) {
+        if (clave.endsWith('-auth-token')) localStorage.removeItem(clave)
+      }
+    }
   }
 
   async function manejarPrimerAcceso(e: FormEvent) {
@@ -136,6 +155,17 @@ export function PantallaLogin({ modo = 'login' }: PantallaLoginProps) {
               <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>
+            )}
+            {!esPrimerAcceso && (
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={recordar}
+                  onChange={(e) => setRecordar(e.target.checked)}
+                  className="size-4 accent-primary"
+                />
+                Recordar sesión en este equipo
+              </label>
             )}
             <Button type="submit" className="w-full" disabled={enviando}>
               {enviando ? 'Procesando…' : esPrimerAcceso ? 'Guardar contraseña' : 'Ingresar'}

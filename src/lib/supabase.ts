@@ -7,4 +7,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// "Recordar sesión" (login): false => la sesión vive solo en la pestaña.
+const recordarSesion = localStorage.getItem('recordar-sesion') !== 'false'
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: recordarSesion ? {} : { storage: sessionStorage },
+})

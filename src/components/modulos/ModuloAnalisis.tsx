@@ -142,6 +142,25 @@ export function ModuloAnalisis() {
   const descripcionAIRef = useRef('')
   const correccionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  useEffect(() => {
+    if (!isAnalyzing) return
+    const antesDeSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    const alOcultar = () => {
+      if (document.visibilityState === 'hidden') {
+        alert('Reconocimiento de imágenes en curso. No cambies de ventana hasta que termine el análisis.')
+      }
+    }
+    window.addEventListener('beforeunload', antesDeSalir)
+    document.addEventListener('visibilitychange', alOcultar)
+    return () => {
+      window.removeEventListener('beforeunload', antesDeSalir)
+      document.removeEventListener('visibilitychange', alOcultar)
+    }
+  }, [isAnalyzing])
+
   // Verificar si ya existe análisis guardado
   const tieneAnalisisGuardado = punto?.analisis?.results && punto.analisis.results.length > 0
   const nombreCarpeta = punto?.carpetaPath

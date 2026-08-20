@@ -462,3 +462,23 @@ export interface McpCreatePuntosResponse {
   errores: Array<{ slug?: string; ref?: string; reason: string; detail?: string }>
   ids: string[]
 }
+
+export interface McpDownloadLinkInput {
+  path: string
+  ttlSeconds?: number
+}
+
+export interface McpDownloadLinkResponse {
+  signedUrl: string
+  expiresAt: string
+}
+
+export interface McpTriggerAnalysisInput {
+  proyecto_id: string
+  punto_slug?: string
+}
+
+export interface McpTriggerAnalysisResponse {
+  procesados: number
+  errores: Array<{ punto_slug?: string; reason: string; detail?: string }>
+}

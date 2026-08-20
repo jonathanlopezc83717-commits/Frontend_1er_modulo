@@ -418,3 +418,30 @@ export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o-mini'
 export const MAX_IMAGES = 4
 export const DEBOUNCE_MS = 500
 export const MAX_VERSIONES_PUNTO = 3
+
+// ============ MCP SERVER ENDPOINTS (mcp-server-endpoints) ============
+
+export type McpBucket = 'mcp-evidencia' | 'mcp-fichas' | 'mcp-referencias'
+
+export type McpUploadKind = 'foto' | 'croquis' | 'documento' | 'referencia'
+
+export interface McpUploadResult {
+  slug: string
+  path: string
+  bucket: McpBucket
+  kind: McpUploadKind
+  signedUrl: string
+  size: number
+  mimeType: string
+}
+
+export interface McpUploadError {
+  fieldName: string
+  fileName: string
+  reason: string
+}
+
+export interface McpUploadResponse {
+  uploads: McpUploadResult[]
+  errores: McpUploadError[]
+}

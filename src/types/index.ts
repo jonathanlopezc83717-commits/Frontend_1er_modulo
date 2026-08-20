@@ -482,3 +482,25 @@ export interface McpTriggerAnalysisResponse {
   procesados: number
   errores: Array<{ punto_slug?: string; reason: string; detail?: string }>
 }
+
+export interface McpConfigRow {
+  proyecto_id: string
+  auto_trigger_on_upload: boolean
+  cron_schedule: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface McpPendingArchivo {
+  id: string
+  storage_path: string
+  bucket: 'mcp-evidencia' | 'mcp-referencias'
+  kind: 'foto' | 'croquis' | 'documento' | 'referencia'
+  mime_type: string | null
+  size_bytes: number | null
+  punto_id: string
+  punto_slug: string
+  punto_name: string
+  coordenadas_cad: { x: number; y: number; z?: number | null } | null
+  created_at: string
+}

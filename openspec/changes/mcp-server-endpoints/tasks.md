@@ -133,24 +133,24 @@ Chain strategy: stacked-to-main
 
 **Goal**: Shared Deno helpers + multipart upload Edge Function. First user-facing endpoint for the Civil 3D MCP server.
 
-- [ ] **3.1** Create `supabase/functions/_shared/mcp-buckets.ts`
+- [x] **3.1** Create `supabase/functions/_shared/mcp-buckets.ts`
   - Export `BUCKETS`, `KIND_TO_BUCKET` map, `KINDS = ['foto','croquis','documento','referencia']` (no `ficha`), `ALLOWED_MIMES`, `MAX_FILE_BYTES = 50*1024*1024`, `MAX_FILES_PER_REQUEST = 20`, `DEFAULT_TTL_SECONDS = 86400`, `MAX_TTL_SECONDS = 604800`, `MIN_TTL_SECONDS = 60`.
   - Verify: `deno check supabase/functions/_shared/mcp-buckets.ts` type-checks.
   - Rollback: file deletion.
-- [ ] **3.2** Create `supabase/functions/_shared/mcp-auth.ts`
+- [x] **3.2** Create `supabase/functions/_shared/mcp-auth.ts`
   - Export `requireMcpUser(req): Promise<{userId, proyectoId, email}>` — reads `Authorization: Bearer <jwt>`, verifies via `SUPABASE_URL/rest/v1/user` with service-role client, fetches `perfiles.rol`, throws HTTP 401 on non-`mcp` or missing JWT.
   - Export `requireAdminOrGeneral(req)`, `requireAdmin(req)` — same pattern with role whitelist.
   - Mirror `sincronizar-puntos/index.ts:147-153` JWT forwarding pattern.
   - Verify: unit test using `fetch`-mocked PostgREST returns expected 401/200 paths.
   - Rollback: file deletion.
-- [ ] **3.3** Create `supabase/functions/_shared/mcp-storage.ts`
+- [x] **3.3** Create `supabase/functions/_shared/mcp-storage.ts`
   - Export `buildPath(proyectoId, kind, slug, ext): string` — returns `{bucket}/{uid}/{YYYY-MM}/{DD}/{kind}/{slug}.{ext}` (uid filled at call time from `requireMcpUser`).
   - Export `validateMime(file): string` — returns mime or throws HTTP 415.
   - Export `signUrl(bucket, path, ttlSeconds): Promise<string>` — wraps `supabase.storage.from(bucket).createSignedUrl(path, expiresIn)`.
   - Export `pathBelongsToUser(path, userId): boolean` — checks first segment after bucket equals `userId`.
   - Verify: `deno check`; unit test each helper (deno test, no fixtures).
   - Rollback: file deletion.
-- [ ] **3.4** Create `supabase/functions/mcp-upload-files/index.ts`
+- [x] **3.4** Create `supabase/functions/mcp-upload-files/index.ts`
   - POST handler + OPTIONS CORS preflight.
   - Parses `multipart/form-data` with `proyecto_id`, `slug`, `kind`, files[].
   - Concurrency 5 pool (mirrors `sincronizar-puntos/index.ts:7`).
@@ -160,10 +160,10 @@ Chain strategy: stacked-to-main
   - Returns `{uploads: [{slug, path, size, mimeType, signedUrl}], errores: []}`.
   - Verify: curl `POST http://127.0.0.1:54321/functions/v1/mcp-upload-files` with 1 jpeg (mcp JWT) → 200; anon JWT → 401; admin JWT → 401; 51MB file → 413; `kind=ficha` → 400.
   - Rollback: file deletion + `supabase functions delete mcp-upload-files` if deployed.
-- [ ] **3.5** Update `src/types/index.ts`: add `McpUploadKind`, `McpUploadFileResult`, `McpUploadResponse`, `McpFileMeta`.
+- [x] **3.5** Update `src/types/index.ts`: add `McpUploadKind`, `McpUploadFileResult`, `McpUploadResponse`, `McpFileMeta`.
   - Verify: `pnpm lint && pnpm build` green.
   - Rollback: revert types changes.
-- [ ] **PR #2 verification**: `pnpm lint && pnpm build` + curl smoke test (1 valid + 4 negative cases) + bucket shows object via `supabase status`. Commit: `feat(mcp): add shared mcp helpers and mcp-upload-files Edge Function`.
+- [x] **PR #2 verification**: `pnpm lint && pnpm build` + curl smoke test (1 valid + 4 negative cases) + bucket shows object via `supabase status`. Commit: `feat(mcp): add shared mcp helpers and mcp-upload-files Edge Function`.
 
 ## Phase 4: PR #3 — mcp-create-puntos  (~350 lines)
 

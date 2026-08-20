@@ -445,3 +445,20 @@ export interface McpUploadResponse {
   uploads: McpUploadResult[]
   errores: McpUploadError[]
 }
+
+export interface McpPuntoInput {
+  name: string
+  slug: string
+  x: number
+  y: number
+  z?: number | null
+  photo_refs?: string[]
+  croquis_ref?: string | null
+}
+
+export interface McpCreatePuntosResponse {
+  creados: number
+  actualizados: number
+  errores: Array<{ slug?: string; ref?: string; reason: string; detail?: string }>
+  ids: string[]
+}

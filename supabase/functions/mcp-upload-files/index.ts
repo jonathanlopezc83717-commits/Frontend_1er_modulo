@@ -72,9 +72,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Método no permitido' }, 405)
   }
 
-  const auth = await requireMcpUser(req)
-  if ('response' in auth) return auth.response
-
   const contentType = req.headers.get('content-type') ?? ''
   if (!contentType.toLowerCase().includes('multipart/form-data')) {
     return json({ error: 'Se esperaba multipart/form-data' }, 400)
@@ -115,6 +112,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: `metadata inválido: ${err instanceof Error ? err.message : 'parse error'}` }, 400)
   }
 
+  const auth = await requireMcpUser(req, metadata.proyecto_id)
+  if ('response' in auth) return auth.response
+
   const serviceEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const
   const envValues: Record<string, string> = {}
   for (const key of serviceEnv) {
@@ -126,19 +126,6 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(envValues.SUPABASE_URL, envValues.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-
-  const { data: member, error: memberError } = await admin
-    .from('proyecto_miembros')
-    .select('proyecto_id')
-    .eq('proyecto_id', metadata.proyecto_id)
-    .eq('user_id', auth.userId)
-    .maybeSingle()
-  if (memberError) {
-    return json({ error: `Error verificando membresía: ${memberError.message}` }, 500)
-  }
-  if (!member) {
-    return json({ error: 'mcp_no_miembro_proyecto', proyecto_id: metadata.proyecto_id }, 403)
-  }
 
   const knownFields = new Set(Object.keys(FIELD_TO_BUCKET_KIND))
   const filesByField = new Map<string, File[]>()

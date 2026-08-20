@@ -124,6 +124,21 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+[storage.buckets.mcp-evidencia]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/vnd.dwg"]
+
+[storage.buckets.mcp-fichas]
+public = false
+file_size_limit = "100MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets.mcp-referencias]
+public = false
+file_size_limit = "100MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

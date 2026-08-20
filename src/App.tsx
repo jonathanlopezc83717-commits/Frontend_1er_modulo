@@ -5,7 +5,7 @@ import { HistorialObras } from '@/components/HistorialObras'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive, FolderInput, Users } from 'lucide-react'
+import { LayoutDashboard, Settings, HardHat, History, Save, Cloud, AlertTriangle, LogOut, Archive, FolderInput, Users, Inbox } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { GestionMiembros } from '@/components/projects/GestionMiembros'
 import { useState, useEffect } from 'react'
@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { guardarPuntoCompleto } from '@/lib/supabase-service'
 import { listarSnapshotsNAS, snapNASDisponible } from '@/lib/snapshot-store'
@@ -27,6 +29,41 @@ import { MODULOS, type EstadoGuardado, type PuntoFerroviario } from '@/types'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { IndicadorNas } from '@/components/IndicadorNas'
+import { McpConfig, McpPendingFiles } from '@/components/admin'
+
+const POLL_PENDIENTES_MS = 30_000
+
+function usePendientesCount(proyectoId: string | null, habilitado: boolean): number {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let cancelado = false
+    if (!habilitado || !proyectoId) {
+      setCount(0)
+      return
+    }
+    const cargar = async () => {
+      const { count: total } = await supabase
+        .from('puntos_archivos')
+        .select('id', { count: 'exact', head: true })
+        .is('analyzed_at', null)
+        .in('bucket', ['mcp-evidencia', 'mcp-referencias'])
+        .eq('puntos_ferroviarios.proyecto_id', proyectoId)
+      if (!cancelado && typeof total === 'number') setCount(total)
+    }
+    cargar()
+    const id = window.setInterval(() => { if (!cancelado) cargar() }, POLL_PENDIENTES_MS)
+    const onFocus = () => { if (!cancelado) cargar() }
+    window.addEventListener('focus', onFocus)
+    return () => {
+      cancelado = true
+      window.clearInterval(id)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [proyectoId, habilitado])
+
+  return count
+}
 
 function App() {
   const { logout, perfil, proyectoActivoId, cambiarProyecto } = useAuth()
@@ -39,8 +76,11 @@ function App() {
   const [mostrarMiembros, setMostrarMiembros] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
   const [mostrarNomenclaturas, setMostrarNomenclaturas] = useState(false)
+  const [mostrarAdminMcp, setMostrarAdminMcp] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
   const [compactando, setCompactando] = useState(false)
+  const esAdmin = perfil?.rol === 'administrador'
+  const pendientesCount = usePendientesCount(proyectoActivoId, esAdmin)
 
   // Estados para el diálogo de guardado en la nube (con título)
   const [mostrarDialogoGuardar, setMostrarDialogoGuardar] = useState(false)
@@ -246,6 +286,25 @@ function App() {
                 title="Miembros del proyecto"
               >
                 <Users className="w-4 h-4" />
+              </Button>
+            )}
+            {esAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 relative"
+                onClick={() => setMostrarAdminMcp(true)}
+                title="Admin MCP (configuración + archivos pendientes)"
+              >
+                <Inbox className="w-4 h-4" />
+                {pendientesCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
+                  >
+                    {pendientesCount > 99 ? '99+' : pendientesCount}
+                  </Badge>
+                )}
               </Button>
             )}
             <Button
@@ -520,6 +579,43 @@ function App() {
       </Dialog>
 
       <GestionMiembros open={mostrarMiembros} onOpenChange={setMostrarMiembros} />
+
+      <Dialog open={mostrarAdminMcp} onOpenChange={setMostrarAdminMcp}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Inbox className="w-5 h-5" />
+              Administración MCP
+            </DialogTitle>
+            <DialogDescription>
+              Configuración del servidor MCP y archivos pendientes de análisis para el proyecto activo.
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs defaultValue="pendientes" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="pendientes" className="gap-2">
+                <Inbox className="w-4 h-4" />
+                Pendientes
+                {pendientesCount > 0 && (
+                  <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                    {pendientesCount > 99 ? '99+' : pendientesCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="config" className="gap-2">
+                <Settings className="w-4 h-4" />
+                Configuración
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="pendientes" className="mt-4">
+              <McpPendingFiles />
+            </TabsContent>
+            <TabsContent value="config" className="mt-4">
+              <McpConfig />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -3,7 +3,10 @@ import { join, resolve, normalize } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 const ACK_BODY_LIMIT = 64 * 1024
-const SNAP_BODY_LIMIT = 64 * 1024 * 1024
+// ponytail: 256MB cubre snapshots con previews base64 embebidas (~8-11MB/foto).
+// Si se queda corto: aplicar moduloData con URLs de Storage tras sync (patron
+// de handleCompactarEspacio) y los snapshots encogen solos.
+const SNAP_BODY_LIMIT = 256 * 1024 * 1024
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SNAPSHOTS_RETENCION = 10
 
@@ -23,16 +26,26 @@ function writeJsonAtomic(path, value) {
 
 function readBody(req, limit) {
   return new Promise((resolveBody) => {
-    let data = ''
-    req.on('data', (chunk) => {
-      data += chunk
-      if (data.length > limit) {
-        req.destroy()
-        resolveBody('{}')
+    const chunks = []
+    let total = 0
+    let settled = false
+    const finish = (value) => {
+      if (!settled) {
+        settled = true
+        resolveBody(value)
       }
+    }
+    req.on('data', (chunk) => {
+      total += chunk.length
+      if (total > limit) {
+        req.destroy()
+        finish(null)
+        return
+      }
+      chunks.push(chunk)
     })
-    req.on('end', () => resolveBody(data || '{}'))
-    req.on('error', () => resolveBody('{}'))
+    req.on('end', () => finish(Buffer.concat(chunks).toString('utf8') || '{}'))
+    req.on('error', () => finish(null))
   })
 }
 
@@ -65,6 +78,12 @@ export function nasBridgePlugin() {
 
         if (url.pathname === '/api/nas-pending/ack' && req.method === 'POST') {
           const body = await readBody(req, ACK_BODY_LIMIT)
+          if (body === null) {
+            res.statusCode = 413
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'cuerpo demasiado grande' }))
+            return
+          }
           const { eventIds = [] } = JSON.parse(body)
           const idSet = new Set(eventIds)
           const current = readJson(pendingPath, { pending: [] })
@@ -145,8 +164,14 @@ export function nasBridgePlugin() {
             res.end(JSON.stringify({ error: 'NAS no configurado' }))
             return
           }
-          const body = JSON.parse(await readBody(req, SNAP_BODY_LIMIT))
-          const { proyectoId, tipo, descripcion, guardadoPor = '', snapshot } = body
+          const body = await readBody(req, SNAP_BODY_LIMIT)
+          if (body === null) {
+            res.statusCode = 413
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'snapshot demasiado grande (limite 256MB)' }))
+            return
+          }
+          const { proyectoId, tipo, descripcion, guardadoPor = '', snapshot } = JSON.parse(body)
           if (!UUID_RE.test(proyectoId || '')) {
             res.statusCode = 400
             res.setHeader('Content-Type', 'application/json')

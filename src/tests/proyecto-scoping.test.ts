@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   invoke: vi.fn(),
   insertProyecto: vi.fn(),
+  upload: vi.fn().mockResolvedValue({ error: null }),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -20,11 +21,18 @@ vi.mock('@/lib/supabase', () => ({
     from: (tabla: string) => {
       throw new Error(`tabla inesperada: ${tabla}`)
     },
+    storage: {
+      from: () => ({
+        upload: mocks.upload,
+        getPublicUrl: () => ({ data: { publicUrl: 'https://storage.test/imagen.jpg' } }),
+      }),
+    },
   },
 }))
 
 import {
   cargarPuntosCompletos,
+  construirPayloadPunto,
   guardarPuntoCompleto,
   sincronizarPuntos,
 } from '@/lib/supabase-service'
@@ -84,5 +92,47 @@ describe('sincronizarPuntos: payloads con proyecto_id', () => {
         ],
       },
     })
+  })
+})
+
+describe('construirPayloadPunto: solo fotos analizadas', () => {
+  it('persiste y sube a Storage únicamente las fotos con reconocimiento', async () => {
+    const punto = hacerPunto()
+    punto.moduloData.analisis = {
+      fotosIndexadas: [
+        { id: 'f1', index: 1, nombre: 'f1.jpg', nombreFormateado: '1 - f1', subcarpeta: 'raiz', preview: 'data:image/jpeg;base64,AAA' },
+        { id: 'f2', index: 2, nombre: 'f2.jpg', nombreFormateado: '2 - f2', subcarpeta: 'raiz', preview: 'data:image/jpeg;base64,BBB' },
+      ],
+      fotosCount: 2,
+      resultadosPorImagen: [{ fotoId: 'f1', fotoNombre: 'f1.jpg', descripcion: 'vía', objetos: [] }],
+    }
+
+    const { payload, moduloDataPersistido } = await construirPayloadPunto(punto, PROYECTO)
+
+    expect(payload.fotos).toHaveLength(1)
+    expect(payload.fotos![0].nombre_archivo).toBe('f1.jpg')
+    expect(payload.fotos![0].preview_url).toBe('https://storage.test/imagen.jpg')
+    const analisis = moduloDataPersistido.analisis as { fotosIndexadas: Array<{ id: string }>; fotosCount: number }
+    expect(analisis.fotosIndexadas.map(f => f.id)).toEqual(['f1'])
+    expect(analisis.fotosCount).toBe(1)
+    expect(mocks.upload).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin reconocimientos: no sube fotos y el estado persistido queda vacío', async () => {
+    const punto = hacerPunto()
+    punto.moduloData.analisis = {
+      fotosIndexadas: [
+        { id: 'f1', index: 1, nombre: 'f1.jpg', nombreFormateado: '1 - f1', subcarpeta: 'raiz', preview: 'data:image/jpeg;base64,AAA' },
+      ],
+      fotosCount: 1,
+    }
+
+    const { payload, moduloDataPersistido } = await construirPayloadPunto(punto, PROYECTO)
+
+    expect(payload.fotos).toBeNull()
+    expect(mocks.upload).not.toHaveBeenCalled()
+    const analisis = moduloDataPersistido.analisis as { fotosIndexadas: unknown[]; fotosCount: number }
+    expect(analisis.fotosIndexadas).toEqual([])
+    expect(analisis.fotosCount).toBe(0)
   })
 })

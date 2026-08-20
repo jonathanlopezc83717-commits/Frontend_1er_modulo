@@ -323,7 +323,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const puntos = appStore.getState().puntos
       const titulo = descripcion?.trim() || 'Estado guardado manualmente'
-      const copiaManual = crearCopiaSeguridad('manual', titulo)
       const total = puntos.length
 
       toast.loading('Sincronizando con la nube...', {
@@ -331,28 +330,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
         description: total > 0 ? `0 / ${total} puntos` : 'Guardando estado',
       })
 
-      // Sincronizar puntos (Supabase) y snapshot (NAS) en paralelo: son independientes entre sí
-      const [result, snapshotResult] = await Promise.all([
-        sincronizarPuntos(puntos, proyectoId, {
-          concurrency: 5,
-          onLote: (completadas, tot) => {
-            toast.loading('Sincronizando con la nube...', {
-              id: toastId,
-              description: `${completadas} / ${tot} puntos`,
-            })
-          },
-        }),
-        guardarSnapshotNAS({
-          proyectoId,
-          tipo: copiaManual.tipo,
-          descripcion: copiaManual.descripcion,
-          guardadoPor,
-          snapshot: copiaManual.snapshot,
-        }),
-      ])
+      // 1) Puntos a Supabase. 2) Aplicar el moduloData persistido (URLs de
+      // Storage + solo fotos analizadas) para aligerar el estado local.
+      // 3) Recién entonces el snapshot NAS, que sale liviano.
+      const result = await sincronizarPuntos(puntos, proyectoId, {
+        concurrency: 5,
+        onLote: (completadas, tot) => {
+          toast.loading('Sincronizando con la nube...', {
+            id: toastId,
+            description: `${completadas} / ${tot} puntos`,
+          })
+        },
+      })
+
+      for (const act of result.actualizaciones ?? []) {
+        actualizarPunto(act.puntoId, { moduloData: act.moduloData as PuntoFerroviario['moduloData'] })
+      }
+
+      const copiaManual = crearCopiaSeguridad('manual', titulo)
+      const snapshotResult = await guardarSnapshotNAS({
+        proyectoId,
+        tipo: copiaManual.tipo,
+        descripcion: copiaManual.descripcion,
+        guardadoPor,
+        snapshot: copiaManual.snapshot,
+      })
 
       if (!snapshotResult.success) {
-        toast.error('Servidor de archivos no disponible — no se pudo guardar el snapshot', {
+        toast.error('No se pudo guardar el snapshot en el servidor de archivos', {
           id: toastId,
           description: snapshotResult.error || 'error desconocido',
         })
@@ -382,7 +387,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       return { success: false, message: String(error) }
     }
-  }, [crearCopiaSeguridad, appStore, proyectoId, guardadoPor])
+  }, [crearCopiaSeguridad, actualizarPunto, appStore, proyectoId, guardadoPor])
 
   const cargarDesdeSupabase = useCallback(async () => {
     try {

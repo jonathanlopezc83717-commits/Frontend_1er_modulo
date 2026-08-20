@@ -141,7 +141,7 @@ function App() {
         }
       }
       if (fallidos === 0) {
-        toast.success(`Compactación completa: ${exitosos} punto(s) re-guardados con imágenes en Storage`, { id: toastId })
+        toast.success(`Compactación completa: ${exitosos} punto(s) — solo fotos analizadas conservadas`, { id: toastId })
       } else {
         toast.warning(`Compactación terminada: ${exitosos} OK, ${fallidos} con error`, { id: toastId })
       }

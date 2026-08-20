@@ -243,14 +243,20 @@ export async function sustituirDataUrlsEnArbol(
   return resultado
 }
 
+type FotoIndexadaAnalisis = NonNullable<NonNullable<PuntoFerroviario['moduloData']['analisis']>['fotosIndexadas']>[number]
+
 /**
  * Construye el payload `{ punto, coordenadas, documentos, analisis, fotos }`
- * esperado por el RPC `guardar_punto_completo`. Comparte lógica entre
- * `guardarPuntoCompleto` y `sincronizarPuntos` (E2). Las previews de fotos
- * `data:image/...` se resuelven a URLs de Storage aquí (client-side) porque
- * no pueden subirse desde el Edge Function.
+ * esperado por el RPC `guardar_punto_completo`, más el `moduloDataPersistido`
+ * (data URLs resueltas a URLs de Storage). Solo se persisten las fotos que
+ * pasaron por reconocimiento (`resultadosPorImagen`); las demás se descartan
+ * del estado guardado sin tocar la carpeta origen. Comparte lógica entre
+ * `guardarPuntoCompleto` y `sincronizarPuntos` (E2).
  */
-export async function construirPayloadPunto(punto: PuntoFerroviario, proyectoId: string): Promise<PuntoPayload> {
+export async function construirPayloadPunto(
+  punto: PuntoFerroviario,
+  proyectoId: string
+): Promise<{ payload: PuntoPayload; moduloDataPersistido: Record<string, unknown> }> {
   const puntoDb = puntoToDB(punto)
   puntoDb.proyecto_id = proyectoId
 
@@ -288,19 +294,30 @@ export async function construirPayloadPunto(punto: PuntoFerroviario, proyectoId:
     }
   }
 
-  let fotos: PuntoPayload['fotos'] = null
+  let fotosAnalizadas: FotoIndexadaAnalisis[] = []
   if (analisisModulo?.fotosIndexadas && analisisModulo.fotosIndexadas.length > 0) {
-    fotos = await Promise.all(
-      analisisModulo.fotosIndexadas.map(async f => ({
-        indice: f.index,
-        nombre_archivo: f.nombre,
-        nombre_formateado: f.nombreFormateado,
-        subcarpeta: f.subcarpeta,
-        preview_url: f.preview.startsWith('data:image')
-          ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
-          : f.preview,
-      }))
+    const analizadas = new Set((analisisModulo.resultadosPorImagen ?? []).map(r => r.fotoId))
+    fotosAnalizadas = await Promise.all(
+      analisisModulo.fotosIndexadas
+        .filter(f => analizadas.has(f.id))
+        .map(async f => ({
+          ...f,
+          preview: f.preview.startsWith('data:image')
+            ? await dataUrlAArchivoStorage(f.preview, `puntos/${punto.id}/fotos`)
+            : f.preview,
+        })),
     )
+  }
+
+  let fotos: PuntoPayload['fotos'] = null
+  if (fotosAnalizadas.length > 0) {
+    fotos = fotosAnalizadas.map(f => ({
+      indice: f.index,
+      nombre_archivo: f.nombre,
+      nombre_formateado: f.nombreFormateado,
+      subcarpeta: f.subcarpeta,
+      preview_url: f.preview,
+    }))
   }
 
   puntoDb.modulo_data = await sustituirDataUrlsEnArbol(
@@ -309,7 +326,19 @@ export async function construirPayloadPunto(punto: PuntoFerroviario, proyectoId:
     ['fotosIndexadas']
   ) as Record<string, unknown>
 
-  return { punto: puntoDb, coordenadas, documentos, analisis, fotos }
+  // Vista para el estado local (no para DB): igual al modulo_data persistido
+  // pero con analisis.fotosIndexadas solo con las fotos que pasaron por
+  // reconocimiento, previews resueltas a URLs de Storage.
+  const moduloDataPersistido: Record<string, unknown> = { ...puntoDb.modulo_data }
+  if (analisisModulo) {
+    moduloDataPersistido.analisis = {
+      ...((puntoDb.modulo_data.analisis ?? {}) as Record<string, unknown>),
+      fotosIndexadas: fotosAnalizadas,
+      fotosCount: fotosAnalizadas.length,
+    }
+  }
+
+  return { payload: { punto: puntoDb, coordenadas, documentos, analisis, fotos }, moduloDataPersistido }
 }
 
 /**
@@ -320,7 +349,7 @@ export async function construirPayloadPunto(punto: PuntoFerroviario, proyectoId:
  */
 export async function guardarPuntoCompleto(punto: PuntoFerroviario, proyectoId: string): Promise<{ success: boolean; error?: string; moduloData?: Record<string, unknown> }> {
   try {
-    const payload = await construirPayloadPunto(punto, proyectoId)
+    const { payload, moduloDataPersistido } = await construirPayloadPunto(punto, proyectoId)
     const { data, error } = await supabase.rpc('guardar_punto_completo', { p_payload: payload })
     if (error) throw error
 
@@ -329,7 +358,7 @@ export async function guardarPuntoCompleto(punto: PuntoFerroviario, proyectoId: 
       return { success: false, error: resultado.error || 'Error desconocido guardando el punto' }
     }
 
-    return { success: true, moduloData: payload.punto.modulo_data || undefined }
+    return { success: true, moduloData: moduloDataPersistido }
   } catch (error) {
     console.error('Error guardando punto:', error)
     const errorMsg = error && typeof error === 'object'
@@ -600,7 +629,8 @@ export async function sincronizarPuntos(
   success: boolean;
   guardados: number;
   errores: number;
-  error?: string
+  error?: string;
+  actualizaciones?: Array<{ puntoId: string; moduloData: Record<string, unknown> }>
 }> {
   if (puntos.length === 0) {
     return { success: true, guardados: 0, errores: 0 }
@@ -609,7 +639,8 @@ export async function sincronizarPuntos(
   opciones?.onLote?.(0, puntos.length)
 
   try {
-    const payloads = await Promise.all(puntos.map(punto => construirPayloadPunto(punto, proyectoId)))
+    const construidos = await Promise.all(puntos.map(punto => construirPayloadPunto(punto, proyectoId)))
+    const payloads = construidos.map(c => c.payload)
 
     const { data, error } = await supabase.functions.invoke<{
       guardados: number
@@ -629,6 +660,14 @@ export async function sincronizarPuntos(
     }
     opciones?.onLote?.(puntos.length, puntos.length)
 
+    // moduloData persistido (URLs + solo fotos analizadas) de los puntos que
+    // el servidor guardó bien, para que el llamador aligere su estado local.
+    const actualizaciones = (data?.detalles ?? [])
+      .map((d, i) => (d?.success && puntos[i]
+        ? { puntoId: puntos[i].id, moduloData: construidos[i].moduloDataPersistido }
+        : null))
+      .filter((x): x is { puntoId: string; moduloData: Record<string, unknown> } => x !== null)
+
     const primerError = fallidos[0]?.error
     return {
       success: errores === 0,
@@ -637,6 +676,7 @@ export async function sincronizarPuntos(
       error: errores > 0
         ? `${errores} punto(s) no pudieron guardarse${primerError ? `: ${primerError}` : ''}`
         : undefined,
+      actualizaciones,
     }
   } catch (error) {
     opciones?.onLote?.(puntos.length, puntos.length)

@@ -117,6 +117,7 @@ function hacerPunto(): PuntoFerroviario {
           subcarpeta: 'sub',
           preview: PREVIEW,
         }],
+        resultadosPorImagen: [{ fotoId: 'f1', fotoNombre: 'IMG_1.jpg', descripcion: 'vía', objetos: [] }],
         imageUrls: ['https://cdn.example/x.png'],
         imageItems: [{ file: {} as File, preview: EVID, id: 'it1' }],
       },
@@ -126,7 +127,7 @@ function hacerPunto(): PuntoFerroviario {
 
 describe('construirPayloadPunto', () => {
   it('envía modulo_data sin ninguna cadena data:image y sin doble proceso de fotosIndexadas', async () => {
-    const payload = await construirPayloadPunto(hacerPunto(), 'proyecto-1')
+    const { payload } = await construirPayloadPunto(hacerPunto(), 'proyecto-1')
 
     const moduloData = payload.punto.modulo_data as Record<string, unknown>
     const geo = moduloData.georeferencia as Record<string, unknown>

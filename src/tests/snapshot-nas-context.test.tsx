@@ -138,7 +138,7 @@ describe('sincronizarConSupabase guarda via snapshot-store NAS', () => {
     expect(resultado!.success).toBe(false)
     const { toast } = await import('sonner')
     expect(toast.error).toHaveBeenCalledWith(
-      'Servidor de archivos no disponible — no se pudo guardar el snapshot',
+      'No se pudo guardar el snapshot en el servidor de archivos',
       expect.objectContaining({ description: 'nas-snapshots: 503 NAS no configurado' }),
     )
   })

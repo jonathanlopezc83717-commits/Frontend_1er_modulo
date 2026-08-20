@@ -18,6 +18,8 @@ export interface NasPendingEvent {
 export interface NasPendingResponse {
   pending: NasPendingEvent[]
   updatedAt: string | null
+  /** Ruta local vigilada por el watcher (presente si el watcher escribió el archivo). */
+  watchPath?: string | null
 }
 
 const EXCEL_EXTS = new Set(['.xlsx', '.xls', '.csv'])

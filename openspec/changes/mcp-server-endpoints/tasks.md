@@ -222,14 +222,14 @@ Chain strategy: stacked-to-main
 
 **Goal**: Admin UI for per-project config toggle + pending-queue table with "Analizar ahora" button. Creates new `src/components/admin/` directory (verified: does not exist today).
 
-- [ ] **6.1** Create `src/components/admin/McpConfig.tsx`
+- [x] **6.1** Create `src/components/admin/McpConfig.tsx`
   - Reads `mcp_config` row for `useApp().proyectoActivoId` via `supabase.from('mcp_config').select('*').eq('proyecto_id', id).maybeSingle()`.
   - Toggle (Radix Switch) bound to `auto_trigger_on_upload` — calls `supabase.from('mcp_config').upsert({proyecto_id, auto_trigger_on_upload, updated_at: new Date().toISOString()}, {onConflict:'proyecto_id'})` with admin JWT.
   - Text input for `cron_schedule` (placeholder `0 * * * *`, future use per spec).
   - Read-only display of `mcp-server@<domain>` email (from auth.users lookup OR config note).
   - Verify: `pnpm dev`; toggle persists across reload; non-admin sees disabled toggle with "Solo administradores" tooltip.
   - Rollback: file deletion.
-- [ ] **6.2** Create `src/components/admin/McpPendingFiles.tsx`
+- [x] **6.2** Create `src/components/admin/McpPendingFiles.tsx`
   - Lists `puntos_archivos WHERE analyzed_at IS NULL` joined with `puntos_ferroviarios.slug, puntos_ferroviarios.nombre, puntos_ferroviarios.proyecto_id`.
   - Filtered by `useApp().proyectoActivoId` (admin sees ALL projects; general sees own).
   - Polls every 30s (or Supabase realtime channel if available locally).
@@ -237,19 +237,19 @@ Chain strategy: stacked-to-main
   - Shows pending count badge + per-row progress via `sonner` toast on response.
   - Verify: seeded 3 pendientes → click button → toast "3 puntos analizados"; pending count drops to 0; `puntos_archivos.analyzed_at` populated.
   - Rollback: file deletion.
-- [ ] **6.3** Create `src/components/admin/index.ts` + entry point integration
+- [x] **6.3** Create `src/components/admin/index.ts` + entry point integration
   - `src/components/admin/index.ts` re-exports `McpConfig`, `McpPendingFiles`.
   - Verify: `pnpm build` succeeds.
   - Rollback: file deletion.
-- [ ] **6.4** Add admin route/nav integration in `src/App.tsx` or `src/components/ModuleTabs.tsx`
+- [x] **6.4** Add admin route/nav integration in `src/App.tsx` or `src/components/ModuleTabs.tsx`
   - Creates the admin section if not present; gates by `useAuth().perfil.rol === 'administrador'`.
   - Badge in nav shows total pendientes across visible projects.
   - Verify: non-admin → entry hidden; admin → entry visible + badge accurate.
   - Rollback: revert App.tsx / ModuleTabs.tsx.
-- [ ] **6.5** Update `src/types/index.ts`: add `McpConfigRow`, `McpPendingFileRow` (UI-side, distinct from Edge return types).
+- [x] **6.5** Update `src/types/index.ts`: add `McpConfigRow`, `McpPendingFileRow` (UI-side, distinct from Edge return types).
   - Verify: `pnpm lint && pnpm build` green.
   - Rollback: revert types changes.
-- [ ] **PR #5 verification**: `pnpm lint && pnpm build` + manual UI smoke: login admin → toggle persists → click "Analizar ahora" → results match. **If forecast >800 at apply time**: split into PR #5a (McpConfig + types) and PR #5b (McpPendingFiles + nav integration). Commit: `feat(mcp): add admin UI for MCP config toggle and pending-file analysis trigger`.
+- [x] **PR #5 verification**: `pnpm lint && pnpm build` + manual UI smoke: login admin → toggle persists → click "Analizar ahora" → results match. **If forecast >800 at apply time**: split into PR #5a (McpConfig + types) and PR #5b (McpPendingFiles + nav integration). Commit: `feat(mcp): add admin UI for MCP config toggle and pending-file analysis trigger`.
 
 ## Phase 7: PR #6 — server/mcp_client.py  (~250 lines)
 

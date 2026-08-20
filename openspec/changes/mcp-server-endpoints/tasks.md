@@ -193,7 +193,7 @@ Chain strategy: stacked-to-main
 
 **Goal**: Admin-only manual analysis trigger + signed-URL helper restricted to `mcp-fichas`.
 
-- [ ] **5.1** Create `supabase/functions/mcp-generate-download-link/index.ts`
+- [x] **5.1** Create `supabase/functions/mcp-generate-download-link/index.ts`
   - POST + OPTIONS; `requireAdminOrGeneral(req)` (rejects `mcp` with 403 `rol_no_autorizado`).
   - Body: `{path: string, ttlSeconds?: number}`.
   - Validates `path.startsWith('mcp-fichas/')` — else 403 `path_fuera_de_mcp-fichas`.
@@ -202,7 +202,7 @@ Chain strategy: stacked-to-main
   - Returns `{signedUrl: string, expiresAt: ISO string}`.
   - Verify: curl admin JWT + `mcp-fichas/P/2026-08/20/PK-001.pdf` → 200 with `signedUrl`; same with `mcp-evidencia/...` → 403; mcp JWT → 403; `ttlSeconds: 30` → 400; `ttlSeconds: 999999999` → 400.
   - Rollback: file deletion.
-- [ ] **5.2** Create `supabase/functions/mcp-trigger-analysis/index.ts`
+- [x] **5.2** Create `supabase/functions/mcp-trigger-analysis/index.ts`
   - POST + OPTIONS; `requireAdmin(req)`.
   - Body: `{proyecto_id: string, punto_slug?: string}`.
   - Reads `puntos_archivos WHERE analyzed_at IS NULL AND punto_id IN (SELECT id FROM puntos_ferroviarios WHERE proyecto_id = p_proyecto AND (? slug IS NULL OR slug = p_slug))`.
@@ -213,10 +213,10 @@ Chain strategy: stacked-to-main
   - Returns `{procesados: number, errores: [{punto_id, error}]}` — HTTP 200 even on partial failures.
   - Verify: curl admin JWT + 3 pendientes → `{procesados:3, errores:[]}` + `puntos_archivos.analyzed_at` populated + `analisis_imagenes` rows grew; 0 pendientes → `{procesados:0, errores:[]}`; mcp JWT → 403.
   - Rollback: file deletion.
-- [ ] **5.3** Update `src/types/index.ts`: add `McpDownloadLinkResponse`, `McpTriggerInput`, `McpTriggerAnalysisResponse`, `McpPendingFile`.
+- [x] **5.3** Update `src/types/index.ts`: add `McpDownloadLinkResponse`, `McpTriggerInput`, `McpTriggerAnalysisResponse`, `McpPendingFile`.
   - Verify: `pnpm lint && pnpm build` green.
   - Rollback: revert types changes.
-- [ ] **PR #4 verification**: `pnpm lint && pnpm build` + curl smoke (admin success, admin no pendientes, mcp rejected, ttl out-of-range, path-prefix rejection) + end-to-end smoke per design §11 (upload → create punto → admin trigger → analyzed_at stamped). Commit: `feat(mcp): add admin trigger and signed-URL helper Edge Functions`.
+- [x] **PR #4 verification**: `pnpm lint && pnpm build` + curl smoke (admin success, admin no pendientes, mcp rejected, ttl out-of-range, path-prefix rejection) + end-to-end smoke per design §11 (upload → create punto → admin trigger → analyzed_at stamped). Commit: `feat(mcp): add admin trigger and signed-URL helper Edge Functions`.
 
 ## Phase 6: PR #5 — Admin UI  (~445 lines, may split 5a/5b at apply if >800 forecast)
 

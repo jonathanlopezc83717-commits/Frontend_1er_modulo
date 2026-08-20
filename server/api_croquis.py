@@ -385,7 +385,30 @@ def ver_indice():
     return _cargar_indice()
 
 
-_NAS_ENV = os.environ.get("NAS_WATCH_PATH", "").strip()
+def _leer_env_archivo() -> dict:
+    """Parsea KEY=VALUE del .env del repo.
+
+    Vite carga .env solo en dev; en produccion (start-prod.cjs) el proceso
+    Python no lo lee. Este fallback permite configurar NAS_WATCH_PATH una
+    sola vez en .env para ambos entornos.
+    """
+    valores: dict = {}
+    ruta = Path(__file__).resolve().parent.parent / ".env"
+    if not ruta.exists():
+        return valores
+    for linea in ruta.read_text(encoding="utf-8-sig").splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        clave, _, valor = linea.partition("=")
+        valores[clave.strip()] = valor.strip().strip('"').strip("'")
+    return valores
+
+
+_NAS_ENV = (
+    os.environ.get("NAS_WATCH_PATH", "").strip()
+    or _leer_env_archivo().get("NAS_WATCH_PATH", "").strip()
+)
 _NAS_ROOT = Path(_NAS_ENV).resolve() if _NAS_ENV else None
 _PENDIENTES_PATH = _NAS_ROOT / ".watcher" / "pending-approval.json" if _NAS_ROOT else None
 
@@ -639,6 +662,10 @@ else:
 if __name__ == "__main__":
     import uvicorn
 
+    if _NAS_ROOT:
+        print(f"NAS configurado: {_NAS_ROOT}")
+    else:
+        print("NAS NO configurado: los endpoints /api/nas-* devolveran 503")
     uvicorn.run(
         app,
         host=os.environ.get("CROQUIS_API_HOST", "127.0.0.1"),

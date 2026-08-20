@@ -1,0 +1,26 @@
+-- ============================================================
+-- MIGRACIÓN: agregar valor 'mcp' al enum rol_usuario
+-- Change: mcp-server-endpoints (PR #1a — enum + schema foundation)
+--
+-- Purpose:
+--   Habilita el cuarto rol del sistema (administrador, general,
+--   usuario, mcp). Necesario para la autenticación del servidor
+--   MCP de Civil 3D que escribe puntos y evidencia sin pasar por
+--   el navegador.
+--
+-- Depends on:
+--   public.rol_usuario (definido en 20260817000001_auth_perfiles_rls.sql:16)
+--
+-- Reverses via:
+--   `ALTER TYPE public.rol_usuario DROP VALUE 'mcp';` is NOT
+--   supported in PG 14+. Forward-only: a 4-byte cost. Acceptable
+--   per design D5 rollback plan.
+--
+-- PG 14+ rule honored:
+--   `ALTER TYPE ... ADD VALUE` must run in its own transaction
+--   because the new value cannot be referenced (cast, compared
+--   to an enum-typed column) until the transaction commits. This
+--   file is intentionally a single statement — no other DDL.
+-- ============================================================
+
+ALTER TYPE public.rol_usuario ADD VALUE IF NOT EXISTS 'mcp';

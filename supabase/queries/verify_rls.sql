@@ -412,4 +412,142 @@ select public.verify_assert(
 
 reset role;
 
+-- ---------- PR #1b: mcp (civil 3D workstation) ----------
+-- Bootstrap del usuario mcp via fn_crear_usuario_mcp (idempotente).
+-- El id se asigna por fn_crear_usuario_mcp via gen_random_uuid(); lo
+-- capturamos en una variable para evitar problemas de ACL con temp
+-- tables cuando bajamos a role authenticated.
+do $$
+declare
+  v_mcp_id uuid;
+begin
+  v_mcp_id := fn_crear_usuario_mcp('mcp-verify@verify-rls.local', 'change-m3-now');
+  perform set_config('verify_rls.mcp_user_id', v_mcp_id::text, false);
+end $$;
+
+-- Boostrap del proyecto P_mcp (el trigger trg_crear_miembro_creador
+-- ya agrega al mcp user como miembro).
+insert into public.proyectos (id, nombre, creado_por) values (
+  'bbbbbbbb-0000-0000-0000-0000000000b1',
+  'Proyecto MCP verify',
+  current_setting('verify_rls.mcp_user_id')::uuid);
+
+-- Punto en P_mcp (via INSERT directo, probando que el mcp user tb
+-- puede escribir si la RLS lo deja).
+insert into public.puntos_ferroviarios (
+  id, numero_serie, nombre, estado, proyecto_id, slug, coordenadas_cad
+) values (
+  'cccccccc-0000-0000-0000-0000000000c1', 1, 'Punto MCP verify', 'activo',
+  'bbbbbbbb-0000-0000-0000-0000000000b1', 'TEST-MCP-1B', '{"x":1,"y":2}'::jsonb);
+
+-- bootstrap storage object bajo prefijo del proyecto del mcp.
+-- (postgres bypassa RLS: lo usaremos como baseline.)
+insert into storage.objects (bucket_id, name, owner, metadata)
+values (
+  'mcp-evidencia',
+  'bbbbbbbb-0000-0000-0000-0000000000b1/2026-08/20/foto/test.jpg',
+  current_setting('verify_rls.mcp_user_id')::uuid,
+  '{"mimetype":"image/jpeg","sizeBytes":1024}'::jsonb)
+on conflict (bucket_id, name) do nothing;
+
+-- ---------- persona: mcp-readonly (mcp user, miembro de P_mcp) ----------
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('verify_rls.mcp_user_id'),
+                    'role', 'authenticated')::text,
+  true);
+
+-- aislamiento por proyecto: mcp user NO ve P1 ni P2 ni P3.
+select public.verify_assert(
+  (select count(*) = 1 from public.puntos_ferroviarios
+    where slug = 'TEST-MCP-1B'),
+  'mcp-readonly: ve solo el punto del proyecto donde es miembro');
+
+-- intento de leer proyectos ajenos devuelve 0
+select public.verify_assert(
+  (select count(*) = 0 from public.proyectos
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'mcp-readonly: no debe leer proyectos ajenos (aislamiento por RLS)');
+
+-- mcp no puede crear proyectos (spec: MCP cannot create projects)
+do $$
+begin
+  insert into public.proyectos (nombre, creado_por) values
+    ('mcp-proyecto-ilegal',
+     current_setting('verify_rls.mcp_user_id')::uuid);
+  raise exception 'VERIFY FAILED: mcp no debe poder crear proyectos';
+exception
+  when insufficient_privilege then
+    raise notice 'OK: creacion de proyecto por mcp rechazada';
+end $$;
+
+-- mcp no puede modificar perfiles (trigger trg_congelar_rol)
+do $$
+begin
+  update public.perfiles set rol = 'administrador'
+    where id = current_setting('verify_rls.mcp_user_id')::uuid;
+  raise exception 'VERIFY FAILED: mcp no debe poder cambiar su propio rol';
+exception when others then
+  if sqlerrm not like '%administrador%' then
+    raise exception 'VERIFY FAILED: error inesperado en freeze de rol: %', sqlerrm;
+  end if;
+  raise notice 'OK: cambio de rol por mcp rechazado';
+end $$;
+
+-- mcp no puede escribir mcp_config (admin-only)
+do $$
+begin
+  insert into public.mcp_config (proyecto_id, auto_trigger_on_upload)
+  values ('bbbbbbbb-0000-0000-0000-0000000000b1', true);
+  raise exception 'VERIFY FAILED: mcp no debe poder escribir mcp_config';
+exception
+  when insufficient_privilege then
+    raise notice 'OK: INSERT de mcp en mcp_config rechazado';
+end $$;
+
+-- mcp-readonly: no puede UPDATE el slug (trigger trg_puntos_slug_inmutable)
+do $$
+begin
+  update public.puntos_ferroviarios
+    set slug = 'TEST-MCP-1B-NEW'
+    where slug = 'TEST-MCP-1B';
+  raise exception 'VERIFY FAILED: mcp no debe poder cambiar slug del punto';
+exception when others then
+  if sqlerrm not like '%slug_inmutable%' then
+    raise exception 'VERIFY FAILED: error inesperado en slug-inmutable: %', sqlerrm;
+  end if;
+  raise notice 'OK: cambio de slug por mcp rechazado (trigger)';
+end $$;
+
+-- ---------- persona: mcp-write-own-project (storage RLS) ----------
+-- upload bajo prefijo de OTRO proyecto: esperado policy denial
+do $$
+begin
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values (
+    'mcp-evidencia',
+    'aaaaaaaa-0000-0000-0000-000000000001/2026-08/20/foto/otro.jpg',
+    current_setting('verify_rls.mcp_user_id')::uuid,
+    '{"mimetype":"image/jpeg","sizeBytes":1024}'::jsonb);
+  raise exception 'VERIFY FAILED: mcp no debe poder subir a prefijo de otro proyecto';
+exception when insufficient_privilege then
+  raise notice 'OK: upload de mcp a prefijo ajeno rechazado';
+end $$;
+
+-- upload en mcp-fichas: NO existe policy de INSERT para mcp
+do $$
+begin
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values (
+    'mcp-fichas',
+    'bbbbbbbb-0000-0000-0000-0000000000b1/2026-08/20/ficha/test.pdf',
+    current_setting('verify_rls.mcp_user_id')::uuid,
+    '{"mimetype":"application/pdf","sizeBytes":1024}'::jsonb);
+  raise exception 'VERIFY FAILED: mcp no debe poder escribir en mcp-fichas';
+exception when insufficient_privilege then
+  raise notice 'OK: INSERT de mcp en mcp-fichas rechazado';
+end $$;
+
+reset role;
+
 rollback;

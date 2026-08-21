@@ -418,3 +418,89 @@ export const DEFAULT_MODEL: ModelId = 'openai/gpt-4o-mini'
 export const MAX_IMAGES = 4
 export const DEBOUNCE_MS = 500
 export const MAX_VERSIONES_PUNTO = 3
+
+// ============ MCP SERVER ENDPOINTS (mcp-server-endpoints) ============
+
+export type McpBucket = 'mcp-evidencia' | 'mcp-fichas' | 'mcp-referencias'
+
+export type McpUploadKind = 'foto' | 'croquis' | 'documento' | 'referencia'
+
+export interface McpUploadResult {
+  slug: string
+  path: string
+  bucket: McpBucket
+  kind: McpUploadKind
+  signedUrl: string
+  size: number
+  mimeType: string
+}
+
+export interface McpUploadError {
+  fieldName: string
+  fileName: string
+  reason: string
+}
+
+export interface McpUploadResponse {
+  uploads: McpUploadResult[]
+  errores: McpUploadError[]
+}
+
+export interface McpPuntoInput {
+  name: string
+  slug: string
+  x: number
+  y: number
+  z?: number | null
+  photo_refs?: string[]
+  croquis_ref?: string | null
+}
+
+export interface McpCreatePuntosResponse {
+  creados: number
+  actualizados: number
+  errores: Array<{ slug?: string; ref?: string; reason: string; detail?: string }>
+  ids: string[]
+}
+
+export interface McpDownloadLinkInput {
+  path: string
+  ttlSeconds?: number
+}
+
+export interface McpDownloadLinkResponse {
+  signedUrl: string
+  expiresAt: string
+}
+
+export interface McpTriggerAnalysisInput {
+  proyecto_id: string
+  punto_slug?: string
+}
+
+export interface McpTriggerAnalysisResponse {
+  procesados: number
+  errores: Array<{ punto_slug?: string; reason: string; detail?: string }>
+}
+
+export interface McpConfigRow {
+  proyecto_id: string
+  auto_trigger_on_upload: boolean
+  cron_schedule: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface McpPendingArchivo {
+  id: string
+  storage_path: string
+  bucket: 'mcp-evidencia' | 'mcp-referencias'
+  kind: 'foto' | 'croquis' | 'documento' | 'referencia'
+  mime_type: string | null
+  size_bytes: number | null
+  punto_id: string
+  punto_slug: string
+  punto_name: string
+  coordenadas_cad: { x: number; y: number; z?: number | null } | null
+  created_at: string
+}

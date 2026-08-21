@@ -301,3 +301,10 @@ Chain strategy: stacked-to-main
 - OAuth/SSO for the MCP user; per-bucket quotas; deletion API for MCP-uploaded objects.
 - Async/batched trigger pattern for >50 pendientes (single-call MVP).
 - `mcp-generate-download-link` accepting `mcp-evidencia` paths (admin/general only read what they already have RLS to see).
+
+---
+**Archived**: 2026-08-20 (sdd-archive)
+**Status**: ⚠️ Verified with warnings — see `verify-report.md` + `archive-report.md`
+**Branches merged (local, not pushed)**: `feat/mcp-server-endpoints-1a-enum-schema` → `feat/mcp-server-endpoints-1b-rpc-buckets` → `feat/mcp-server-endpoints-2-upload-files` → `feat/mcp-server-endpoints-3-create-puntos` → `feat/mcp-server-endpoints-4-trigger-download` → `feat/mcp-server-endpoints-5-admin-ui` → `feat/mcp-server-endpoints-6-mcp-client`
+**Total**: 30 commits across 7 branches, ~3700 lines added, 1 line removed
+**Operator**: push branches in order (or squash to one PR if review budget permits) and verify against a live Supabase before merging to master

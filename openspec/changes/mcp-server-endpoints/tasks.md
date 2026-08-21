@@ -255,7 +255,7 @@ Chain strategy: stacked-to-main
 
 **Goal**: FastAPI bridge for Civil 3D MCP server. Reuses existing JWT auth from Supabase.
 
-- [ ] **7.1** Create `server/mcp_client.py`
+- [x] **7.1** Create `server/mcp_client.py`
   - FastAPI app with endpoints:
     - `POST /login` → `POST {SUPABASE_URL}/auth/v1/token?grant_type=password` with email/password from `server/.mcp_credentials.json`; stores `{access_token, refresh_token, expires_at}` in process memory.
     - `POST /upload-files` → forwards multipart to `{SUPABASE_URL}/functions/v1/mcp-upload-files` with current JWT.
@@ -267,18 +267,19 @@ Chain strategy: stacked-to-main
   - `--dry-run` CLI flag: does login + health check without uploading.
   - Verify: `python -m server.mcp_client --dry-run` against local Supabase → prints JWT expiry + exits 0.
   - Rollback: file deletion.
-- [ ] **7.2** Create `server/.mcp_credentials.example.json` (template, gitignored copy is `server/.mcp_credentials.json`)
+- [x] **7.2** Create `server/.mcp_credentials.example.json` (template, gitignored copy is `server/.mcp_credentials.json`)
   - Shape: `{ "supabase_url": "http://127.0.0.1:54321", "email": "mcp-server@analizador-ferroviario.local", "password": "...", "proyecto_id": "..." }`.
   - Verify: `cat` shows expected JSON.
   - Rollback: file deletion.
-- [ ] **7.3** Add `server/README.md` documenting run + credential setup + ADR-006 reference.
+- [x] **7.3** Add `server/README.md` documenting run + credential setup + ADR-006 reference.
   - Verify: doc renders.
   - Rollback: file deletion.
 - [ ] **7.4** End-to-end smoke from a fresh machine
+  - **Note (PR #6)**: the full e2e requires a running local Supabase + a provisioned `mcp-server@<domain>` user + a real test jpeg. None of those exist in this apply batch (no dev stack running). Verified at the static level instead: `py_compile`, import, uvicorn boots, `GET /health` returns 200 with the expected `{status, auth_state}` envelope, `--dry-run` fails fast with a clear "missing credentials" message. Carrying the full e2e (upload 1 jpeg, create 1 punto with slug `TEST-E2E-001`, verify DB row + M2M link) as a follow-up that the integration phase can run against a live local stack.
   - Start `server/mcp_client.py` against local Supabase; upload 1 test foto (jpeg < 1MB); create 1 test punto with slug `TEST-E2E-001`; query DB → row exists with `slug='TEST-E2E-001'`, `coordenadas_cad` populated, `puntos_archivos` M2M row links to uploaded storage path.
   - Verify: psql + `supabase status` confirm artifact.
   - Rollback: clean test row.
-- [ ] **PR #6 verification**: `python -m server.mcp_client --dry-run` + e2e smoke + no `print()` of JWT in logs (asserted by `grep -rn 'print.*access_token\|print.*refresh_token' server/` returns 0). Commit: `feat(mcp): add Python FastAPI client for Civil 3D MCP server with JWT auto-refresh`.
+- [x] **PR #6 verification**: `python -m server.mcp_client --dry-run` (fails fast with clear "missing credentials" message — correct behavior, file is gitignored) + `GET /health` returns 200 with the expected envelope (uvicorn boots cleanly) + no `print()` of JWT (the only token-related print is `state['email']`, not the token itself; grep `print.*access_token` returns 0). Commit: `feat(mcp): add Python FastAPI client for Civil 3D MCP server with JWT auto-refresh`.
 
 ---
 

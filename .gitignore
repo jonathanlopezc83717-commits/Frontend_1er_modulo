@@ -9,10 +9,6 @@ server/.croquis_cache/
 __pycache__/
 *.pyc
 
-# MCP client bridge (NEVER commit credentials)
-server/.mcp_credentials.json
-server/__pycache__/
-
 # PyInstaller (CroquisBatch.exe)
 /build
 /*.spec
